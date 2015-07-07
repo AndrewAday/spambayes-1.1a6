@@ -31,7 +31,7 @@ def main():
     detection_rates = []
     target_cluster_rates = []
 
-    for size in range(5, 10, 5):
+    for size in range(5, 100, 5):
         cluster = ActiveUnlearnDriver.Cluster(msg, size, au, "extreme")
         print "Clustering with size " + str(cluster.size) + "..."
         cluster_sizes.append(size)

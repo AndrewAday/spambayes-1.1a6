@@ -46,8 +46,8 @@ class Cluster:
         self.clustroid = msg
         self.size = size
         self.active_unlearner = active_unlearner
-        self.ham = set()
-        self.spam = set()
+        self.ham = []
+        self.spam = []
         self.opt = opt
         self.cluster_list = self.make_cluster()
         self.divide()
@@ -70,9 +70,9 @@ class Cluster:
         """Divides messages in the cluster between spam and ham"""
         for msg in self.cluster_list:
             if msg.tag.endswith(".ham.txt"):
-                self.ham.add(msg)
+                self.ham.append(msg)
             elif msg.tag.endswith(".spam.txt"):
-                self.spam.add(msg)
+                self.spam.append(msg)
 
     def target_spam(self):
         """Returns a count of the number of spam emails in the cluster"""
@@ -125,19 +125,19 @@ class ActiveUnlearner:
         self.driver.dict_test(hamstream, spamstream)
 
     def unlearn(self, cluster):
+        self.driver.untrain(cluster.ham, cluster.spam)
+
         for ham in cluster.ham:
-            self.driver.untrain(ham, None)
             self.driver.tester.train_examples[ham.train].remove(ham)
         for spam in cluster.spam:
-            self.driver.untrain(None, spam)
             self.driver.tester.train_examples[spam.train].remove(spam)
 
     def learn(self, cluster):
+        self.driver.train(cluster.ham, cluster.spam)
+
         for ham in cluster.ham:
-            self.driver.train(ham, None)
             self.driver.tester.train_examples[ham.train].append(ham)
         for spam in cluster.spam:
-            self.driver.train(None, spam)
             self.driver.tester.train_examples[spam.train].append(spam)
 
     def detect_rate_diff(self, cluster):
