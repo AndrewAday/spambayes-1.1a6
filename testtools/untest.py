@@ -12,13 +12,12 @@ def main():
     from spambayes import ActiveUnlearnDriver
     from spambayes.Options import get_pathname_option
     from spambayes import msgs
+    from tabulate import tabulate
 
     """
     from dictionarywriter import DictionaryWriter
     from dictionarysplicer import splice_set
     """
-
-    cluster = ActiveUnlearnDriver.Cluster
 
     ham = [get_pathname_option("TestDriver", "ham_directories") % i for i in range(1, 5)]
     spam = [get_pathname_option("TestDriver", "spam_directories") % i for i in range(1, 5)]
@@ -26,38 +25,47 @@ def main():
     DictionaryWriter(200).write()
     splice_set(3)
     """
-    au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham[1], [ham[1]]), None],
+    au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham[1], [ham[1]]), msgs.HamStream(ham[2], [ham[2]])],
                                              [msgs.SpamStream(spam[1], [spam[1]]), msgs.SpamStream(spam[2], [spam[2]])],
                                              msgs.HamStream(ham[0], [ham[0]]),
                                              msgs.SpamStream(spam[0], [spam[0]]),
                                              )
 
     msg = choice(au.driver.tester.train_examples[2])
-    l = []
+    c_d = []
     c_l = []
+    c_s = []
     original_rate = au.driver.tester.correct_classification_rate()
 
-    for i in range(5, 100, 5):
-        cluster_size = i
+    cluster_size = 5
+    c_s.append(5)
+    cl = ActiveUnlearnDriver.Cluster(msg, cluster_size, "extreme")
+    c_l.append(float(cl.target_spam()) / float(cluster_size))
+    c_d.append(au.start_detect_rate(cl))
 
-        cl = ActiveUnlearnDriver.Cluster(msg, cluster_size, "extreme")
+    for i in range(1, 20):
+        cluster_size += 5
+        c_s.append(cluster_size)
+        print "Clustering with size", cluster_size, "..."
+        c_d.append(au.continue_detect_rate(cl, 5))
         c_l.append(float(cl.target_spam()) / float(cluster_size))
-        print "Clustering with size", i, "..."
-        l.append(au.detect_rate(cl))
 
-    for i in range(100, 3000, 100):
-        cluster_size = i
-
-        cl = cluster(msg, cluster_size, "extreme")
+    for i in range(1, 30):
+        cluster_size += 100
+        c_s.append(cluster_size)
+        print "Clustering with size", cluster_size, "..."
+        c_d.append(au.continue_detect_rate(cl, 100))
         c_l.append(float(cl.target_spam()) / float(cluster_size))
-        print "Clustering with size", i, "..."
-        l.append(au.detect_rate(cl))
 
     with open("C:\Users\Alex\Desktop\clusterstats.txt", 'w') as outfile:
-        outfile.write(str(original_rate))
-        outfile.write(str(l))
-        outfile.write(str(c_l))
-        outfile.close()
+        outfile.write("Clustered around: " + msg.tag)
+        outfile.write("\nOriginal Rate: " + str(original_rate) + "\n")
+
+        outfile.write(tabulate({"Cluster Sizes": c_s,
+                                "Detection Rates": c_d,
+                                "% of Targets Clustered": c_l},
+                               headers="keys", tablefmt="plain"))
+
 
 if __name__ == "__main__":
     main()

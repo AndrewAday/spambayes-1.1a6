@@ -49,7 +49,7 @@ class Cluster:
         self.ham = []
         self.spam = []
         self.opt = opt
-        self.cluster_list = self.make_cluster()
+        self.cluster_list, self.cluster_heap = self.make_cluster()
         self.divide()
 
     def make_cluster(self):
@@ -64,7 +64,7 @@ class Cluster:
 
         l = heap.taskify()
         assert (len(l) == self.size)
-        return l
+        return l, heap
 
     def divide(self):
         """Divides messages in the cluster between spam and ham"""
@@ -159,6 +159,37 @@ class ActiveUnlearner:
         detection_rate = self.driver.tester.correct_classification_rate()
         self.learn(cluster)
         return detection_rate
+
+        # TEST METHOD
+    def start_detect_rate(self, cluster):
+        self.unlearn(cluster)
+        self.driver.test(self.testing_ham, self.testing_spam)
+        detection_rate = self.driver.tester.correct_classification_rate()
+        return detection_rate
+
+    def continue_detect_rate(self, cluster, n):
+        old_cluster = cluster.heap.taskify()
+        self.cluster_more(cluster, n)
+        new_cluster = cluster.heap.taskify()
+
+        for msg in old_cluster:
+            new_cluster.remove(msg)
+
+        self.unlearn(new_cluster)
+        self.driver.test(self.testing_ham, self.testing_spam)
+        detection_rate = self.driver.tester.correct_classification_rate()
+        return detection_rate
+
+    def cluster_more(self, cluster, n):
+        k = len(cluster.cluster_list)
+        for i in range(len(self.driver.tester.train_examples)):
+            for train in self.driver.tester.train_examples[i]:
+                if train != cluster.clustroid:
+                    if len(cluster.heap) < k + n:
+                        cluster.heap.push(train, distance(cluster.clustroid, train, cluster.opt))
+
+                    else:
+                        cluster.heap.pushpop(train, distance(cluster.clustroid, train, cluster.opt))
 
 """
     # -----------------------------------------------------------------------------------
