@@ -42,20 +42,20 @@ class PriorityQueue:
 
 class Cluster:
 
-    def __init__(self, msg, size, opt):
+    def __init__(self, msg, size, active_unlearner, opt="None"):
         self.clustroid = msg
         self.size = size
-        self.driver = TestDriver.Driver()
-        self.cluster_list = self.make_cluster()
+        self.active_unlearner = active_unlearner
         self.ham = set()
         self.spam = set()
         self.opt = opt
+        self.cluster_list = self.make_cluster()
         self.divide()
 
     def make_cluster(self):
         heap = PriorityQueue()
         for i in range(4):
-            for train in self.driver.tester.train_examples[i]:
+            for train in self.active_unlearner.driver.tester.train_examples[i]:
                 if train != self.clustroid:
                     if len(heap) < self.size:
                         heap.push(train, distance(self.clustroid, train, self.opt))
@@ -74,18 +74,18 @@ class Cluster:
             elif msg.tag.endswith(".spam.txt"):
                 self.spam.add(msg)
 
-    def target_spam(self, cluster):
+    def target_spam(self):
         """Returns a count of the number of spam emails in the cluster"""
         counter = 0
-        for msg in cluster:
+        for msg in self.cluster_list:
             if msg.tag.endswith(".spam.txt"):
                 counter += 1
         return counter
 
-    def target_set3(self, cluster):
+    def target_set3(self):
         """Returns a count of the number of Set3 emails in the cluster"""
         counter = 0
-        for msg in cluster:
+        for msg in self.cluster_list:
             if "Set3" in msg.tag:
                 counter += 1
         return counter
@@ -93,7 +93,7 @@ class Cluster:
 
 class ActiveUnlearner:
 
-    def __init__(self, training_ham, training_spam, testing_ham, testing_spam, opt=None):
+    def __init__(self, training_ham, training_spam, testing_ham, testing_spam):
         self.set_driver()
         self.hamspams = zip(training_ham, training_spam)
         self.set_data()
@@ -101,7 +101,6 @@ class ActiveUnlearner:
         self.testing_ham = testing_ham
         self.negs = set()
         self.all_negs = False
-        self.opt = opt
         self.set_training_nums()
         self.set_dict_nums()
         self.init_ground()
@@ -161,6 +160,7 @@ class ActiveUnlearner:
         self.learn(cluster)
         return detection_rate
 
+"""
     # -----------------------------------------------------------------------------------
     # TO BE FIXED
     def active_unlearn(self, k):
@@ -206,7 +206,7 @@ class ActiveUnlearner:
             # a fix to this later.
             else:
 
-                """
+
                 # no definitive change in detection rate
                 # look at impact on spam/ham scores instead
                 i_h = 0
@@ -220,15 +220,12 @@ class ActiveUnlearner:
                     i_s += spam.probdiff
                 i_s /= len(self.au.spam)
                 return i_h < -threshold and i_s > threshold
-                """
-
-                """
                 # still no definitive change
                 # look at neighbors in cluster
                 counter = 0
                 for neighbor in cluster:
                     if unlearn_compare(neighbor):
-                """
+
 
                 raise AssertionError
 
@@ -306,3 +303,4 @@ class ActiveUnlearner:
                     next_email = email
 
         return next_email
+"""

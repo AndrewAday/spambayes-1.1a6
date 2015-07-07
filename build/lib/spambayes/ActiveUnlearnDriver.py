@@ -3,7 +3,6 @@ from spambayes import TestDriver
 from Distance import distance
 import heapq
 import sys
-import os
 
 
 def d(negs, x, opt=None):
@@ -14,6 +13,7 @@ def d(negs, x, opt=None):
 
 
 class PriorityQueue:
+
     def __init__(self):
         self._queue = []
         self._index = 0
@@ -40,32 +40,70 @@ class PriorityQueue:
         return l
 
 
-class ActiveUnlearnDriver:
+class Cluster:
 
-    # Takes training ham/spam directories, and set for ground truth
-    def __init__(self, ham, spam, real_ham, real_spam, opt=None):
+    def __init__(self, msg, size, active_unlearner, opt="None"):
+        self.clustroid = msg
+        self.size = size
+        self.active_unlearner = active_unlearner
+        self.ham = set()
+        self.spam = set()
+        self.opt = opt
+        self.cluster_list = self.make_cluster()
+        self.divide()
+
+    def make_cluster(self):
+        heap = PriorityQueue()
+        for i in range(4):
+            for train in self.active_unlearner.driver.tester.train_examples[i]:
+                if train != self.clustroid:
+                    if len(heap) < self.size:
+                        heap.push(train, distance(self.clustroid, train, self.opt))
+                    else:
+                        heap.pushpop(train, distance(self.clustroid, train, self.opt))
+
+        l = heap.taskify()
+        assert (len(l) == self.size)
+        return l
+
+    def divide(self):
+        """Divides messages in the cluster between spam and ham"""
+        for msg in self.cluster_list:
+            if msg.tag.endswith(".ham.txt"):
+                self.ham.add(msg)
+            elif msg.tag.endswith(".spam.txt"):
+                self.spam.add(msg)
+
+    def target_spam(self):
+        """Returns a count of the number of spam emails in the cluster"""
+        counter = 0
+        for msg in self.cluster_list:
+            if msg.tag.endswith(".spam.txt"):
+                counter += 1
+        return counter
+
+    def target_set3(self):
+        """Returns a count of the number of Set3 emails in the cluster"""
+        counter = 0
+        for msg in self.cluster_list:
+            if "Set3" in msg.tag:
+                counter += 1
+        return counter
+
+
+class ActiveUnlearner:
+
+    def __init__(self, training_ham, training_spam, testing_ham, testing_spam):
         self.set_driver()
-        self.hamspams = zip(ham, spam)
+        self.hamspams = zip(training_ham, training_spam)
         self.set_data()
-        self.real_spam = real_spam
-        self.real_ham = real_ham
+        self.testing_spam = testing_spam
+        self.testing_ham = testing_ham
         self.negs = set()
         self.all_negs = False
-        self.opt = opt
         self.set_training_nums()
         self.set_dict_nums()
         self.init_ground()
-        
-    def init_ground(self):
-        self.driver.test(self.real_ham, self.real_spam)
-
-    def set_training_nums(self):
-        hamstream, spamstream = self.hamspams[0]
-        self.driver.train_test(hamstream, spamstream)
-
-    def set_dict_nums(self):
-        hamstream, spamstream = self.hamspams[1]
-        self.driver.dict_test(hamstream, spamstream)
 
     def set_driver(self):
         self.driver = TestDriver.Driver()
@@ -75,78 +113,55 @@ class ActiveUnlearnDriver:
         for hamstream, spamstream in self.hamspams:
             self.driver.train(hamstream, spamstream)
 
-    def cluster(self, msg, k):
-        heap = PriorityQueue()
-        for i in range(4):
-            for train in self.driver.tester.train_examples[i]:
-                if train != msg:
-                    if len(heap) < k:
-                        heap.push(train, distance(msg, train, self.opt))
+    def init_ground(self):
+        self.driver.test(self.testing_ham, self.testing_spam)
 
-                    else:
-                        heap.pushpop(train, distance(msg, train, self.opt))
+    def set_training_nums(self):
+        hamstream, spamstream = self.hamspams[0]
+        self.driver.train_test(hamstream, spamstream)
 
-        l = heap.taskify()
-        assert (len(l) == k)
-        return l
+    def set_dict_nums(self):
+        hamstream, spamstream = self.hamspams[1]
+        self.driver.dict_test(hamstream, spamstream)
 
     def unlearn(self, cluster):
-        for msg in cluster:
-            self.driver.tester.classifier.unlearn(msg, True)
-            self.driver.tester.train_examples[msg.train].remove(msg)
+        for ham in cluster.ham:
+            self.driver.untrain(ham, None)
+            self.driver.tester.train_examples[ham.train].remove(ham)
+        for spam in cluster.spam:
+            self.driver.untrain(None, spam)
+            self.driver.tester.train_examples[spam.train].remove(spam)
 
     def learn(self, cluster):
-        for msg in cluster:
-            self.driver.tester.classifier.learn(msg, True)
-            self.driver.tester.train_examples[msg.train].append(msg)
+        for ham in cluster.ham:
+            self.driver.train(ham, None)
+            self.driver.tester.train_examples[ham.train].append(ham)
+        for spam in cluster.spam:
+            self.driver.train(None, spam)
+            self.driver.tester.train_examples[spam.train].append(spam)
 
-    # TO BE FINISHED/FIXED
-    def get_next(self):
-        if self.all_negs:
-            max_s = 0
-            max_v = None
-            for e in (self.driver.tester.train_examples[0] - self.negs):
-                if d(self.negs, e, self.opt) > max_s:
-                    max_s = d(self.negs, e, self.opt)
-                    max_v = e
-            return max_v
-
-        else:
-            pass
-
-    # Returns the theroetical difference in detection rate if a given cluster is to be unlearned;
-    # relearns the cluster afterwards
     def detect_rate_diff(self, cluster):
+        """Returns the theoretical difference in detection rate if a given cluster
+           is unlearned. Relearns the cluster afterwards"""
         old_detection_rate = self.driver.tester.correct_classification_rate()
         self.unlearn(cluster)
-        self.driver.test(self.real_ham, self.real_spam)
+        self.driver.test(self.testing_ham, self.testing_spam)
         new_detection_rate = self.driver.tester.correct_classification_rate()
         self.learn(cluster)
         return new_detection_rate - old_detection_rate
 
-    # TEST METHOD
+    # TEST METHODS
     def detect_rate(self, cluster):
+        """Returns the detection rate if a given cluster is unlearned.
+           Relearns the cluster afterwards"""
         self.unlearn(cluster)
-        self.driver.test(self.real_ham, self.real_spam)
+        self.driver.test(self.testing_ham, self.testing_spam)
         detection_rate = self.driver.tester.correct_classification_rate()
         self.learn(cluster)
         return detection_rate
 
-    # TEST METHOD
-    def cluster_spam(self, cluster):
-        counter = 0
-        for msg in cluster:
-            if msg.tag.endswith(".spam.txt"):
-                counter += 1
-        return counter
-
-    def cluster_set3(self, cluster):
-        counter = 0
-        for msg in cluster:
-            if "Set3" in msg.tag:
-                counter += 1
-        return counter
-
+"""
+    # -----------------------------------------------------------------------------------
     # TO BE FIXED
     def active_unlearn(self, k):
 
@@ -191,7 +206,7 @@ class ActiveUnlearnDriver:
             # a fix to this later.
             else:
 
-                """
+
                 # no definitive change in detection rate
                 # look at impact on spam/ham scores instead
                 i_h = 0
@@ -205,15 +220,12 @@ class ActiveUnlearnDriver:
                     i_s += spam.probdiff
                 i_s /= len(self.au.spam)
                 return i_h < -threshold and i_s > threshold
-                """
-
-                """
                 # still no definitive change
                 # look at neighbors in cluster
                 counter = 0
                 for neighbor in cluster:
                     if unlearn_compare(neighbor):
-                """
+
 
                 raise AssertionError
 
@@ -227,6 +239,8 @@ class ActiveUnlearnDriver:
         c = self.cluster(next_msg, k)
         t = unlearn_compare(c)
 
+    # -----------------------------------------------------------------------------------
+
     # Returns the set of mislabeled emails (from the ground truth) based off of the
     # current classifier state. By default assumes the current state's numbers and
     # tester false positives/negatives have already been generated; if not, it'll run the
@@ -234,8 +248,8 @@ class ActiveUnlearnDriver:
     def mislabeled(self, update=False):
         tester = self.driver.tester
         if update:
-            tester.predict(self.real_ham, False)
-            tester.predict(self.real_spam, True)
+            tester.predict(self.testing_ham, False)
+            tester.predict(self.testing_spam, True)
 
         mislabeled = set()
         mislabeled += tester.spam_wrong_examples, tester.ham_wrong_examples
@@ -289,3 +303,4 @@ class ActiveUnlearnDriver:
                     next_email = email
 
         return next_email
+"""

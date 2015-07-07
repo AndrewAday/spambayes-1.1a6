@@ -46,7 +46,8 @@ class Test:
         self.spam_wrong_examples = []   # False negatives:  spam called ham.
         self.unsure_examples = []       # ham and spam in middle ground
 
-
+    def reset_truth_list(self):
+        self.truth_examples = [[], []]
 
     # Train the classifier on streams of ham and spam.  Updates probabilities
     # before returning, and resets test results.
@@ -140,21 +141,21 @@ class Test:
                 callback(example, prob)
 
             if is_spam == 0:
-                self.train_examples[0].append(example)
+                self.train_examples[0].append(example)  # Spam Set1
                 example.train = 0
 
             if is_spam == 1:
-                self.train_examples[1].append(example)
+                self.train_examples[1].append(example)  # Ham Set1
                 example.train = 1
 
             if is_spam == 2:
-                print "Trained dictionary. . ."
-                self.train_examples[2].append(example)
+                print "Trained on dictionary..."
+                self.train_examples[2].append(example)  # Spam Set3
                 example.train = 2
 
             if is_spam == 3:
-                print "Trained mislabeled spam (which is seen as ham). . ."
-                self.train_examples[3].append(example)
+                print "Training on Set3 Email..."
+                self.train_examples[3].append(example)  # Ham Set3
                 example.train = 3
 
         assert (self.nham_right + self.nham_wrong + self.nham_unsure ==

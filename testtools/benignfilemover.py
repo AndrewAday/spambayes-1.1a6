@@ -90,6 +90,7 @@ class BenignFileMover:
 
 def main():
     f = BenignFileMover(1)
+    f.reset()
     f.print_filelist()
 
 if __name__ == "__main__":

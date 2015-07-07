@@ -125,7 +125,7 @@ class InjectionPolluter:
 def main():
     IP = InjectionPolluter(6000)
 
-    IP.injectfeatures()
+    IP.reset()
 
 
 if __name__ == "__main__":

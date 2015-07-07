@@ -243,6 +243,7 @@ class Driver:
                 printmsg(msg, prob, clues)
 
         t.reset_test_results()
+        t.reset_truth_list()
         print "-> Predicting", ham, "&", spam, "..."
         t.predict(spam, True, new_spam)
         t.predict(ham, False, new_ham)

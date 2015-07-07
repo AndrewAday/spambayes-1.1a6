@@ -11,40 +11,42 @@ from spambayes import msgs
 from dictionarywriter import DictionaryWriter
 from InjectionPollution import InjectionPolluter
 from mislabeledfilemover import MislabeledFileMover
+from tabulate import tabulate
 
 def main():
 
     ham = [get_pathname_option("TestDriver", "ham_directories") % i for i in range(1, 4)]
     spam = [get_pathname_option("TestDriver", "spam_directories") % i for i in range(1, 4)]
 
-    au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham[0], [ham[0]]), msgs.HamStream(ham[2], [ham[2]])],          #ham
-                                             [msgs.SpamStream(spam[0], [spam[0]]), msgs.SpamStream(spam[2], [spam[2]])],    #spam
-                                             msgs.HamStream(ham[1], [ham[1]]),                                             #real ham
-                                             msgs.SpamStream(spam[1], [spam[1]]),                                          #real spam
-                                             "extreme")                                                                    #opt
+    i = InjectionPolluter(1200)
+    i.injectfeatures()
+
+    au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham[0], [ham[0]]), msgs.HamStream(ham[2], [ham[2]])],
+                                             [msgs.SpamStream(spam[0], [spam[0]]), msgs.SpamStream(spam[2], [spam[2]])],
+                                             msgs.HamStream(ham[1], [ham[1]]), msgs.SpamStream(spam[1], [spam[1]]))
 
     msg = choice(au.driver.tester.train_examples[3])    # Randomly chosen from Ham Set3
     original_rate = au.driver.tester.correct_classification_rate()
+    cluster_sizes = []
     detection_rates = []
     target_cluster_rates = []
 
-    for size in range(300, 6005, 300):
-        cluster = ActiveUnlearnDriver.Cluster(msg, size)
+    for size in range(5, 10, 5):
+        cluster = ActiveUnlearnDriver.Cluster(msg, size, au, "extreme")
         print "Clustering with size " + str(cluster.size) + "..."
+        cluster_sizes.append(size)
         detection_rates.append(au.detect_rate(cluster))
-        target_cluster_rates.append(float(au.target_set3(cluster)) / float(cluster.size))
+        target_cluster_rates.append(float(cluster.target_set3()) / float(cluster.size))
 
     with open("/Users/AlexYang/Desktop/clusterstats.txt", 'w') as outfile:
-        outfile.write(msg.tag + "\n")
-        outfile.write("Original Rate: " + str(original_rate))
-        outfile.write("\nDetection Rates: \n")
-        for rate in l:
-            outfile.write(str(rate) + "\n")
-        outfile.write("\nPercentage of Injected Polluted Clustered:\n")
-        for count in c_l:
-            outfile.write(str(count) + "\n")
-        for msg in cl:
-            outfile.write("\n" + msg.tag + "\n")
+
+        outfile.write("Clustered around: " + msg.tag)
+        outfile.write("\nOriginal Rate: " + str(original_rate) + "\n")
+
+        outfile.write(tabulate({"Cluster Sizes": cluster_sizes,
+                                "Detection Rates": detection_rates,
+                                "% of Targets Clustered": target_cluster_rates},
+                               headers="keys", tablefmt="plain"))
 
 if __name__ == "__main__":
     main()
