@@ -39,7 +39,7 @@ def main():
 
     cluster_size = 5
     c_s.append(5)
-    cl = ActiveUnlearnDriver.Cluster(msg, cluster_size, "extreme")
+    cl = ActiveUnlearnDriver.Cluster(msg, cluster_size, au, "extreme")
     c_l.append(float(cl.target_spam()) / float(cluster_size))
     c_d.append(au.start_detect_rate(cl))
 
