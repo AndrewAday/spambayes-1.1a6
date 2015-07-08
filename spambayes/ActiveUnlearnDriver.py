@@ -182,7 +182,7 @@ class ActiveUnlearner:
         return detection_rate
 
     def cluster_more(self, cluster, n):
-        k = len(cluster.cluster_list)
+        k = len(cluster.cluster_set)
         for i in range(len(self.driver.tester.train_examples)):
             for train in self.driver.tester.train_examples[i]:
                 if train != cluster.clustroid:
