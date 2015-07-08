@@ -26,12 +26,12 @@ def main():
     splice_set(3)
     """
     au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham[1], [ham[1]]), msgs.HamStream(ham[2], [ham[2]])],
-                                             [msgs.SpamStream(spam[1], [spam[1]]), msgs.SpamStream(spam[2], [spam[2]])],
+                                             [msgs.SpamStream(spam[1], [spam[1]]), msgs.SpamStream(spam[3], [spam[3]])],
                                              msgs.HamStream(ham[0], [ham[0]]),
                                              msgs.SpamStream(spam[0], [spam[0]]),
                                              )
 
-    msg = choice(au.driver.tester.train_examples[2])
+    msg = choice(au.driver.tester.train_examples[0])
     c_d = []
     c_l = []
     c_s = []
@@ -39,6 +39,7 @@ def main():
 
     cluster_size = 5
     c_s.append(5)
+    print "Clustering with size", cluster_size, "..."
     cl = ActiveUnlearnDriver.Cluster(msg, cluster_size, au, "extreme")
     c_l.append(float(cl.target_spam()) / float(cluster_size))
     c_d.append(au.start_detect_rate(cl))

@@ -3,7 +3,7 @@ from spambayes import TestDriver
 from Distance import distance
 import heapq
 import sys
-
+import copy
 
 def d(negs, x, opt=None):
     s = 0
@@ -168,29 +168,45 @@ class ActiveUnlearner:
         return detection_rate
 
     def continue_detect_rate(self, cluster, n):
-        old_cluster = cluster.cluster_heap.taskify()
+        old_cluster = copy.deepcopy(cluster.cluster_set)
         self.cluster_more(cluster, n)
-        new_cluster = cluster.cluster_heap.taskify()
+        new_cluster = cluster.cluster_set
 
         new_unlearns = new_cluster - old_cluster
         assert(len(new_unlearns) == len(new_cluster) - len(old_cluster))
-        assert(len(new_unlearns) == n)
+        assert(len(new_unlearns) == n), len(new_unlearns)
 
-        self.unlearn(new_unlearns)
+        unlearn_hams = []
+        unlearn_spams = []
+
+        for unlearn in new_unlearns:
+            if unlearn.tag.endswith(".ham.txt"):
+                unlearn_hams.append(unlearn)
+
+            elif unlearn.tag.endswith(".spam.txt"):
+                unlearn_spams.append(unlearn)
+
+            self.driver.tester.train_examples[unlearn.train].remove(unlearn)
+
+        self.driver.untrain(unlearn_hams, unlearn_spams)
         self.driver.test(self.testing_ham, self.testing_spam)
         detection_rate = self.driver.tester.correct_classification_rate()
         return detection_rate
 
     def cluster_more(self, cluster, n):
-        k = len(cluster.cluster_set)
+        cluster.size += n
+        k = cluster.size
         for i in range(len(self.driver.tester.train_examples)):
             for train in self.driver.tester.train_examples[i]:
                 if train != cluster.clustroid:
-                    if len(cluster.cluster_heap) < k + n:
+                    if len(cluster.cluster_heap) < k:
                         cluster.cluster_heap.push(train, distance(cluster.clustroid, train, cluster.opt))
 
                     else:
                         cluster.cluster_heap.pushpop(train, distance(cluster.clustroid, train, cluster.opt))
+
+        cluster.cluster_set = cluster.cluster_heap.taskify()
+        assert(len(cluster.cluster_set) == k), len(cluster.cluster_set)
 
 """
     # -----------------------------------------------------------------------------------
