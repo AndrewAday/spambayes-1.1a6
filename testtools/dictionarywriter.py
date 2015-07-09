@@ -30,7 +30,7 @@ class DictionaryWriter:
         print "Initial # of Files: " + str(len(self.destination_files))
 
         for i in range(0, self.NUMFILES):
-            print "Preparing Dictionary # " + str(i + 1)
+            print "Preparing dictionary.txt # " + str(i + 1)
 
             file_in = open("dictionary.txt", 'r')
             file_out = open(self.destination + "00000dictionary" + str(i + 1) + ".spam" + ".txt", 'w')
@@ -41,7 +41,7 @@ class DictionaryWriter:
             file_out.close()
 
         for i in range(0, self.NUMFILES):
-            print "Preparing Dictionary # " + str(i + 1)
+            print "Preparing wordlist.txt # " + str(i + 1)
 
             file_in = open("wordlist.txt", 'r')
             file_out = open(self.destination + "00000wordlist" + str(i + 1) + ".spam" + ".txt", 'w')
@@ -52,7 +52,7 @@ class DictionaryWriter:
             file_out.close()
 
         for i in range(0, self.NUMFILES):
-            print "Preparing Dictionary # " + str(i + 1)
+            print "Preparing words.txt # " + str(i + 1)
 
             file_in = open("words.txt", 'r')
             file_out = open(self.destination + "00000words" + str(i + 1) + ".spam" + ".txt", 'w')
@@ -63,7 +63,7 @@ class DictionaryWriter:
             file_out.close()
 
         for i in range(0, self.NUMFILES):
-            print "Preparing Dictionary # " + str(i + 1)
+            print "Preparing wordsEn.txt # " + str(i + 1)
 
             file_in = open("wordsEn.txt", 'r')
             file_out = open(self.destination + "00000wordsEn" + str(i + 1) + ".spam" + ".txt", 'w')

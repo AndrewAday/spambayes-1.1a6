@@ -40,6 +40,7 @@ class InjectionPolluter:
                        "FREE " \
                        "Guarantee " \
                        "Hot " \
+                       "Horny " \
                        "Increase " \
                        "Join millions " \
                        "Lose weight " \
@@ -60,6 +61,7 @@ class InjectionPolluter:
                        "Rates " \
                        "Satisfaction guaranteed " \
                        "Selling " \
+                       "Sex " \
                        "Success " \
                        "Trial " \
                        "Visit our website "

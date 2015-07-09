@@ -8,6 +8,7 @@ sys.path.insert(-1, os.path.dirname(os.getcwd()))
 from spambayes import ActiveUnlearnDriver
 from spambayes.Options import get_pathname_option
 from spambayes import msgs
+from dictionarysplicer import splice_set
 from dictionarywriter import DictionaryWriter
 from InjectionPollution import InjectionPolluter
 from mislabeledfilemover import MislabeledFileMover
@@ -18,20 +19,26 @@ def main():
     ham = [get_pathname_option("TestDriver", "ham_directories") % i for i in range(1, 4)]
     spam = [get_pathname_option("TestDriver", "spam_directories") % i for i in range(1, 4)]
 
-    i = InjectionPolluter(1200)
-    i.injectfeatures()
+    d = DictionaryWriter(200)
+    splice_set(3)
 
-    au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham[0], [ham[0]]), msgs.HamStream(ham[2], [ham[2]])],
-                                             [msgs.SpamStream(spam[0], [spam[0]]), msgs.SpamStream(spam[2], [spam[2]])],
-                                             msgs.HamStream(ham[1], [ham[1]]), msgs.SpamStream(spam[1], [spam[1]]))
+    au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham[1], [ham[1]]), msgs.HamStream(ham[2], [ham[2]])],
+                                             [msgs.SpamStream(spam[1], [spam[1]]), msgs.SpamStream(spam[2], [spam[2]])],
+                                             msgs.HamStream(ham[0], [ham[0]]), msgs.SpamStream(spam[0], [spam[0]]))
 
-    msg = choice(au.driver.tester.train_examples[3])    # Randomly chosen from Ham Set3
+    msg = choice(au.driver.tester.train_examples[2])    # Randomly chosen from Ham Set3
     original_rate = au.driver.tester.correct_classification_rate()
     cluster_sizes = []
     detection_rates = []
     target_cluster_rates = []
 
-    for size in range(5, 100, 5):
+    sizes = []
+    for i in range(5, 105, 5):
+        sizes.append(i)
+    for i in range(200, 3100, 100):
+        sizes.append(i)
+
+    for size in sizes:
         cluster = ActiveUnlearnDriver.Cluster(msg, size, au, "extreme")
         print "Clustering with size " + str(cluster.size) + "..."
         cluster_sizes.append(size)
