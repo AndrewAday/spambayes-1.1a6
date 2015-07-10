@@ -54,12 +54,17 @@ class Test:
     def train(self, hamstream=None, spamstream=None):
         self.reset_test_results()
         learn = self.classifier.learn
+        spam_counter = 0
+
         if hamstream is not None:
             for example in hamstream:
                 learn(example, False)
         if spamstream is not None:
             for example in spamstream:
                 learn(example, True)
+                spam_counter += 1
+                if spam_counter % 100 == 0:
+                    print "Trained", spam_counter, "spam"
 
     # Untrain the classifier on streams of ham and spam.  Updates
     # probabilities before returning, and resets test results.
