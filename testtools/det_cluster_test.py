@@ -33,46 +33,41 @@ def main():
                                                msgs.SpamStream(spam[0], [spam[0]]),
                                                )
     while keep_going:
-
         msg = choice(au_v.driver.tester.train_examples[0])
+        try:
+            test_cl, counter = au_v.determine_cluster(msg, 100)
+            test_size = test_cl.size
+            au_v.learn(test_cl)
+
+        except TypeError:
+            counter = 1
+            test_size = "100, but fail"
 
         cluster_detection_rates_v = []
-
         cluster_spam_rates_v = []
-
         cluster_sizes = []
 
+        au_v.init_ground()
         original_rate_v = au_v.driver.tester.correct_classification_rate()
+        cluster_size = 100
+        cluster_sizes.append(100)
 
-        cluster_size = 5
-        cluster_sizes.append(5)
         print "Clustering with size", cluster_size, "..."
 
         cl_v = ActiveUnlearnDriver.Cluster(msg, cluster_size, au_v, "extreme")
-
         cluster_spam_rates_v.append(float(cl_v.target_spam()) / float(cluster_size))
-
         cluster_detection_rates_v.append(au_v.start_detect_rate(cl_v))
 
-        for i in range(1, 20):
-            cluster_size += 5
-            cluster_sizes.append(cluster_size)
-            print "Clustering with size", cluster_size, "..."
-
-            cluster_detection_rates_v.append(au_v.continue_detect_rate(cl_v, 5))
-
-            cluster_spam_rates_v.append(float(cl_v.target_spam()) / float(cluster_size))
-
-        for i in range(1, 30):
+        for i in range(1, counter + 2):
             cluster_size += 100
             cluster_sizes.append(cluster_size)
+
             print "Clustering with size", cluster_size, "..."
 
             cluster_detection_rates_v.append(au_v.continue_detect_rate(cl_v, 100))
-
             cluster_spam_rates_v.append(float(cl_v.target_spam()) / float(cluster_size))
 
-        with open("C:\\Users\\Alex\\Desktop\\vanilla_cluster" + str(trial_number) + ".txt", 'w') as outfile:
+        with open("C:\Users\Alex\Desktop\det_cluster_stats_v" + str(trial_number) + ".txt", 'w') as outfile:
             outfile.write("VANILLA MACHINE\n")
 
             outfile.write("--------------------------\n")
@@ -93,13 +88,15 @@ def main():
             for item in cluster_spam_rates_v:
                 outfile.write(str(item) + "\n")
 
+            outfile.write("Test Cluster Size:\n")
+            outfile.write(str(test_size))
+
         answer = raw_input("Keep going (y/n)? You have performed " + str(trial_number) + " trials so far. ")
 
         if answer == "n":
             keep_going = False
 
         else:
-            assert(len(cl_v) == 3000)
             au_v.learn(cl_v)
             au_v.init_ground()
             trial_number += 1

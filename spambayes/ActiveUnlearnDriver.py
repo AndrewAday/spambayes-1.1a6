@@ -5,6 +5,7 @@ import heapq
 import sys
 import copy
 
+
 def d(negs, x, opt=None):
     s = 0
     for neg in negs:
@@ -42,7 +43,7 @@ class PriorityQueue:
 
 class Cluster:
 
-    def __init__(self, msg, size, active_unlearner, opt="None"):
+    def __init__(self, msg, size, active_unlearner, opt="extreme"):
         self.clustroid = msg
         self.size = size
         self.active_unlearner = active_unlearner
@@ -54,7 +55,7 @@ class Cluster:
 
     def make_cluster(self):
         heap = PriorityQueue()
-        for i in range(4):
+        for i in range(len(self.active_unlearner.driver.tester.train_examples)):
             for train in self.active_unlearner.driver.tester.train_examples[i]:
                 if train != self.clustroid:
                     if len(heap) < self.size:
@@ -90,10 +91,47 @@ class Cluster:
                 counter += 1
         return counter
 
+    def cluster_more(self, n):
+        self.size += n
+        k = self.size
+        for i in range(len(self.active_unlearner.driver.tester.train_examples)):
+            for train in self.active_unlearner.driver.tester.train_examples[i]:
+                if train != self.clustroid and train not in self.cluster_set:
+                    if len(self.cluster_heap) < k:
+                        self.cluster_heap.push(train, distance(self.clustroid, train, self.opt))
+
+                    else:
+                        self.cluster_heap.pushpop(train, distance(self.clustroid, train, self.opt))
+        assert(len(self.cluster_heap) == k), len(self.cluster_heap)
+        self.cluster_set = self.cluster_heap.taskify()
+        assert(len(self.cluster_heap) == k), len(self.cluster_heap)
+        assert(len(self.cluster_set) == k), len(self.cluster_set)
+
+
+class ProxyCluster:
+    def __init__(self, cluster):
+        hams = []
+        spams = []
+
+        if len(cluster.ham) + len(cluster.spam) != cluster.size:
+            print "Updating cluster ham and spam sets for proxy. . ."
+            cluster.divide()
+
+        for ham in cluster.ham:
+            hams.append(ham)
+
+        for spam in cluster.spam:
+            spams.append(spam)
+
+        self.ham = hams
+        self.spam = spams
+        self.size = cluster.size
+
 
 class ActiveUnlearner:
 
     def __init__(self, training_ham, training_spam, testing_ham, testing_spam):
+        self.driver = TestDriver.Driver()
         self.set_driver()
         self.hamspams = zip(training_ham, training_spam)
         self.set_data()
@@ -106,7 +144,6 @@ class ActiveUnlearner:
         self.init_ground()
 
     def set_driver(self):
-        self.driver = TestDriver.Driver()
         self.driver.new_classifier()
 
     def set_data(self):
@@ -133,6 +170,10 @@ class ActiveUnlearner:
             self.driver.tester.train_examples[spam.train].remove(spam)
 
     def learn(self, cluster):
+        if len(cluster.ham) + len(cluster.spam) != cluster.size:
+            print "Updating cluster ham and spam sets. . ."
+            cluster.divide()
+
         self.driver.train(cluster.ham, cluster.spam)
 
         for ham in cluster.ham:
@@ -149,6 +190,9 @@ class ActiveUnlearner:
         new_detection_rate = self.driver.tester.correct_classification_rate()
         self.learn(cluster)
         return new_detection_rate - old_detection_rate
+
+    # --------------------------------------------------------------------------------------------------------------
+    # --------------------------------------------------------------------------------------------------------------
 
     # TEST METHODS
     def detect_rate(self, cluster):
@@ -169,7 +213,7 @@ class ActiveUnlearner:
 
     def continue_detect_rate(self, cluster, n):
         old_cluster = copy.deepcopy(cluster.cluster_set)
-        self.cluster_more(cluster, n)
+        cluster.cluster_more(n)
         new_cluster = cluster.cluster_set
 
         new_unlearns = new_cluster - old_cluster
@@ -193,20 +237,82 @@ class ActiveUnlearner:
         detection_rate = self.driver.tester.correct_classification_rate()
         return detection_rate
 
-    def cluster_more(self, cluster, n):
-        cluster.size += n
-        k = cluster.size
-        for i in range(len(self.driver.tester.train_examples)):
-            for train in self.driver.tester.train_examples[i]:
-                if train != cluster.clustroid:
-                    if len(cluster.cluster_heap) < k:
-                        cluster.cluster_heap.push(train, distance(cluster.clustroid, train, cluster.opt))
+    # Should only be used right after init_ground
+    # May be used for actual method
+    def select_initial(self):
+        init_point = choice(self.driver.tester.ham_wrong_examples + self.driver.tester.spam_wrong_examples +
+                            self.driver.tester.unsure_examples)
 
-                    else:
-                        cluster.cluster_heap.pushpop(train, distance(cluster.clustroid, train, cluster.opt))
+        min_distance = sys.maxint
+        min_point = None
 
-        cluster.cluster_set = cluster.cluster_heap.taskify()
-        assert(len(cluster.cluster_set) == k), len(cluster.cluster_set)
+        for i in len(self.driver.tester.train_examples):
+            for email in self.driver.tester.train_examples[i]:
+                current_distance = distance(email, init_point, "extreme")
+                if current_distance < min_distance:
+                    min_point = email
+                    min_distance = current_distance
+
+        return min_point, init_point
+
+    # May be used for actual method
+    def determine_cluster(self, center, increment):
+        print "\nDetermining appropriate cluster around", center.tag, "...\n"
+        old_detection_rate = self.driver.tester.correct_classification_rate()
+        counter = 0
+        cluster = Cluster(center, increment, self)
+        self.unlearn(cluster)
+        self.driver.test(self.testing_ham, self.testing_spam)
+        new_detection_rate = self.driver.tester.correct_classification_rate()
+
+        if new_detection_rate < old_detection_rate:
+            print "Center is inviable."
+            self.learn(cluster)
+            return False
+
+        else:
+            proxy_cluster = None
+            unlearn_hams = []
+            unlearn_spams = []
+            new_unlearns = set()
+
+            while new_detection_rate >= old_detection_rate:
+                counter += 1
+                print "\nExploring cluster of size", (counter + 1) * increment, "...\n"
+                old_detection_rate = new_detection_rate
+                proxy_cluster = ProxyCluster(cluster)
+                old_cluster_set = copy.deepcopy(cluster.cluster_set)
+                cluster.cluster_more(increment)
+                new_cluster_set = cluster.cluster_set
+
+                new_unlearns = new_cluster_set - old_cluster_set
+                assert(len(new_unlearns) == len(new_cluster_set) - len(old_cluster_set))
+                assert(len(new_unlearns) == increment), len(new_unlearns)
+
+                unlearn_hams = []
+                unlearn_spams = []
+
+                for unlearn in new_unlearns:
+                    if unlearn.tag.endswith(".ham.txt"):
+                        unlearn_hams.append(unlearn)
+
+                    elif unlearn.tag.endswith(".spam.txt"):
+                        unlearn_spams.append(unlearn)
+
+                    self.driver.tester.train_examples[unlearn.train].remove(unlearn)
+
+                self.driver.untrain(unlearn_hams, unlearn_spams)
+                self.driver.test(self.testing_ham, self.testing_spam)
+                new_detection_rate = self.driver.tester.correct_classification_rate()
+
+            for unlearn in new_unlearns:
+                self.driver.tester.train_examples[unlearn.train].append(unlearn)
+            self.driver.train(unlearn_hams, unlearn_spams)
+            print "Appropriate cluster found."
+            return proxy_cluster, counter
+
+    # --------------------------------------------------------------------------------------------------------------
+    # --------------------------------------------------------------------------------------------------------------
 
 """
     # -----------------------------------------------------------------------------------
