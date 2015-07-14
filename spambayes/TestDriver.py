@@ -153,7 +153,7 @@ class Driver:
         c = self.classifier
         nham, nspam = c.nham, c.nspam
         self.tester.train(ham, spam)
-        print c.nham - nham, "hams &", c.nspam- nspam, "spams"
+        print c.nham - nham, "hams &", c.nspam - nspam, "spams"
 
     def untrain(self, ham, spam):
         print "-> Forgetting", ham, "&", spam, "...",

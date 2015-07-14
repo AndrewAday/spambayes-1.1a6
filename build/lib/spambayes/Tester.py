@@ -128,6 +128,7 @@ class Test:
 
     def train_predict(self, stream, is_spam, callback=None):
         guess = self.classifier.spamprob
+        counter = 1
         for example in stream:
             old_prob = 0
 
@@ -149,7 +150,7 @@ class Test:
                 example.train = 1
 
             if is_spam == 2:
-                print "Trained on dictionary..."
+                print "Trained on dictionary", counter, "..."
                 self.train_examples[2].append(example)  # Spam Set3
                 example.train = 2
 
@@ -158,6 +159,7 @@ class Test:
                 self.train_examples[3].append(example)  # Ham Set3
                 example.train = 3
 
+            counter += 1
         assert (self.nham_right + self.nham_wrong + self.nham_unsure ==
                 self.nham_tested)
         assert (self.nspam_right + self.nspam_wrong + self.nspam_unsure ==

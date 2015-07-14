@@ -14,8 +14,8 @@ def main():
     from spambayes import msgs
     from tabulate import tabulate
 
-    """
     from dictionarywriter import DictionaryWriter
+<<<<<<< Updated upstream
     """
 
     ham = [get_pathname_option("TestDriver", "ham_directories") % i for i in range(1, 5)]
@@ -32,6 +32,16 @@ def main():
                                              msgs.HamStream(ham[0], [ham[0]]),
                                              msgs.SpamStream(spam[0], [spam[0]]),
                                              )
+=======
+    from dictionarysplicer import splice_set
+
+    ham = [get_pathname_option("TestDriver", "ham_directories") % i for i in range(1, 5)]
+    spam = [get_pathname_option("TestDriver", "spam_directories") % i for i in range(1, 5)]
+
+    au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham[1], [ham[1]]), msgs.HamStream(ham[2], [ham[2]])],
+                                             [msgs.SpamStream(spam[1], [spam[1]]), msgs.SpamStream(spam[2], [spam[2]])],
+                                             msgs.HamStream(ham[0], [ham[0]]), msgs.SpamStream(spam[0], [spam[0]]))
+>>>>>>> Stashed changes
 
     au_v = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham[1], [ham[1]]), msgs.HamStream(ham[2], [ham[2]])],
                                                [msgs.SpamStream(spam[1], [spam[1]]), msgs.SpamStream(spam[3], [spam[3]])],
@@ -56,6 +66,7 @@ def main():
         cluster_sizes.append(5)
         print "Clustering with size", cluster_size, "..."
 
+<<<<<<< Updated upstream
         cl = ActiveUnlearnDriver.Cluster(msg, cluster_size, au, "extreme")
         cl_v = ActiveUnlearnDriver.Cluster(msg, cluster_size, au_v, "extreme")
 
@@ -133,6 +144,11 @@ def main():
 
         if answer == "n":
             keep_going = False
+=======
+    with open("/Users/AlexYang/Desktop/clusterstats.txt", 'w') as outfile:
+        outfile.write("Clustered around: " + msg.tag)
+        outfile.write("\nOriginal Rate: " + str(original_rate) + "\n")
+>>>>>>> Stashed changes
 
         else:
             au.learn(cl)

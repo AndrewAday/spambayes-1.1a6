@@ -3,7 +3,7 @@ from spambayes import TestDriver
 from Distance import distance
 import heapq
 import sys
-
+import copy
 
 def d(negs, x, opt=None):
     s = 0
@@ -34,9 +34,9 @@ class PriorityQueue:
         return item
 
     def taskify(self):
-        l = []
+        l = set()
         for item in self._queue:
-            l.append(item[-1])
+            l.add(item[-1])
         return l
 
 
@@ -46,10 +46,10 @@ class Cluster:
         self.clustroid = msg
         self.size = size
         self.active_unlearner = active_unlearner
-        self.ham = []
-        self.spam = []
+        self.ham = set()
+        self.spam = set()
         self.opt = opt
-        self.cluster_list = self.make_cluster()
+        self.cluster_set, self.cluster_heap = self.make_cluster()
         self.divide()
 
     def make_cluster(self):
@@ -64,20 +64,20 @@ class Cluster:
 
         l = heap.taskify()
         assert (len(l) == self.size)
-        return l
+        return l, heap
 
     def divide(self):
         """Divides messages in the cluster between spam and ham"""
-        for msg in self.cluster_list:
+        for msg in self.cluster_set:
             if msg.tag.endswith(".ham.txt"):
-                self.ham.append(msg)
+                self.ham.add(msg)
             elif msg.tag.endswith(".spam.txt"):
-                self.spam.append(msg)
+                self.spam.add(msg)
 
     def target_spam(self):
         """Returns a count of the number of spam emails in the cluster"""
         counter = 0
-        for msg in self.cluster_list:
+        for msg in self.cluster_set:
             if msg.tag.endswith(".spam.txt"):
                 counter += 1
         return counter
@@ -85,7 +85,7 @@ class Cluster:
     def target_set3(self):
         """Returns a count of the number of Set3 emails in the cluster"""
         counter = 0
-        for msg in self.cluster_list:
+        for msg in self.cluster_set:
             if "Set3" in msg.tag:
                 counter += 1
         return counter
@@ -159,6 +159,54 @@ class ActiveUnlearner:
         detection_rate = self.driver.tester.correct_classification_rate()
         self.learn(cluster)
         return detection_rate
+
+        # TEST METHOD
+    def start_detect_rate(self, cluster):
+        self.unlearn(cluster)
+        self.driver.test(self.testing_ham, self.testing_spam)
+        detection_rate = self.driver.tester.correct_classification_rate()
+        return detection_rate
+
+    def continue_detect_rate(self, cluster, n):
+        old_cluster = copy.deepcopy(cluster.cluster_set)
+        self.cluster_more(cluster, n)
+        new_cluster = cluster.cluster_set
+
+        new_unlearns = new_cluster - old_cluster
+        assert(len(new_unlearns) == len(new_cluster) - len(old_cluster))
+        assert(len(new_unlearns) == n), len(new_unlearns)
+
+        unlearn_hams = []
+        unlearn_spams = []
+
+        for unlearn in new_unlearns:
+            if unlearn.tag.endswith(".ham.txt"):
+                unlearn_hams.append(unlearn)
+
+            elif unlearn.tag.endswith(".spam.txt"):
+                unlearn_spams.append(unlearn)
+
+            self.driver.tester.train_examples[unlearn.train].remove(unlearn)
+
+        self.driver.untrain(unlearn_hams, unlearn_spams)
+        self.driver.test(self.testing_ham, self.testing_spam)
+        detection_rate = self.driver.tester.correct_classification_rate()
+        return detection_rate
+
+    def cluster_more(self, cluster, n):
+        cluster.size += n
+        k = cluster.size
+        for i in range(len(self.driver.tester.train_examples)):
+            for train in self.driver.tester.train_examples[i]:
+                if train != cluster.clustroid:
+                    if len(cluster.cluster_heap) < k:
+                        cluster.cluster_heap.push(train, distance(cluster.clustroid, train, cluster.opt))
+
+                    else:
+                        cluster.cluster_heap.pushpop(train, distance(cluster.clustroid, train, cluster.opt))
+
+        cluster.cluster_set = cluster.cluster_heap.taskify()
+        assert(len(cluster.cluster_set) == k), len(cluster.cluster_set)
 
 """
     # -----------------------------------------------------------------------------------

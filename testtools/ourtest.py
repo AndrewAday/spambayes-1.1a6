@@ -64,15 +64,17 @@ def drive(num):
     hamdirs = [get_pathname_option("TestDriver", "ham_directories") %
                i for i in range(1, 5)]
 
-    r = InjectionPollution.InjectionPolluter(num)
-    r.injectfeatures()
-
     d = TestDriver.Driver()
     d.new_classifier()
     d.train(msgs.HamStream(hamdirs[0], [hamdirs[0]]),
             msgs.SpamStream(spamdirs[0], [spamdirs[0]]))
     d.train(msgs.HamStream(hamdirs[2], [hamdirs[2]]),
             msgs.SpamStream(spamdirs[2], [spamdirs[2]]))
+    d.test(msgs.HamStream(hamdirs[1], [hamdirs[1]]),
+           msgs.SpamStream(spamdirs[1], [spamdirs[1]]))
+
+    d.untrain(msgs.HamStream(hamdirs[2], [hamdirs[2]]),
+              msgs.SpamStream(spamdirs[2], [spamdirs[2]]))
     d.test(msgs.HamStream(hamdirs[1], [hamdirs[1]]),
            msgs.SpamStream(spamdirs[1], [spamdirs[1]]))
 

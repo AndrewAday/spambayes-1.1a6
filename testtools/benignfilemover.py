@@ -18,7 +18,7 @@ class BenignFileMover:
     def __init__(self, number):
         self.NUMBER = number
 
-        self.ham_num = number
+        self.ham_num = self.NUMBER
         self.ham_source = get_pathname_option("TestDriver", "ham_directories") % 1 + "/"
         self.ham_test = get_pathname_option("TestDriver", "ham_directories") % 2 + "/"
         self.ham_destination = get_pathname_option("TestDriver", "ham_directories") % 3 + "/"
@@ -89,8 +89,8 @@ class BenignFileMover:
 
 
 def main():
-    f = BenignFileMover(1)
-    f.reset()
+    f = BenignFileMover(3000)
+
     f.print_filelist()
 
 if __name__ == "__main__":

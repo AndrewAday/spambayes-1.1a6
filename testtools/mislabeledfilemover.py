@@ -91,7 +91,8 @@ class MislabeledFileMover:
 
 def main():
     f = MislabeledFileMover(3)
-    f.reset()
+
+
     f.print_filelist()
 
 if __name__ == "__main__":
