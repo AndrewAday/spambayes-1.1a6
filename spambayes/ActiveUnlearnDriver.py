@@ -75,12 +75,22 @@ class Cluster:
             elif msg.tag.endswith(".spam.txt"):
                 self.spam.add(msg)
 
+        if self.clustroid.tag.endswith(".ham.txt"):
+            self.ham.add(self.clustroid)
+
+        elif self.clustroid.tag.endswith(".spam.txt"):
+            self.spam.add(self.clustroid)
+
     def target_spam(self):
         """Returns a count of the number of spam emails in the cluster"""
         counter = 0
         for msg in self.cluster_set:
             if msg.tag.endswith(".spam.txt"):
                 counter += 1
+
+        if self.clustroid.tag.endswith(".spam.txt"):
+            counter += 1
+
         return counter
 
     def target_set3(self):
@@ -89,6 +99,10 @@ class Cluster:
         for msg in self.cluster_set:
             if "Set3" in msg.tag:
                 counter += 1
+
+        if "Set3" in self.clustroid.tag:
+            counter += 1
+
         return counter
 
     def cluster_more(self, n):
@@ -130,7 +144,9 @@ class ProxyCluster:
 
 class ActiveUnlearner:
 
-    def __init__(self, training_ham, training_spam, testing_ham, testing_spam):
+    def __init__(self, training_ham, training_spam, testing_ham, testing_spam, threshold=90, increment=100):
+        self.increment = increment
+        self.threshold = threshold
         self.driver = TestDriver.Driver()
         self.set_driver()
         self.hamspams = zip(training_ham, training_spam)
@@ -181,16 +197,6 @@ class ActiveUnlearner:
         for spam in cluster.spam:
             self.driver.tester.train_examples[spam.train].append(spam)
 
-    def detect_rate_diff(self, cluster):
-        """Returns the theoretical difference in detection rate if a given cluster
-           is unlearned. Relearns the cluster afterwards"""
-        old_detection_rate = self.driver.tester.correct_classification_rate()
-        self.unlearn(cluster)
-        self.driver.test(self.testing_ham, self.testing_spam)
-        new_detection_rate = self.driver.tester.correct_classification_rate()
-        self.learn(cluster)
-        return new_detection_rate - old_detection_rate
-
     # --------------------------------------------------------------------------------------------------------------
     # --------------------------------------------------------------------------------------------------------------
 
@@ -237,30 +243,18 @@ class ActiveUnlearner:
         detection_rate = self.driver.tester.correct_classification_rate()
         return detection_rate
 
-    # Should only be used right after init_ground
-    # May be used for actual method
-    def select_initial(self):
-        init_point = choice(self.driver.tester.ham_wrong_examples + self.driver.tester.spam_wrong_examples +
-                            self.driver.tester.unsure_examples)
+    # --------------------------------------------------------------------------------------------------------------
+    # --------------------------------------------------------------------------------------------------------------
 
-        min_distance = sys.maxint
-        min_point = None
+    def determine_cluster(self, center):
+        """ Given a chosen starting center and a given increment of cluster size, it continues to grow and cluster more
+            until the detection rate hits a maximum peak (i.e. optimal cluster); if first try is a decrease, reject this
+            center and return False."""
 
-        for i in len(self.driver.tester.train_examples):
-            for email in self.driver.tester.train_examples[i]:
-                current_distance = distance(email, init_point, "extreme")
-                if current_distance < min_distance:
-                    min_point = email
-                    min_distance = current_distance
-
-        return min_point, init_point
-
-    # May be used for actual method
-    def determine_cluster(self, center, increment):
         print "\nDetermining appropriate cluster around", center.tag, "...\n"
         old_detection_rate = self.driver.tester.correct_classification_rate()
         counter = 0
-        cluster = Cluster(center, increment, self)
+        cluster = Cluster(center, self.increment, self)
         self.unlearn(cluster)
         self.driver.test(self.testing_ham, self.testing_spam)
         new_detection_rate = self.driver.tester.correct_classification_rate()
@@ -278,16 +272,17 @@ class ActiveUnlearner:
 
             while new_detection_rate >= old_detection_rate:
                 counter += 1
-                print "\nExploring cluster of size", (counter + 1) * increment, "...\n"
+                print "\nExploring cluster of size", (counter + 1) * self.increment, "...\n"
+
                 old_detection_rate = new_detection_rate
                 proxy_cluster = ProxyCluster(cluster)
                 old_cluster_set = copy.deepcopy(cluster.cluster_set)
-                cluster.cluster_more(increment)
+                cluster.cluster_more(self.increment)
                 new_cluster_set = cluster.cluster_set
 
                 new_unlearns = new_cluster_set - old_cluster_set
                 assert(len(new_unlearns) == len(new_cluster_set) - len(old_cluster_set))
-                assert(len(new_unlearns) == increment), len(new_unlearns)
+                assert(len(new_unlearns) == self.increment), len(new_unlearns)
 
                 unlearn_hams = []
                 unlearn_spams = []
@@ -305,21 +300,22 @@ class ActiveUnlearner:
                 self.driver.test(self.testing_ham, self.testing_spam)
                 new_detection_rate = self.driver.tester.correct_classification_rate()
 
+            # This part is done because we've clustered just past the peak point, so we need to go back
+            # one increment and relearn the extra stuff.
             for unlearn in new_unlearns:
                 self.driver.tester.train_examples[unlearn.train].append(unlearn)
             self.driver.train(unlearn_hams, unlearn_spams)
-            print "Appropriate cluster found."
-            return proxy_cluster, counter
 
-    # --------------------------------------------------------------------------------------------------------------
-    # --------------------------------------------------------------------------------------------------------------
+            assert(proxy_cluster.size == self.increment * counter), counter
 
-"""
+            print "Appropriate cluster found, with size", proxy_cluster.size, "."
+            return proxy_cluster
+
     # -----------------------------------------------------------------------------------
     # TO BE FIXED
-    def active_unlearn(self, k):
+    def active_unlearn(self, test=False):
 
-        # Select initial message to unlearn (based on mislabeled emails, or randomly)
+        # Select initial message to unlearn (based on mislabeled emails)
         # Unlearn email
         # Compare detection rates before and after unlearning
             # If detection rate improves, remove email
@@ -327,95 +323,73 @@ class ActiveUnlearner:
         # Select next email, based on previous email
         # Recursively (?) active-unlearn the next email
 
-        message = self.selectinitial()
-        driver = self.driver
+        cluster_list = []
+        chosen = set()
+        cluster_count = 0
+        detection_rate = self.driver.tester.correct_classification_rate()
 
-        cluster = self.cluster(message, k)
+        if detection_rate < self.threshold:
+            current = self.select_initial()
+            cluster = self.determine_cluster(current)
+            chosen.add(current)
+            # Keep trying new clusters based off of points from mislabeled until we get a viable cluster
+            while not cluster:
+                current = self.select_initial(chosen)
+                cluster = self.determine_cluster(current)
+                chosen.add(current)
 
-        if self.detect_rate_diff(cluster) < 0: # Message is a pollutant, detection rate improved
-            self.unlearn(cluster)
-            next_message = self.nextemail(message, True)
+            cluster_list.append(cluster)
 
-        else:
-            next_message = self.nextemail(message, False)
+            detection_rate = self.driver.tester.correct_classification_rate()
 
-        # Compares stats between pre-unlearn and post-unlearn, returns if stream should be removed
-        # The set of msgs is supposed to be all classified under one label -- we would potentially be
-        # unlearning clusters of emails at a time.
-        def unlearn_compare(cluster):
-            # return true if pollutant
-            # return false if benign
+            while detection_rate < self.threshold:
+                current = self.select_initial(chosen)
+                cluster = self.determine_cluster(current)
+                chosen.add(current)
 
-            # SHOULD BE REAL_HAM AND REAL_SPAM
-            for hamstream, spamstream in self.hamspams:
-                driver.test(hamstream, spamstream)
+                while not cluster:
+                    current = self.select_initial(chosen)
+                    cluster = self.determine_cluster(current)
+                    chosen.add(current)
 
-            diff = self.detect_rate_diff(cluster)
+                cluster_list.append(cluster)
+                cluster_count += 1
+                print "Unlearned", cluster_count, "clusters so far."
 
-            if diff != 0:
-                # Change in detection rate - most definitive
-                return diff > 0
+                self.driver.test(self.testing_ham, self.testing_spam)
+                detection_rate = self.driver.tester.correct_classification_rate()
 
-            # This is temporary, just to check if this case is actually ever encountered; we'll provide
-            # a fix to this later.
-            else:
+        if test:
+            return cluster_list
 
-
-                # no definitive change in detection rate
-                # look at impact on spam/ham scores instead
-                i_h = 0
-                i_s = 0
-                threshold = 0
-                for ham in self.au.ham:
-                    i_h += ham.probdiff
-                i_h /= len(self.au.ham)
-
-                for spam in self.au.spam:
-                    i_s += spam.probdiff
-                i_s /= len(self.au.spam)
-                return i_h < -threshold and i_s > threshold
-                # still no definitive change
-                # look at neighbors in cluster
-                counter = 0
-                for neighbor in cluster:
-                    if unlearn_compare(neighbor):
-
-
-                raise AssertionError
-
-        if unlearn_compare(message):
-            self.au.add_pollutant(message)
-            # untrain msg here?
-        else:
-            self.au.add_benign(message)
-
-        next_msg = self.get_next()
-        c = self.cluster(next_msg, k)
-        t = unlearn_compare(c)
-
+        print "Threshold achieved after", cluster_count, "clusters unlearned."
     # -----------------------------------------------------------------------------------
 
-    # Returns the set of mislabeled emails (from the ground truth) based off of the
-    # current classifier state. By default assumes the current state's numbers and
-    # tester false positives/negatives have already been generated; if not, it'll run the
-    # predict method from the tester.
     def mislabeled(self, update=False):
+        """ Returns the set of mislabeled emails (from the ground truth) based off of the
+            current classifier state. By default assumes the current state's numbers and
+            tester false positives/negatives have already been generated; if not, it'll run the
+            predict method from the tester."""
         tester = self.driver.tester
         if update:
             tester.predict(self.testing_ham, False)
             tester.predict(self.testing_spam, True)
 
         mislabeled = set()
-        mislabeled += tester.spam_wrong_examples, tester.ham_wrong_examples
+        for wrong_ham in tester.ham_wrong_examples:
+            mislabeled.add(wrong_ham)
+
+        for wrong_spam in tester.spam_wrong_examples:
+            mislabeled.add(wrong_spam)
+
         return mislabeled
 
-    # Returns an email to be used as the initial unlearning email based on
-    # the mislabeled data (our tests show that the mislabeled and pollutant
-    # emails are strongly, ~80%, correlated) if option is true (which is default).
-    def selectinitial(self, mislabel=True):
-        if mislabel:
-            mislabeled = self.mislabeled()
-            training = self.hamspams
+    def select_initial(self, chosen=set(), row_sum=False):
+        """ Returns an email to be used as the initial unlearning email based on
+            the mislabeled data (our tests show that the mislabeled and pollutant
+            emails are strongly, ~80%, correlated) if option is true (which is default)."""
+        mislabeled = self.mislabeled()
+        if row_sum:
 
             # We want to minimize the distances (rowsum) between the email we select
             # and the mislabeled emails. This ensures that the initial email we select
@@ -423,20 +397,38 @@ class ActiveUnlearner:
 
             minrowsum = sys.maxint
             init_email = None
-            for email in training:
-                rowsum = 0
-                for email2 in mislabeled:
-                    dist = distance(email, email2, "extreme")
-                    rowsum += dist ** 2
-                if rowsum < minrowsum:
-                    minrowsum = rowsum
-                    init_email = email
+            for i in len(self.driver.tester.train_examples):
+                for email in self.driver.tester.train_examples[i]:
+                    rowsum = 0
+                    for email2 in mislabeled:
+                        dist = distance(email, email2, "extreme")
+                        rowsum += dist ** 2
+                    if rowsum < minrowsum:
+                        minrowsum = rowsum
+                        init_email = email
 
             return init_email
 
         else:
-            pass
 
+            # This chooses an arbitrary point from the mislabeled emails and simply finds the email
+            # in training that is closest to this point.
+
+            mislabeled_point = choice(mislabeled - chosen)
+
+            min_distance = sys.maxint
+            init_email = None
+
+            for i in len(self.driver.tester.train_examples):
+                for email in self.driver.tester.train_examples[i]:
+                    current_distance = distance(email, mislabeled_point, "extreme")
+                    if current_distance < min_distance:
+                        init_email = email
+                        min_distance = current_distance
+
+            return init_email
+
+    """
     def nextemail(self, msg, is_pollutant):
         training = self.hamspams
         next_email = None
@@ -457,4 +449,4 @@ class ActiveUnlearner:
                     next_email = email
 
         return next_email
-"""
+    """
