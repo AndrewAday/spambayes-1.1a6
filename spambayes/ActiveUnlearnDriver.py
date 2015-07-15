@@ -139,7 +139,7 @@ class ProxyCluster:
         hams = []
         spams = []
 
-        if len(cluster.ham) + len(cluster.spam) != cluster.size:
+        if len(cluster.ham) + len(cluster.spam) != cluster.size + 1:
             print "\nUpdating cluster ham and spam sets for proxy...\n"
             cluster.divide()
 
@@ -201,7 +201,7 @@ class ActiveUnlearner:
             self.driver.tester.train_examples[spam.train].remove(spam)
 
     def learn(self, cluster):
-        if len(cluster.ham) + len(cluster.spam) != cluster.size:
+        if len(cluster.ham) + len(cluster.spam) != cluster.size + 1:
             print "\nUpdating cluster ham and spam sets...\n"
             cluster.divide()
 
