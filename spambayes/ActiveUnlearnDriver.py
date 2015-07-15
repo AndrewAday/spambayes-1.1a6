@@ -274,7 +274,7 @@ class ActiveUnlearner:
         self.driver.test(self.testing_ham, self.testing_spam)
         new_detection_rate = self.driver.tester.correct_classification_rate()
 
-        if new_detection_rate < old_detection_rate:
+        if new_detection_rate <= old_detection_rate:
             print "\nCenter is inviable.\n"
             self.learn(cluster)
             return False
@@ -285,7 +285,7 @@ class ActiveUnlearner:
             unlearn_spams = []
             new_unlearns = set()
 
-            while new_detection_rate >= old_detection_rate:
+            while new_detection_rate > old_detection_rate:
                 counter += 1
                 print "\nExploring cluster of size", (counter + 1) * self.increment, "...\n"
 
