@@ -33,18 +33,26 @@ def main():
                                              msgs.SpamStream(spam[0], [spam[0]]),
                                              )
     while keep_going:
-        original_detection_rate = au.driver.tester.correct_classification_rate()
-        cluster_list = au.active_unlearn(True)
-        total_polluted_unlearned = 0
-        total_unlearned = 0
-        total_unpolluted_unlearned = 0
-        final_detection_rate = au.driver.tester.correct_classification_rate()
-        for cluster in cluster_list:
-            total_unlearned += cluster.size + 1
-            total_polluted_unlearned += cluster.target_set3
-            total_unpolluted_unlearned += cluster.size + 1 - total_polluted_unlearned
-
         with open("C:\Users\Alex\Desktop\unlearn_stats" + str(trial_number) + ".txt", 'w') as outfile:
+            outfile.write("CLUSTER AND RATE COUNTS:\n")
+            outfile.write("---------------------------\n")
+
+            original_detection_rate = au.driver.tester.correct_classification_rate()
+
+            outfile.write("0: " + str(original_detection_rate))
+
+            cluster_list = au.active_unlearn(outfile, True)
+            total_polluted_unlearned = 0
+            total_unlearned = 0
+            total_unpolluted_unlearned = 0
+            final_detection_rate = au.driver.tester.correct_classification_rate()
+
+            print "\nTallying up final counts...\n"
+            for cluster in cluster_list:
+                total_unlearned += cluster.size + 1
+                total_polluted_unlearned += cluster.target_set3
+                total_unpolluted_unlearned += cluster.size + 1 - total_polluted_unlearned
+
             outfile.write("STATS\n")
             outfile.write("---------------------------\n")
             outfile.write("Initial Detection Rate: " + str(original_detection_rate) + "\n")
@@ -58,17 +66,23 @@ def main():
             outfile.write("Percentage of Polluted Unlearned:\n")
             outfile.write(str(float(total_polluted_unlearned) / 1200))
 
-        answer = raw_input("Keep going (y/n)? You have performed " + str(trial_number) + " trials so far. ")
+        answer = raw_input("Keep going (y/n)? You have performed " + str(trial_number) + " trial(s) so far. ")
+        valid_input = False
 
-        if answer == "n":
-            keep_going = False
+        while valid_input:
+            if answer == "n":
+                keep_going = False
+                valid_input = True
 
-        else:
-            for cluster in cluster_list:
-                au.learn(cluster)
-            au.init_ground()
-            trial_number += 1
+            elif answer == "y":
+                for cluster in cluster_list:
+                    au.learn(cluster)
+                au.init_ground()
+                trial_number += 1
+                valid_input = True
 
+            else:
+                print "Please enter either y or n."
 
 if __name__ == "__main__":
     main()
