@@ -32,7 +32,9 @@ def main():
     target_cluster_rates = []
 
     sizes = []
-    for i in range(5, 5):
+    for i in range(150, 1050, 50):
+        sizes.append(i)
+    for i in range(1000, 15000, 1000):
         sizes.append(i)
 
     for size in sizes:

@@ -73,11 +73,6 @@ def drive(num):
     d.test(msgs.HamStream(hamdirs[1], [hamdirs[1]]),
            msgs.SpamStream(spamdirs[1], [spamdirs[1]]))
 
-    d.untrain(msgs.HamStream(hamdirs[2], [hamdirs[2]]),
-              msgs.SpamStream(spamdirs[2], [spamdirs[2]]))
-    d.test(msgs.HamStream(hamdirs[1], [hamdirs[1]]),
-           msgs.SpamStream(spamdirs[1], [spamdirs[1]]))
-
     d.finishtest()
     d.alldone()
 
