@@ -12,7 +12,6 @@ def main():
     from spambayes import ActiveUnlearnDriver
     from spambayes.Options import get_pathname_option
     from spambayes import msgs
-    from tabulate import tabulate
 
     """
     from dictionarywriter import DictionaryWriter
@@ -27,15 +26,17 @@ def main():
     keep_going = True
     trial_number = 1
 
-    au_v = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham[1], [ham[1]]), msgs.HamStream(ham[2], [ham[2]])],
-                                               [msgs.SpamStream(spam[1], [spam[1]]), msgs.SpamStream(spam[3], [spam[3]])],
+    au_v = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham[1], [ham[1]]),
+                                                msgs.HamStream(ham[2], [ham[2]])],
+                                               [msgs.SpamStream(spam[1], [spam[1]]),
+                                                msgs.SpamStream(spam[3], [spam[3]])],
                                                msgs.HamStream(ham[0], [ham[0]]),
                                                msgs.SpamStream(spam[0], [spam[0]]),
                                                )
     while keep_going:
         msg = choice(au_v.driver.tester.train_examples[0])
         try:
-            test_cl, counter = au_v.determine_cluster(msg, 100)
+            test_cl, counter = au_v.determine_cluster(msg)
             test_size = test_cl.size
             au_v.learn(test_cl)
 

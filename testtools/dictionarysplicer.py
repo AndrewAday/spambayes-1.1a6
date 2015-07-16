@@ -21,8 +21,8 @@ def splice(dict_dest, n):
 
     dict.close()
 
-def splice_set(n):
-    destination = get_pathname_option("TestDriver", "spam_directories") % 3 + "/"
+def splice_set(n, dir=3):
+    destination = get_pathname_option("TestDriver", "spam_directories") % dir + "/"
     dict_c = 1
     for dictionary in listdir(destination):
         print "Slicing dictionary", dict_c, "into", n, "parts"
