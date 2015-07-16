@@ -478,8 +478,8 @@ class Classifier:
                     push(tup)
             clues.sort()
 
-        if len(clues) > options["Classifier", "max_discriminators"]:
-            del clues[0 : -options["Classifier", "max_discriminators"]]
+        #if len(clues) > options["Classifier", "max_discriminators"]:
+        #    del clues[0 : -options["Classifier", "max_discriminators"]]
         # Return (prob, word, record).
         return [t[1:] for t in clues]
 
