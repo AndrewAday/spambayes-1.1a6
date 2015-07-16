@@ -8,7 +8,7 @@ sys.path.insert(-1, os.path.dirname(os.getcwd()))
 
 from spambayes.Options import options, get_pathname_option
 from spambayes import msgs, Distance, ActiveUnlearnDriver
-from testtools import benignfilemover, mislabeledfilemover, dictionarywriter
+from testtools import benignfilemover, mislabeledfilemover, dictionarywriter, dictionarysplicer
 from scipy.stats import pearsonr
 from math import sqrt
 
@@ -29,7 +29,8 @@ def drive():
 
     spam = [get_pathname_option("TestDriver", "spam_directories") % i for i in range(1, 5)]
     ham = [get_pathname_option("TestDriver", "ham_directories") % i for i in range(1, 5)]
-
+    dictionarysplicer.splice_set(3, 4)
+    
     keep_going = True
     trial_number = 1
 
