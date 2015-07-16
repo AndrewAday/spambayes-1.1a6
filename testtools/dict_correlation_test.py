@@ -29,8 +29,10 @@ def drive():
 
     spam = [get_pathname_option("TestDriver", "spam_directories") % i for i in range(1, 5)]
     ham = [get_pathname_option("TestDriver", "ham_directories") % i for i in range(1, 5)]
-    dictionarysplicer.splice_set(3, 4)
-    
+
+    d = dictionarywriter.DictionaryWriter(50, 4)
+    d.write()
+
     keep_going = True
     trial_number = 1
 
@@ -41,9 +43,9 @@ def drive():
                                              msgs.HamStream(ham[0], [ham[0]]),
                                              msgs.SpamStream(spam[0], [spam[0]]),
                                              )
+    with open("C:\Users\Alex\Desktop\dict_correlation_stats.txt", 'w') as outfile:
 
-    while keep_going:
-        with open("C:\Users\Alex\Desktop\dict_correlation_stats.txt", 'w') as outfile:
+        while keep_going:
             chosen = set()
             current = au.select_initial()
             cluster = au.determine_cluster(current)
@@ -82,35 +84,35 @@ def drive():
                     print "Please enter either y or n."
 
 
-def p_correlation(polluted, mislabeled):
+def p_correlation(cluster_list, dicts):
     """Uses Pearson's Correlation Coefficient to calculate correlation
      between mislabeled results and initial polluted emails in ground truth"""
 
-    n = min(len(polluted), len(mislabeled))
+    n = min(len(cluster_list), len(dicts))
 
     x = []
     for i in range(0, n):
-        x.append(polluted[i].prob)
+        x.append(cluster_list[i].prob)
 
     y = []
     for i in range(0, n):
-        y.append(mislabeled[i].prob)
+        y.append(dicts[i].prob)
 
     return pearsonr(x, y)
 
 
-def v_correlation(polluted, mislabeled):
+def v_correlation(cluster_list, dicts):
 
-    print "Calculating Polluted Data Clustroid..."
+    print "Calculating Clustered Data Clustroid..."
 
     p_minrowsum = sys.maxint
     p_clustroid = None
     p_avgdistance = 0
     i = 1
-    for email in polluted:
-        print "Calculating on email " + str(i) + " of " + str(len(polluted))
+    for email in cluster_list:
+        print "Calculating on email " + str(i) + " of " + str(len(cluster_list))
         rowsum = 0
-        for email2 in polluted:
+        for email2 in cluster_list:
             if email == email2:
                 continue
             dist = Distance.distance(email, email2, "extreme")
@@ -118,19 +120,19 @@ def v_correlation(polluted, mislabeled):
         if rowsum < p_minrowsum:
             p_minrowsum = rowsum
             p_clustroid = email
-            p_avgdistance = sqrt(rowsum / (len(polluted) - 1))
+            p_avgdistance = sqrt(rowsum / (len(cluster_list) - 1))
         i += 1
 
-    print "Calculating Mislabeled Data Clustroid..."
+    print "Calculating Dictionary Data Clustroid..."
 
     m_minrowsum = sys.maxint
     m_clustroid = None
     m_avgdistance = 0
     i = 1
-    for email in mislabeled:
-        print "Calculating on email " + str(i) + " of " + str(len(mislabeled))
+    for email in dicts:
+        print "Calculating on email " + str(i) + " of " + str(len(dicts))
         rowsum = 0
-        for email2 in mislabeled:
+        for email2 in dicts:
             if email == email2:
                 continue
             dist = Distance.distance(email, email2, "extreme")
@@ -138,63 +140,40 @@ def v_correlation(polluted, mislabeled):
         if rowsum < m_minrowsum:
             m_minrowsum = rowsum
             m_clustroid = email
-            m_avgdistance = sqrt(rowsum / (len(polluted) - 1))
+            m_avgdistance = sqrt(rowsum / (len(cluster_list) - 1))
         i += 1
 
     print "Calculating Overlap..."
 
     p_size = 0
     i = 1
-    for email in polluted:
+    for email in cluster_list:
         distance = Distance.distance(email, m_clustroid, "extreme")
-        print "Scanning Polluted Email " + str(i) + " of " + str(len(polluted)) + " with distance " + str(distance)
+        print "Scanning Clustered Email " + str(i) + " of " + str(len(cluster_list)) + " with distance " + str(distance)
         if distance < m_avgdistance:
             p_size += 1
         i += 1
     m_size = 0
     i = 1
-    for email in mislabeled:
+    for email in dicts:
         distance = Distance.distance(email, p_clustroid, "extreme")
-        print "Scanning Mislabeled Email " + str(i) + " of " + str(len(mislabeled)) + " with distance " + str(distance)
+        print "Scanning Dictionary Email " + str(i) + " of " + str(len(dicts)) + " with distance " + str(distance)
         if distance < p_avgdistance:
             m_size += 1
         i += 1
 
-    total_size = len(polluted) + len(mislabeled)
+    total_size = len(cluster_list) + len(dicts)
 
     print "Total Size: " + str(total_size)
-    print "Size of Polluted Overlap: " + str(p_size)
-    print "Size of Mislabeled Overlap: " + str(m_size)
-    print "Polluted average distance: " + str(p_avgdistance)
-    print "Mislabeled average distance: " + str(m_avgdistance)
+    print "Size of Cluster Overlap: " + str(p_size)
+    print "Size of Dictionary Overlap: " + str(m_size)
+    print "Cluster average distance: " + str(p_avgdistance)
+    print "Dictionary average distance: " + str(m_avgdistance)
 
     return (float(p_size) + float(m_size)) / float(total_size)
 
 
 def main():
-    import getopt
-
-    try:
-        opts, args = getopt.getopt(sys.argv[1:], 'hn:s:',
-                                   ['ham-keep=', 'spam-keep='])
-    except getopt.error, msg:
-        usage(1, msg)
-
-    seed = hamkeep = spamkeep = None
-    for opt, arg in opts:
-        if opt == '-h':
-            usage(0)
-        elif opt == '-s':
-            seed = int(arg)
-        elif opt == '--ham-keep':
-            hamkeep = int(arg)
-        elif opt == '--spam-keep':
-            spamkeep = int(arg)
-
-    if args:
-        usage(1, "Positional arguments not supported")
-
-    msgs.setparms(hamkeep, spamkeep, seed=seed)
     drive()
 
 if __name__ == "__main__":

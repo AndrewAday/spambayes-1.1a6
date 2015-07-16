@@ -11,9 +11,9 @@ class DictionaryWriter:
     # A simple class to write dictionaries to Set 3 of the spam directories.
     # Used for unlearning experiments.
 
-    def __init__(self, num_files):
+    def __init__(self, num_files, dir_num=3):
         self.NUMFILES = num_files
-        self.destination = get_pathname_option("TestDriver", "spam_directories") % 3 + "/"
+        self.destination = get_pathname_option("TestDriver", "spam_directories") % dir_num + "/"
         self.destination_files = listdir(self.destination)
 
     def reset(self):
