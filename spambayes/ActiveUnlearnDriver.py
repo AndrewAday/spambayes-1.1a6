@@ -138,6 +138,7 @@ class ProxyCluster:
     def __init__(self, cluster):
         hams = []
         spams = []
+        cluster_set = set()
 
         if len(cluster.ham) + len(cluster.spam) != cluster.size + 1:
             print "\nUpdating cluster ham and spam sets for proxy...\n"
@@ -148,13 +149,24 @@ class ProxyCluster:
 
         for ham in cluster.ham:
             hams.append(ham)
+            cluster_set.add(ham)
 
         for spam in cluster.spam:
             spams.append(spam)
+            cluster_set.add(spam)
 
         self.ham = hams
         self.spam = spams
         self.size = cluster.size
+        self.cluster_set = cluster_set
+
+    def target_set3(self):
+        counter = 0
+
+        for msg in self.cluster_set:
+            if "Set3" in msg.tag:
+                counter += 1
+        return counter
 
 
 class ActiveUnlearner:
@@ -332,7 +344,6 @@ class ActiveUnlearner:
             return proxy_cluster
 
     # -----------------------------------------------------------------------------------
-    # TO BE FIXED
     def active_unlearn(self, outfile, test=False):
 
         # Select initial message to unlearn (based on mislabeled emails)
@@ -362,8 +373,14 @@ class ActiveUnlearner:
                 self.driver.test(self.testing_ham, self.testing_spam)
 
             cluster_list.append(cluster)
+            cluster_count += 1
+            print "\nUnlearned", cluster_count, "cluster(s) so far.\n"
 
             detection_rate = self.driver.tester.correct_classification_rate()
+            print "\nCurrent detection rate achieved is " + str(detection_rate) + ".\n"
+            if outfile is not None:
+                outfile.write(str(cluster_count) + ": " + str(detection_rate) + ", " + str(cluster.size + 1) + ", " +
+                              str(cluster.target_set3()) + "\n")
 
             while detection_rate < self.threshold:
                 current = self.select_initial(chosen)
@@ -384,8 +401,8 @@ class ActiveUnlearner:
                 detection_rate = self.driver.tester.correct_classification_rate()
                 print "\nCurrent detection rate achieved is " + str(detection_rate) + ".\n"
                 if outfile is not None:
-                    outfile.write(str(cluster_count) + ": " + str(detection_rate))
-
+                    outfile.write(str(cluster_count) + ": " + str(detection_rate) + ", " + str(cluster.size + 1) + ", "
+                                  + str(cluster.target_set3()) + "\n")
         if test:
             return cluster_list
 
@@ -420,6 +437,7 @@ class ActiveUnlearner:
             emails are strongly, ~80%, correlated) if option is true (which is default)."""
         mislabeled = self.mislabeled()
         print "Chosen:", chosen
+        print "Total Chosen: ", len(chosen)
         if row_sum:
 
             # We want to minimize the distances (rowsum) between the email we select

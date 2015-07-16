@@ -1,35 +1,3 @@
-# A test driver using "the standard" test directory structure.  See also
-# rates.py and cmp.py for summarizing results.  This runs an NxN test grid,
-# skipping the diagonal.
-
-"""Usage: %(program)s  [options] -n nsets
-
-Where:
-    -h
-        Show usage and exit.
-    -n int
-        Number of Set directories (Data/Spam/Set1, ... and Data/Ham/Set1, ...).
-        This is required.
-
-If you only want to use some of the messages in each set,
-
-    --ham-keep int
-        The maximum number of msgs to use from each Ham set.  The msgs are
-        chosen randomly.  See also the -s option.
-
-    --spam-keep int
-        The maximum number of msgs to use from each Spam set.  The msgs are
-        chosen randomly.  See also the -s option.
-
-    -s int
-        A seed for the random number generator.  Has no effect unless
-        at least one of {--ham-keep, --spam-keep} is specified.  If -s
-        isn't specifed, the seed is taken from current time.
-
-In addition, an attempt is made to merge bayescustomize.ini into the options.
-If that exists, it can be used to change the settings in Options.options.
-"""
-
 from __future__ import generators
 
 import os
@@ -39,9 +7,7 @@ sys.path.insert(-1, os.getcwd())
 sys.path.insert(-1, os.path.dirname(os.getcwd()))
 
 from spambayes.Options import options, get_pathname_option
-from spambayes import TestDriver
-from spambayes import msgs
-from spambayes import Distance
+from spambayes import msgs, Distance, ActiveUnlearnDriver
 from testtools import benignfilemover, mislabeledfilemover, dictionarywriter
 from scipy.stats import pearsonr
 from math import sqrt
@@ -58,52 +24,61 @@ def usage(code, msg=''):
     sys.exit(code)
 
 
-def drive(num):
+def drive():
     print options.display()
 
-    spamdirs = [get_pathname_option("TestDriver", "spam_directories") %
-                i for i in range(1, 4)]
-    hamdirs = [get_pathname_option("TestDriver", "ham_directories") %
-               i for i in range(1, 4)]
+    spam = [get_pathname_option("TestDriver", "spam_directories") % i for i in range(1, 5)]
+    ham = [get_pathname_option("TestDriver", "ham_directories") % i for i in range(1, 5)]
 
-    r = mislabeledfilemover.MislabeledFileMover(num)
-    r.random_move_file()
+    keep_going = True
+    trial_number = 1
 
-    d = TestDriver.Driver()
-    d.new_classifier()
-    d.train(msgs.HamStream(hamdirs[0], [hamdirs[0]]),
-            msgs.SpamStream(spamdirs[0], [spamdirs[0]]))
-    d.train(msgs.HamStream(hamdirs[2], [hamdirs[2]]),
-            msgs.SpamStream(spamdirs[2], [spamdirs[2]]))
-    d.test(msgs.HamStream(hamdirs[1], [hamdirs[1]]),
-           msgs.SpamStream(spamdirs[1], [spamdirs[1]]))
+    au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham[1], [ham[1]]),
+                                              msgs.HamStream(ham[2], [ham[2]])],
+                                             [msgs.SpamStream(spam[1], [spam[1]]),
+                                              msgs.SpamStream(spam[3], [spam[3]])],
+                                             msgs.HamStream(ham[0], [ham[0]]),
+                                             msgs.SpamStream(spam[0], [spam[0]]),
+                                             )
 
-    guess = d.classifier.spamprob
-    polluted = []
-    for msg in msgs.HamStream(hamdirs[2], [hamdirs[2]]):
-        msg.prob = guess(msg)
-        polluted.append(msg)
+    while keep_going:
+        with open("C:\Users\Alex\Desktop\dict_correlation_stats.txt", 'w') as outfile:
+            chosen = set()
+            current = au.select_initial()
+            cluster = au.determine_cluster(current)
+            chosen.add(current)
+            au.driver.test(au.testing_ham, au.testing_spam)
 
-    for msg in msgs.SpamStream(spamdirs[2], [spamdirs[2]]):
-        msg.prob = guess(msg)
-        polluted.append(msg)
+            while not cluster:
+                current = au.select_initial(chosen)
+                cluster = au.determine_cluster(current)
+                chosen.add(current)
+                au.driver.test(au.testing_ham, au.testing_spam)
 
-    mislabeled = []
-    for fp in d.tester.false_positives():
-        mislabeled.append(fp)
+            cluster_list = list(cluster.cluster_set)
 
-    for fn in d.tester.false_negatives():
-        mislabeled.append(fn)
+            dicts = au.driver.tester.train_examples[2]
 
-    for unsure in d.unsure:
-        mislabeled.append(unsure)
+            data = v_correlation(cluster_list, dicts)
 
-    d.finishtest()
-    d.alldone()
+            outfile.write("Trial " + str(trial_number) + " Percentage Overlap (Correlation): " + str(data))
+            answer = raw_input("Keep going (y/n)? You have performed " + str(trial_number) + " trial(s) so far. ")
 
-    data = v_correlation(polluted, mislabeled)
+            valid_input = False
 
-    print "Percentage Overlap (Correlation): " + str(data)
+            while not valid_input:
+                if answer == "n":
+                    keep_going = False
+                    valid_input = True
+
+                elif answer == "y":
+                    au.learn(cluster)
+                    au.init_ground()
+                    trial_number += 1
+                    valid_input = True
+
+                else:
+                    print "Please enter either y or n."
 
 
 def p_correlation(polluted, mislabeled):
@@ -170,15 +145,17 @@ def v_correlation(polluted, mislabeled):
     p_size = 0
     i = 1
     for email in polluted:
-        print "Scanning Polluted Email " + str(i) + " of " + str(len(polluted))
-        if Distance.distance(email, m_clustroid, "extreme") < m_avgdistance:
+        distance = Distance.distance(email, m_clustroid, "extreme")
+        print "Scanning Polluted Email " + str(i) + " of " + str(len(polluted)) + " with distance " + str(distance)
+        if distance < m_avgdistance:
             p_size += 1
         i += 1
     m_size = 0
     i = 1
     for email in mislabeled:
-        print "Scanning Mislabeled Email " + str(i) + " of " + str(len(mislabeled))
-        if Distance.distance(email, p_clustroid, "extreme") < p_avgdistance:
+        distance = Distance.distance(email, p_clustroid, "extreme")
+        print "Scanning Mislabeled Email " + str(i) + " of " + str(len(mislabeled)) + " with distance " + str(distance)
+        if distance < p_avgdistance:
             m_size += 1
         i += 1
 
@@ -187,6 +164,8 @@ def v_correlation(polluted, mislabeled):
     print "Total Size: " + str(total_size)
     print "Size of Polluted Overlap: " + str(p_size)
     print "Size of Mislabeled Overlap: " + str(m_size)
+    print "Polluted average distance: " + str(p_avgdistance)
+    print "Mislabeled average distance: " + str(m_avgdistance)
 
     return (float(p_size) + float(m_size)) / float(total_size)
 
@@ -200,12 +179,10 @@ def main():
     except getopt.error, msg:
         usage(1, msg)
 
-    nsets = seed = hamkeep = spamkeep = None
+    seed = hamkeep = spamkeep = None
     for opt, arg in opts:
         if opt == '-h':
             usage(0)
-        elif opt == '-n':
-            nsets = int(arg)
         elif opt == '-s':
             seed = int(arg)
         elif opt == '--ham-keep':
@@ -215,11 +192,9 @@ def main():
 
     if args:
         usage(1, "Positional arguments not supported")
-    if nsets is None:
-        usage(1, "-n is required")
 
     msgs.setparms(hamkeep, spamkeep, seed=seed)
-    drive(nsets)
+    drive()
 
 if __name__ == "__main__":
     main()

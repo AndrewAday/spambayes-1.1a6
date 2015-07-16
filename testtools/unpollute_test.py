@@ -39,7 +39,7 @@ def main():
 
             original_detection_rate = au.driver.tester.correct_classification_rate()
 
-            outfile.write("0: " + str(original_detection_rate))
+            outfile.write("0: " + str(original_detection_rate) + "\n")
 
             cluster_list = au.active_unlearn(outfile, True)
             total_polluted_unlearned = 0
@@ -69,7 +69,7 @@ def main():
         answer = raw_input("Keep going (y/n)? You have performed " + str(trial_number) + " trial(s) so far. ")
         valid_input = False
 
-        while valid_input:
+        while not valid_input:
             if answer == "n":
                 keep_going = False
                 valid_input = True
