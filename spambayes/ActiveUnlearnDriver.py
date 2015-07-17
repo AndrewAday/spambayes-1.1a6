@@ -1,4 +1,4 @@
-from random import choice
+from random import choice, shuffle
 from spambayes import TestDriver
 from Distance import distance
 import heapq
@@ -185,6 +185,7 @@ class ActiveUnlearner:
         self.set_training_nums()
         self.set_dict_nums()
         self.init_ground()
+        self.mislabeled_chosen = set()
 
     def set_driver(self):
         self.driver.new_classifier()
@@ -230,14 +231,14 @@ class ActiveUnlearner:
         """Returns the detection rate if a given cluster is unlearned.
            Relearns the cluster afterwards"""
         self.unlearn(cluster)
-        self.driver.test(self.testing_ham, self.testing_spam)
+        self.init_ground()
         detection_rate = self.driver.tester.correct_classification_rate()
         self.learn(cluster)
         return detection_rate
 
     def start_detect_rate(self, cluster):
         self.unlearn(cluster)
-        self.driver.test(self.testing_ham, self.testing_spam)
+        self.init_ground()
         detection_rate = self.driver.tester.correct_classification_rate()
         return detection_rate
 
@@ -263,7 +264,7 @@ class ActiveUnlearner:
             self.driver.tester.train_examples[unlearn.train].remove(unlearn)
 
         self.driver.untrain(unlearn_hams, unlearn_spams)
-        self.driver.test(self.testing_ham, self.testing_spam)
+        self.init_ground()
         detection_rate = self.driver.tester.correct_classification_rate()
         return detection_rate
 
@@ -281,7 +282,7 @@ class ActiveUnlearner:
 
         # Test detection rate after unlearning cluster
         self.unlearn(cluster)
-        self.driver.test(self.testing_ham, self.testing_spam)
+        self.init_ground()
         new_detection_rate = self.driver.tester.correct_classification_rate()
 
         if new_detection_rate <= old_detection_rate:    # Detection rate worsens - Reject
@@ -318,7 +319,7 @@ class ActiveUnlearner:
                     self.driver.tester.train_examples[unlearn.train].remove(unlearn)
 
                 self.driver.untrain(unlearn_hams, unlearn_spams)
-                self.driver.test(self.testing_ham, self.testing_spam)
+                self.init_ground()
                 new_detection_rate = self.driver.tester.correct_classification_rate()
 
             # This part is done because we've clustered just past the peak point, so we need to go back
@@ -336,21 +337,19 @@ class ActiveUnlearner:
     def active_unlearn(self, outfile, test=False):
 
         cluster_list = []
-        chosen = set()
+        chosen = self.mislabeled_chosen
         cluster_count = 0
         detection_rate = self.driver.tester.correct_classification_rate()
 
         while detection_rate < self.threshold:
             current = self.select_initial(chosen)
             cluster = self.determine_cluster(current)
-            chosen.add(current)
-            self.driver.test(self.testing_ham, self.testing_spam)
+            self.init_ground()
 
             while not cluster:
                 current = self.select_initial(chosen)
                 cluster = self.determine_cluster(current)
-                chosen.add(current)
-                self.driver.test(self.testing_ham, self.testing_spam)
+                self.init_ground()
 
             cluster_list.append(cluster)
             cluster_count += 1
@@ -366,6 +365,60 @@ class ActiveUnlearner:
 
         print "\nThreshold achieved after", cluster_count, "clusters unlearned.\n"
     # -----------------------------------------------------------------------------------
+
+    def brute_force_active_unlearn(self, outfile, test=False):
+        cluster_list = []
+        cluster_count = 0
+        rejection_count = 0
+        training = self.shuffle_training()
+        original_training_size = len(training)
+        detection_rate = self.driver.tester.correct_classification_rate()
+        print "\nCurrent detection rate achived is " + str(detection_rate) + ".\n"
+
+        while len(training) > 0:
+            print "\nStarting new round of untraining;", len(training), "out of", original_training_size, "training left" \
+                                                                                                          ".\n"
+
+            current = training[len(training) - 1]
+            cluster = self.determine_cluster(current)
+
+            if not cluster:
+                print "\nRemoving inviable cluster center...\n"
+                training.remove(current)
+                rejection_count += 1
+
+            else:
+                self.init_ground()
+                cluster_list.append(cluster)
+                print "\nRemoving cluster from shuffled training set...\n"
+
+                for msg in cluster.cluster_set:
+                    training.remove(msg)
+
+                cluster_count += 1
+                print "\nUnlearned", cluster_count, "cluster(s) so far.\n"
+
+                detection_rate = self.driver.tester.correct_classification_rate()
+                print "\nCurrent detection rate achived is " + str(detection_rate) + ".\n"
+                if outfile is not None:
+                    outfile.write(str(cluster_count) + ": " + str(detection_rate) + ", " + str(cluster.size + 1) + ", "
+                                  + str(cluster.target_set3()) + "\n")
+
+        if test:
+            return cluster_list
+
+        print "\nIteration through training space complete after", cluster_count, "clusters unlearned and", \
+            rejection_count, "rejections made.\n"
+
+        print "\nFinal detection rate: " + str(detection_rate) + ".\n"
+
+    def shuffle_training(self):
+        training = []
+        for i in range(len(self.driver.tester.train_examples)):
+            training += self.driver.tester.train_examples[i]
+
+        shuffle(training)
+        return training
 
     def get_mislabeled(self, update=False):
         """ Returns the set of mislabeled emails (from the ground truth) based off of the
@@ -389,13 +442,13 @@ class ActiveUnlearner:
 
         return mislabeled
 
-    def select_initial(self, chosen=set(), use_rowsum=False):
+    def select_initial(self, use_rowsum=False):
         """ Returns an email to be used as the initial unlearning email based on
             the mislabeled data (our tests show that the mislabeled and pollutant
             emails are strongly, ~80%, correlated) if option is true (which is default)."""
         mislabeled = self.get_mislabeled()
-        print "Chosen: ", chosen
-        print "Total Chosen: ", len(chosen)
+        print "Chosen: ", self.mislabeled_chosen
+        print "Total Chosen: ", len(self.mislabeled_chosen)
         if use_rowsum:
             # We want to minimize the distances (rowsum) between the email we select
             # and the mislabeled emails. This ensures that the initial email we select
@@ -419,7 +472,8 @@ class ActiveUnlearner:
             # This chooses an arbitrary point from the mislabeled emails and simply finds the email
             # in training that is closest to this point.
             try:
-                mislabeled_point = choice(list(mislabeled - chosen))
+                mislabeled_point = choice(list(mislabeled - self.mislabeled_chosen))
+                self.mislabeled_chosen.add(mislabeled_point)
             except:
                 raise AssertionError(str(mislabeled))
 

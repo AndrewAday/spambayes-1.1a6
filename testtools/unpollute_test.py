@@ -7,12 +7,16 @@ sys.path.insert(-1, os.path.dirname(os.getcwd()))
 from spambayes import ActiveUnlearnDriver
 from spambayes.Options import get_pathname_option
 from spambayes import msgs
+from testtools import dictionarywriter
 
 
 def main():
 
     ham = [get_pathname_option("TestDriver", "ham_directories") % i for i in range(1, 5)]
     spam = [get_pathname_option("TestDriver", "spam_directories") % i for i in range(1, 5)]
+
+    d = dictionarywriter.DictionaryWriter(600, words=False, wordsEn=False)
+    d.write()
 
     keep_going = True
     trial_number = 1
@@ -31,7 +35,7 @@ def main():
 
             outfile.write("0: " + str(original_detection_rate) + "\n")
 
-            cluster_list = au.active_unlearn(outfile, True)
+            cluster_list = au.brute_force_active_unlearn(outfile, True)
             total_polluted_unlearned = 0
             total_unlearned = 0
             total_unpolluted_unlearned = 0
