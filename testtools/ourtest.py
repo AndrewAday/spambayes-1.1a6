@@ -60,9 +60,9 @@ def drive(num):
     print options.display()
 
     spamdirs = [get_pathname_option("TestDriver", "spam_directories") %
-                i for i in range(1, 5)]
+                i for i in range(1, 4)]
     hamdirs = [get_pathname_option("TestDriver", "ham_directories") %
-               i for i in range(1, 5)]
+               i for i in range(1, 4)]
 
     d = TestDriver.Driver()
     d.new_classifier()

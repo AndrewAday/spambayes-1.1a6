@@ -1,36 +1,26 @@
-__author__ = 'Alex'
+import os
+import sys
+
+sys.path.insert(-1, os.getcwd())
+sys.path.insert(-1, os.path.dirname(os.getcwd()))
+
+from spambayes import ActiveUnlearnDriver
+from spambayes.Options import get_pathname_option
+from spambayes import msgs
 
 
 def main():
-    import os
-    import sys
-
-    sys.path.insert(-1, os.getcwd())
-    sys.path.insert(-1, os.path.dirname(os.getcwd()))
-
-    from spambayes import ActiveUnlearnDriver
-    from spambayes.Options import get_pathname_option
-    from spambayes import msgs
-
-    """
-    from dictionarywriter import DictionaryWriter
-    """
 
     ham = [get_pathname_option("TestDriver", "ham_directories") % i for i in range(1, 5)]
     spam = [get_pathname_option("TestDriver", "spam_directories") % i for i in range(1, 5)]
-    """
-    DictionaryWriter(600).write()
-    """
 
     keep_going = True
     trial_number = 1
 
-    au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham[1], [ham[1]]),
-                                              msgs.HamStream(ham[2], [ham[2]])],
-                                             [msgs.SpamStream(spam[1], [spam[1]]),
-                                              msgs.SpamStream(spam[3], [spam[3]])],
-                                             msgs.HamStream(ham[0], [ham[0]]),
-                                             msgs.SpamStream(spam[0], [spam[0]]),
+    au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham[1], [ham[1]]), msgs.HamStream(ham[2], [ham[2]])],       # Training Ham
+                                             [msgs.SpamStream(spam[1], [spam[1]]), msgs.SpamStream(spam[2], [spam[2]])], # Training Spam
+                                             msgs.HamStream(ham[0], [ham[0]]),      # Testing Ham
+                                             msgs.SpamStream(spam[0], [spam[0]]),   # Testing Spam
                                              )
     while keep_going:
         with open("C:\Users\Alex\Desktop\unlearn_stats" + str(trial_number) + ".txt", 'w') as outfile:
