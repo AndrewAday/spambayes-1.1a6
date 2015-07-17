@@ -30,7 +30,7 @@ def drive():
     spam = [get_pathname_option("TestDriver", "spam_directories") % i for i in range(1, 5)]
     ham = [get_pathname_option("TestDriver", "ham_directories") % i for i in range(1, 5)]
 
-    d = dictionarywriter.DictionaryWriter(50, 4)
+    d = dictionarywriter.DictionaryWriter(150, 4)
     d.write()
 
     keep_going = True
@@ -102,6 +102,7 @@ def p_correlation(cluster_list, dicts):
 
 
 def v_correlation(cluster_list, dicts):
+    dict_list = [[], [], [], []]
 
     print "Calculating Clustered Data Clustroid..."
 
@@ -130,6 +131,16 @@ def v_correlation(cluster_list, dicts):
     m_avgdistance = 0
     i = 1
     for email in dicts:
+        if "dictionary3.spam.txt" in email.tag:
+            dict_list[0] = email.clues
+            assert(len(email.clues) > 0)
+        elif "wordlist3.spam.txt" in email.tag:
+            dict_list[1] = email.clues
+        elif "words3.spam.txt" in email.tag:
+            dict_list[2] = email.clues
+        elif "wordsEn3.spam.txt" in email.tag:
+            dict_list[3] = email.clues
+
         print "Calculating on email " + str(i) + " of " + str(len(dicts))
         rowsum = 0
         for email2 in dicts:
@@ -140,7 +151,7 @@ def v_correlation(cluster_list, dicts):
         if rowsum < m_minrowsum:
             m_minrowsum = rowsum
             m_clustroid = email
-            m_avgdistance = sqrt(rowsum / (len(cluster_list) - 1))
+            m_avgdistance = sqrt(rowsum / (len(dicts) - 1))
         i += 1
 
     print "Calculating Overlap..."
@@ -169,6 +180,7 @@ def v_correlation(cluster_list, dicts):
     print "Size of Dictionary Overlap: " + str(m_size)
     print "Cluster average distance: " + str(p_avgdistance)
     print "Dictionary average distance: " + str(m_avgdistance)
+    print "Dictionary Clues: " + str(dict_list)
 
     return (float(p_size) + float(m_size)) / float(total_size)
 
