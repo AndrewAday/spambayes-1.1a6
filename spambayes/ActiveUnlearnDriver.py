@@ -370,10 +370,11 @@ class ActiveUnlearner:
         cluster_list = []
         cluster_count = 0
         rejection_count = 0
+        rejections = set()
         training = self.shuffle_training()
         original_training_size = len(training)
         detection_rate = self.driver.tester.correct_classification_rate()
-        print "\nCurrent detection rate achived is " + str(detection_rate) + ".\n"
+        print "\nCurrent detection rate achieved is " + str(detection_rate) + ".\n"
 
         while len(training) > 0:
             print "\nStarting new round of untraining;", len(training), "out of", original_training_size, "training left" \
@@ -383,8 +384,9 @@ class ActiveUnlearner:
             cluster = self.determine_cluster(current)
 
             if not cluster:
-                print "\nRemoving inviable cluster center...\n"
+                print "\nMoving on from inviable cluster center...\n"
                 training.remove(current)
+                rejections.add(current)
                 rejection_count += 1
 
             else:
@@ -393,13 +395,14 @@ class ActiveUnlearner:
                 print "\nRemoving cluster from shuffled training set...\n"
 
                 for msg in cluster.cluster_set:
-                    training.remove(msg)
+                    if msg not in rejections:
+                        training.remove(msg)
 
                 cluster_count += 1
                 print "\nUnlearned", cluster_count, "cluster(s) so far.\n"
 
                 detection_rate = self.driver.tester.correct_classification_rate()
-                print "\nCurrent detection rate achived is " + str(detection_rate) + ".\n"
+                print "\nCurrent detection rate achieved is " + str(detection_rate) + ".\n"
                 if outfile is not None:
                     outfile.write(str(cluster_count) + ": " + str(detection_rate) + ", " + str(cluster.size + 1) + ", "
                                   + str(cluster.target_set3()) + "\n")
