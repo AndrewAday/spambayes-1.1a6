@@ -288,6 +288,8 @@ class ActiveUnlearner:
         if new_detection_rate <= old_detection_rate:    # Detection rate worsens - Reject
             print "\nCenter is inviable.\n"
             self.learn(cluster)
+            print "\nResetting numbers...\n"
+            self.init_ground()
             return False
 
         else:                                           # Detection rate improves - Grow cluster
@@ -331,6 +333,8 @@ class ActiveUnlearner:
             assert(proxy_cluster.size == self.increment * counter), counter
 
             print "\nAppropriate cluster found, with size " + str(proxy_cluster.size) + ".\n"
+            print "\nResetting numbers...\n"
+            self.init_ground()
             return proxy_cluster
 
     # -----------------------------------------------------------------------------------
@@ -344,12 +348,10 @@ class ActiveUnlearner:
         while detection_rate < self.threshold:
             current = self.select_initial(chosen)
             cluster = self.determine_cluster(current)
-            self.init_ground()
 
             while not cluster:
                 current = self.select_initial(chosen)
                 cluster = self.determine_cluster(current)
-                self.init_ground()
 
             cluster_list.append(cluster)
             cluster_count += 1
@@ -390,7 +392,6 @@ class ActiveUnlearner:
                 rejection_count += 1
 
             else:
-                self.init_ground()
                 cluster_list.append(cluster)
                 print "\nRemoving cluster from shuffled training set...\n"
 
