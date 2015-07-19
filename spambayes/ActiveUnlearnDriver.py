@@ -106,6 +106,18 @@ class Cluster:
 
         return counter
 
+    def target_set4(self):
+        """Returns a count of the number of Set4 emails in the cluster"""
+        counter = 0
+        for msg in self.cluster_set:
+            if "Set4" in msg.tag:
+                counter += 1
+
+        if "Set4" in self.clustroid.tag:
+            counter += 1
+
+        return counter
+
     def cluster_more(self, n):
         old_cluster_set = copy.deepcopy(self.cluster_set)
         self.size += n
@@ -169,6 +181,14 @@ class ProxyCluster:
                 counter += 1
         return counter
 
+    def target_set4(self):
+        counter = 0
+
+        for msg in self.cluster_set:
+            if "Set4" in msg.tag:
+                counter += 1
+        return counter
+
 
 class ActiveUnlearner:
 
@@ -209,6 +229,10 @@ class ActiveUnlearner:
         self.driver.dict_test(hamstream, spamstream)
 
     def unlearn(self, cluster):
+        if len(cluster.ham) + len(cluster.spam) != cluster.size + 1:
+            print "\nUpdating cluster ham and spam sets...\n"
+            cluster.divide()
+
         self.driver.untrain(cluster.ham, cluster.spam)
 
         for ham in cluster.ham:
@@ -348,13 +372,13 @@ class ActiveUnlearner:
             return True, proxy_cluster
 
     # -----------------------------------------------------------------------------------
-    def active_unlearn(self, outfile, test=False):
+    def active_unlearn(self, outfile, test=False, pollution_set3=True):
 
         cluster_list = []
         chosen = self.mislabeled_chosen
         cluster_count = 0
         attempt_count = 0
-        detection_rate = self.driver.tester.correct_classification_rate()
+        detection_rate = self.current_detection_rate
 
         while detection_rate < self.threshold:
             current = self.select_initial(chosen)
@@ -372,11 +396,16 @@ class ActiveUnlearner:
             cluster_count += 1
             print "\nUnlearned", cluster_count, "cluster(s) so far.\n"
 
-            detection_rate = self.driver.tester.correct_classification_rate()
+            detection_rate = self.current_detection_rate
             print "\nCurrent detection rate achieved is " + str(detection_rate) + ".\n"
             if outfile is not None:
-                outfile.write(str(cluster_count) + ", " + str(attempt_count) + ": " + str(detection_rate) + ", " +
-                              str(cluster[1].size + 1) + ", " + str(cluster[1].target_set3()) + "\n")
+                if pollution_set3:
+                    outfile.write(str(cluster_count) + ", " + str(attempt_count) + ": " + str(detection_rate) + ", " +
+                                  str(cluster[1].size + 1) + ", " + str(cluster[1].target_set3()) + "\n")
+
+                else:
+                    outfile.write(str(cluster_count) + ", " + str(attempt_count) + ": " + str(detection_rate) + ", " +
+                                  str(cluster[1].size + 1) + ", " + str(cluster[1].target_set4()) + "\n")
                 outfile.flush()
                 os.fsync(outfile)
 
@@ -386,14 +415,14 @@ class ActiveUnlearner:
         print "\nThreshold achieved after", cluster_count, "clusters unlearned and", attempt_count, "attempts.\n"
     # -----------------------------------------------------------------------------------
 
-    def brute_force_active_unlearn(self, outfile, test=False, center_iteration=True):
+    def brute_force_active_unlearn(self, outfile, test=False, center_iteration=True, pollution_set3=True):
         cluster_list = []
         cluster_count = 0
         rejection_count = 0
         rejections = set()
         training = self.shuffle_training()
         original_training_size = len(training)
-        detection_rate = self.driver.tester.correct_classification_rate()
+        detection_rate = self.current_detection_rate
         print "\nCurrent detection rate achieved is " + str(detection_rate) + ".\n"
 
         while len(training) > 0:
@@ -411,9 +440,15 @@ class ActiveUnlearner:
                     rejection_count += 1
 
                 else:
-                    for msg in cluster[1]:
+                    for msg in cluster[1].cluster_set:
                         if msg not in rejections:
                             training.remove(msg)
+                            rejections.add(msg)
+
+                    if current not in rejections:
+                        training.remove(current)
+                        rejections.add(current)
+                    rejection_count += 1
 
                 print "\nRejected", rejection_count, "attempt(s) so far.\n"
 
@@ -424,16 +459,28 @@ class ActiveUnlearner:
                 for msg in cluster[1].cluster_set:
                     if msg not in rejections:
                         training.remove(msg)
+                        rejections.add(msg)
+
+                if current not in rejections:
+                    rejections.add(current)
+                    training.remove(current)
 
                 cluster_count += 1
                 print "\nUnlearned", cluster_count, "cluster(s) so far.\n"
 
-                detection_rate = self.driver.tester.correct_classification_rate()
+                detection_rate = self.current_detection_rate
                 print "\nCurrent detection rate achieved is " + str(detection_rate) + ".\n"
                 if outfile is not None:
-                    outfile.write(str(cluster_count) + ", " + str(rejection_count + cluster_count) + ": " +
-                                  str(detection_rate) + ", " + str(cluster[1].size + 1) + ", " +
-                                  str(cluster[1].target_set3()) + "\n")
+                    if pollution_set3:
+                        outfile.write(str(cluster_count) + ", " + str(rejection_count + cluster_count) + ": " +
+                                      str(detection_rate) + ", " + str(cluster[1].size + 1) + ", " +
+                                      str(cluster[1].target_set3()) + "\n")
+
+                    else:
+                        outfile.write(str(cluster_count) + ", " + str(rejection_count + cluster_count) + ": " +
+                                      str(detection_rate) + ", " + str(cluster[1].size + 1) + ", " +
+                                      str(cluster[1].target_set4()) + "\n")
+
                     outfile.flush()
                     os.fsync(outfile)
 
