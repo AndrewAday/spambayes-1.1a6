@@ -4,6 +4,7 @@ from Distance import distance
 import heapq
 import sys
 import copy
+import os
 
 
 def d(negs, x, opt=None):
@@ -186,6 +187,8 @@ class ActiveUnlearner:
         self.set_dict_nums()
         self.init_ground()
         self.mislabeled_chosen = set()
+        self.current_detection_rate = self.driver.tester.correct_classification_rate()
+        print "Initial detection rate:", self.current_detection_rate
 
     def set_driver(self):
         self.driver.new_classifier()
@@ -276,7 +279,7 @@ class ActiveUnlearner:
             center and return False."""
 
         print "\nDetermining appropriate cluster around", center.tag, "...\n"
-        old_detection_rate = self.driver.tester.correct_classification_rate()
+        old_detection_rate = self.current_detection_rate
         counter = 0
         cluster = Cluster(center, self.increment, self)
 
@@ -287,10 +290,14 @@ class ActiveUnlearner:
 
         if new_detection_rate <= old_detection_rate:    # Detection rate worsens - Reject
             print "\nCenter is inviable.\n"
+            proxy_cluster = ProxyCluster(cluster)
             self.learn(cluster)
+            """
             print "\nResetting numbers...\n"
             self.init_ground()
-            return False
+            """
+
+            return False, proxy_cluster
 
         else:                                           # Detection rate improves - Grow cluster
             proxy_cluster = None
@@ -333,9 +340,12 @@ class ActiveUnlearner:
             assert(proxy_cluster.size == self.increment * counter), counter
 
             print "\nAppropriate cluster found, with size " + str(proxy_cluster.size) + ".\n"
+            """
             print "\nResetting numbers...\n"
             self.init_ground()
-            return proxy_cluster
+            """
+            self.current_detection_rate = old_detection_rate
+            return True, proxy_cluster
 
     # -----------------------------------------------------------------------------------
     def active_unlearn(self, outfile, test=False):
@@ -343,32 +353,40 @@ class ActiveUnlearner:
         cluster_list = []
         chosen = self.mislabeled_chosen
         cluster_count = 0
+        attempt_count = 0
         detection_rate = self.driver.tester.correct_classification_rate()
 
         while detection_rate < self.threshold:
             current = self.select_initial(chosen)
+            attempt_count += 1
             cluster = self.determine_cluster(current)
+            print "\nAttempted", attempt_count, "attempts so far.\n"
 
-            while not cluster:
+            while not cluster[0]:
                 current = self.select_initial(chosen)
+                attempt_count += 1
                 cluster = self.determine_cluster(current)
+                print "\nAttempted", attempt_count, "attempts so far.\n"
 
-            cluster_list.append(cluster)
+            cluster_list.append(cluster[1])
             cluster_count += 1
             print "\nUnlearned", cluster_count, "cluster(s) so far.\n"
 
             detection_rate = self.driver.tester.correct_classification_rate()
             print "\nCurrent detection rate achieved is " + str(detection_rate) + ".\n"
             if outfile is not None:
-                outfile.write(str(cluster_count) + ": " + str(detection_rate) + ", " + str(cluster.size + 1) + ", "
-                              + str(cluster.target_set3()) + "\n")
+                outfile.write(str(cluster_count) + ", " + str(attempt_count) + ": " + str(detection_rate) + ", " +
+                              str(cluster[1].size + 1) + ", " + str(cluster[1].target_set3()) + "\n")
+                outfile.flush()
+                os.fsync(outfile)
+
         if test:
             return cluster_list
 
-        print "\nThreshold achieved after", cluster_count, "clusters unlearned.\n"
+        print "\nThreshold achieved after", cluster_count, "clusters unlearned and", attempt_count, "attempts.\n"
     # -----------------------------------------------------------------------------------
 
-    def brute_force_active_unlearn(self, outfile, test=False):
+    def brute_force_active_unlearn(self, outfile, test=False, center_iteration=True):
         cluster_list = []
         cluster_count = 0
         rejection_count = 0
@@ -385,17 +403,25 @@ class ActiveUnlearner:
             current = training[len(training) - 1]
             cluster = self.determine_cluster(current)
 
-            if not cluster:
+            if not cluster[0]:
                 print "\nMoving on from inviable cluster center...\n"
-                training.remove(current)
-                rejections.add(current)
-                rejection_count += 1
+                if center_iteration:
+                    training.remove(current)
+                    rejections.add(current)
+                    rejection_count += 1
+
+                else:
+                    for msg in cluster[1]:
+                        if msg not in rejections:
+                            training.remove(msg)
+
+                print "\nRejected", rejection_count, "attempt(s) so far.\n"
 
             else:
-                cluster_list.append(cluster)
+                cluster_list.append(cluster[1])
                 print "\nRemoving cluster from shuffled training set...\n"
 
-                for msg in cluster.cluster_set:
+                for msg in cluster[1].cluster_set:
                     if msg not in rejections:
                         training.remove(msg)
 
@@ -405,8 +431,11 @@ class ActiveUnlearner:
                 detection_rate = self.driver.tester.correct_classification_rate()
                 print "\nCurrent detection rate achieved is " + str(detection_rate) + ".\n"
                 if outfile is not None:
-                    outfile.write(str(cluster_count) + ": " + str(detection_rate) + ", " + str(cluster.size + 1) + ", "
-                                  + str(cluster.target_set3()) + "\n")
+                    outfile.write(str(cluster_count) + ", " + str(rejection_count + cluster_count) + ": " +
+                                  str(detection_rate) + ", " + str(cluster[1].size + 1) + ", " +
+                                  str(cluster[1].target_set3()) + "\n")
+                    outfile.flush()
+                    os.fsync(outfile)
 
         if test:
             return cluster_list
