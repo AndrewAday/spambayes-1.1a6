@@ -49,13 +49,30 @@ class MislabeledFileMover:
 
     def print_filelist(self):
         """Prints the number of files in all Sets, for both Spam and Ham"""
+        dir_list = [(self.train_dir, "train"), (self.test_dir, "test"), (self.dest_dir, "destination")]
+        dir_list.sort()
+
         print "File List:"
-        print " - \tFiles in Ham Set1: " + str(listdir(self.ham_train).__len__())
-        print " - \tFiles in Ham Set2: " + str(listdir(self.ham_test).__len__())
-        print " - \tFiles in Ham Set3: " + str(listdir(self.spam_destination).__len__())
-        print " - \tFiles in Spam Set1: " + str(listdir(self.spam_train).__len__())
-        print " - \tFiles in Spam Set2: " + str(listdir(self.spam_test).__len__())
-        print " - \tFiles in Spam Set3: " + str(listdir(self.ham_destination).__len__())
+        print " - \tFiles in Ham Set1: " + str(listdir(self.attr_name(0, dir_list[0][1])).__len__())
+        print " - \tFiles in Ham Set2: " + str(listdir(self.attr_name(0, dir_list[1][1])).__len__())
+        print " - \tFiles in Ham Set3: " + str(listdir(self.attr_name(0, dir_list[2][1])).__len__())
+        print " - \tFiles in Spam Set1: " + str(listdir(self.attr_name(1, dir_list[0][1])).__len__())
+        print " - \tFiles in Spam Set2: " + str(listdir(self.attr_name(1, dir_list[1][1])).__len__())
+        print " - \tFiles in Spam Set3: " + str(listdir(self.attr_name(1, dir_list[2][1])).__len__())
+
+    def attr_name(self, ham_or_spam, dir_type):
+        # Ham
+        if ham_or_spam == 0:
+            attribute_name = "ham_" + dir_type
+            return getattr(self, attribute_name)
+
+        # Spam
+        elif ham_or_spam == 1:
+            attribute_name = "spam_" + dir_type
+            return getattr(self, attribute_name)
+
+        else:
+            raise AssertionError
 
     def random_move_file(self):
         """Moves a number of random files from Set1 of both spam and ham to Set3"""
