@@ -168,7 +168,9 @@ class Classifier:
 
         clues = self._getclues(wordstream)
         wordstream.clues = clues
+        """
         wordstream.allclues = list(set(wordstream.allclues + clues))
+        """
         for prob, word, record in clues:
             S *= 1.0 - prob
             H *= prob
@@ -354,7 +356,7 @@ class Classifier:
         else:
             self.nham += 1
 
-        for word in set(wordstream):
+        for word in wordstream.word_set:
             record = self._wordinfoget(word)
             if record is None:
                 record = self.WordInfoClass()
@@ -379,7 +381,7 @@ class Classifier:
                 raise ValueError("non-spam count would go negative!")
             self.nham -= 1
 
-        for word in set(wordstream):
+        for word in wordstream.word_set:
             record = self._wordinfoget(word)
             if record is not None:
                 if is_spam:
@@ -411,7 +413,6 @@ class Classifier:
     # aren't returned.
     def _getclues(self, wordstream):
         mindist = options["Classifier", "minimum_prob_strength"]
-
         if options["Classifier", "use_bigrams"]:
             # This scheme mixes single tokens with pairs of adjacent tokens.
             # wordstream is "tiled" into non-overlapping unigrams and
@@ -472,7 +473,7 @@ class Classifier:
             # is used to weed out duplicates at high speed.
             clues = []
             push = clues.append
-            for word in set(wordstream):
+            for word in wordstream.word_set:
                 tup = self._worddistanceget(word)
                 if tup[0] >= mindist:
                     push(tup)

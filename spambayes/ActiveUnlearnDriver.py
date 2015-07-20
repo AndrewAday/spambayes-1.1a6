@@ -1,5 +1,5 @@
 from random import choice, shuffle
-from spambayes import TestDriver
+from spambayes import TestDriver, quickselect
 from Distance import distance
 import heapq
 import sys
@@ -51,10 +51,23 @@ class Cluster:
         self.ham = set()
         self.spam = set()
         self.opt = opt
+        self.dist_list = self.distance_array()
+        """
         self.cluster_set, self.cluster_heap = self.make_cluster()
+        """
+        self.cluster_set = self.make_cluster()
         self.divide()
 
+    def distance_array(self):
+        dist_list = []
+        for i in range(len(self.active_unlearner.driver.tester.train_examples)):
+            for train in self.active_unlearner.driver.tester.train_examples[i]:
+                if train != self.clustroid:
+                    dist_list.append((distance(self.clustroid, train, self.opt), train))
+        return dist_list
+
     def make_cluster(self):
+        """
         heap = PriorityQueue()
         for i in range(len(self.active_unlearner.driver.tester.train_examples)):
             for train in self.active_unlearner.driver.tester.train_examples[i]:
@@ -67,6 +80,9 @@ class Cluster:
         l = heap.taskify()
         assert (len(l) == self.size)
         return l, heap
+        """
+        cluster = quickselect.k_smallest(self.dist_list, self.size)
+        return set(cluster)
 
     def divide(self):
         """Divides messages in the cluster between spam and ham"""
@@ -119,9 +135,9 @@ class Cluster:
         return counter
 
     def cluster_more(self, n):
-        old_cluster_set = copy.deepcopy(self.cluster_set)
+        old_cluster_set = self.cluster_set
         self.size += n
-        k = self.size
+        """
         for i in range(len(self.active_unlearner.driver.tester.train_examples)):
             for train in self.active_unlearner.driver.tester.train_examples[i]:
                 if train != self.clustroid and train not in self.cluster_set:
@@ -134,8 +150,12 @@ class Cluster:
         self.cluster_set = self.cluster_heap.taskify()
         assert(len(self.cluster_heap) == k), len(self.cluster_heap)
         assert(len(self.cluster_set) == k), len(self.cluster_set)
+        """
+        new_cluster_set = quickselect.k_smallest(self.dist_list, self.size)
+        new_elements = new_cluster_set - old_cluster_set
+        self.cluster_set = new_cluster_set
 
-        new_elements = self.cluster_set - old_cluster_set
+        assert(len(self.cluster_set) == self.size), len(self.cluster_set)
         assert(len(new_elements) == n), len(new_elements)
 
         for msg in new_elements:
@@ -205,7 +225,7 @@ class ActiveUnlearner:
         self.all_negs = False
         self.set_training_nums()
         self.set_dict_nums()
-        self.init_ground()
+        self.init_ground(True)
         self.mislabeled_chosen = set()
         self.current_detection_rate = self.driver.tester.correct_classification_rate()
         print "Initial detection rate:", self.current_detection_rate
@@ -217,8 +237,8 @@ class ActiveUnlearner:
         for hamstream, spamstream in self.hamspams:
             self.driver.train(hamstream, spamstream)
 
-    def init_ground(self):
-        self.driver.test(self.testing_ham, self.testing_spam)
+    def init_ground(self, first_test=False):
+        self.driver.test(self.testing_ham, self.testing_spam, first_test)
 
     def set_training_nums(self):
         hamstream, spamstream = self.hamspams[0]

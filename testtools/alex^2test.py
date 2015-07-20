@@ -155,8 +155,6 @@ def main():
         drive(nsets)
     """
 
-    if cluster:
-
 
 if __name__ == "__main__":
     main()

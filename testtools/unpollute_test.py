@@ -94,7 +94,7 @@ def main():
                     """
                     sys.exit()
 
-            answer = raw_input("\nKeep going (y/n)? You have performed " + str(trial_number) + " trial(s) so far.\n")
+            answer = raw_input("\nKeep going (y/n)? You have performed " + str(trial_number) + " trial(s) so far. ")
             valid_input = False
 
             while not valid_input:
@@ -110,7 +110,7 @@ def main():
                     valid_input = True
 
                 else:
-                    print "Please enter either y or n."
+                    answer = raw_input("Please enter either y or n. ")
 
     except KeyboardInterrupt:
         """
