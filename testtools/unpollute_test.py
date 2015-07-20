@@ -28,8 +28,8 @@ def main():
     trial_number = 1
 
     try:
-        au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham[1], [ham[1]]), msgs.HamStream(ham[3], [ham[3]])],       # Training Ham
-                                                 [msgs.SpamStream(spam[1], [spam[1]]), msgs.SpamStream(spam[3], [spam[3]])], # Training Spam
+        au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham[1], [ham[1]]), msgs.HamStream(ham[2], [ham[2]])],       # Training Ham
+                                                 [msgs.SpamStream(spam[1], [spam[1]]), msgs.SpamStream(spam[2], [spam[2]])], # Training Spam
                                                  msgs.HamStream(ham[0], [ham[0]]),      # Testing Ham
                                                  msgs.SpamStream(spam[0], [spam[0]]),   # Testing Spam
                                                  )
@@ -60,8 +60,7 @@ def main():
 
                     outfile.write("0: " + str(original_detection_rate) + "\n")
 
-                    cluster_list = au.brute_force_active_unlearn(outfile, test=True, center_iteration=False,
-                                                                 pollution_set3=False)
+                    cluster_list = au.brute_force_active_unlearn(outfile, test=True, center_iteration=False)
                     total_polluted_unlearned = 0
                     total_unlearned = 0
                     total_unpolluted_unlearned = 0
