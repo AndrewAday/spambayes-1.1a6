@@ -356,7 +356,7 @@ class Classifier:
         else:
             self.nham += 1
 
-        for word in wordstream.word_set:
+        for word in wordstream:
             record = self._wordinfoget(word)
             if record is None:
                 record = self.WordInfoClass()
@@ -381,7 +381,7 @@ class Classifier:
                 raise ValueError("non-spam count would go negative!")
             self.nham -= 1
 
-        for word in wordstream.word_set:
+        for word in wordstream:
             record = self._wordinfoget(word)
             if record is not None:
                 if is_spam:
@@ -473,7 +473,7 @@ class Classifier:
             # is used to weed out duplicates at high speed.
             clues = []
             push = clues.append
-            for word in wordstream.word_set:
+            for word in wordstream:
                 tup = self._worddistanceget(word)
                 if tup[0] >= mindist:
                     push(tup)

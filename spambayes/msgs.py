@@ -24,17 +24,18 @@ class Msg(object):
         self.probdiff = None
         self.allclues = []
         self.clues = []
+
+    def __iter__(self):
+        word_set = set()
         word_iter = tokenize(self.guts)
-        self.word_set = set()
         try:
             while True:
                 word = word_iter.next()
-                self.word_set.add(word)
+                word_set.add(word)
         except StopIteration:
             pass
 
-    def __iter__(self):
-        for word in self.word_set:
+        for word in word_set:
             yield word
 
     # Compare msgs by their paths; this is appropriate for sets of msgs.

@@ -81,8 +81,8 @@ class Cluster:
         assert (len(l) == self.size)
         return l, heap
         """
-        cluster = quickselect.k_smallest(self.dist_list, self.size)
-        return set(cluster)
+        cluster = set(item[0] for item in quickselect.k_smallest(self.dist_list, self.size))
+        return cluster
 
     def divide(self):
         """Divides messages in the cluster between spam and ham"""
@@ -152,7 +152,7 @@ class Cluster:
         assert(len(self.cluster_set) == k), len(self.cluster_set)
         """
         new_cluster_set = quickselect.k_smallest(self.dist_list, self.size)
-        new_elements = new_cluster_set - old_cluster_set
+        new_elements = set(msg for msg in new_cluster_set if msg not in old_cluster_set)
         self.cluster_set = new_cluster_set
 
         assert(len(self.cluster_set) == self.size), len(self.cluster_set)
@@ -238,7 +238,11 @@ class ActiveUnlearner:
             self.driver.train(hamstream, spamstream)
 
     def init_ground(self, first_test=False):
-        self.driver.test(self.testing_ham, self.testing_spam, first_test)
+        if first_test:
+            self.driver.test(self.testing_ham, self.testing_spam, first_test)
+
+        else:
+            self.driver.test(self.driver.tester.truth_examples[1], self.driver.tester.truth_examples[0], first_test)
 
     def set_training_nums(self):
         hamstream, spamstream = self.hamspams[0]
