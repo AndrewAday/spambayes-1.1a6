@@ -1,21 +1,14 @@
-from string import ascii_lowercase
 
-def random_words(number):
 
-    words = []
+file1 = open("/Users/AlexYang/GitHub/spambayes-1.1a6/testtools/Data/Spam/Set3/x1.txt", 'r')
+file2 = open("/Users/AlexYang/GitHub/spambayes-1.1a6/testtools/Data/Spam/Set3/x4.txt", 'r')
 
-    for letter1 in ascii_lowercase:
-        for letter2 in ascii_lowercase:
-            for letter3 in ascii_lowercase:
-                for letter4 in ascii_lowercase:
-                    word = letter1 + letter2 + letter3 + letter4
-                    words.append(word)
+words1 = file1.read().split()
+words2 = file2.read().split()
 
-    file = open("4letterwords.txt", 'r')
-    list = file.read().split()
+count = 0
+for word in words1:
+    if word in words2:
+        count += 1
 
-    for word in words:
-        if word in list:
-            words.remove(word)
-
-    return words[:number]
+print str(float(count) / float(len(words1)))

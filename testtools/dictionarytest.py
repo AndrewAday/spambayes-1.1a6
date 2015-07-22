@@ -36,9 +36,9 @@ def test():
         d.untrain(msgs.HamStream(hamdirs[2], [hamdirs[2]]),
                   msgs.SpamStream(spamdirs[2], [spamdirs[2]]))
 
-    with "/Users/AlexYang/Desktop/rates.txt" as outfile:
-        outfile.write(tabulate({"# of Sets": y, "Detection Rate": detection_rates},
-                               headers="keys"))
+    outfile = open("rates.txt", 'w')
+    outfile.write(tabulate({"# of Sets": y, "Detection Rate": detection_rates},
+                           headers="keys"))
 
 def main():
 

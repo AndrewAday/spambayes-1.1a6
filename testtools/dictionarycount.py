@@ -40,7 +40,16 @@ def write_dictionary_sets(x=0.3, y=200):
 
 def reset():
 
+    print "Removing all dictionary sets..."
     dir = get_pathname_option("TestDriver", "spam_directories") % 3 + "/"
 
     for dictionary in listdir(dir):
+        print "Removing " + dir + dictionary
         remove(dir + dictionary)
+
+def main():
+    reset()
+    write_dictionary_sets(x=0.3, y=500)
+
+if __name__ == "__main__":
+    main()

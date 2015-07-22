@@ -23,7 +23,7 @@ def main():
                                              msgs.SpamStream(spam[0], [spam[0]]),   # Testing Spam
                                              )
     while keep_going:
-        with open("C:\Users\Alex\Desktop\unlearn_stats" + str(trial_number) + ".txt", 'w') as outfile:
+        with open("/Users/AlexYang/Desktop/unlearnstats" + str(trial_number) + ".txt", 'w') as outfile:
             outfile.write("CLUSTER AND RATE COUNTS:\n")
             outfile.write("---------------------------\n")
 
@@ -40,7 +40,7 @@ def main():
             print "\nTallying up final counts...\n"
             for cluster in cluster_list:
                 total_unlearned += cluster.size + 1
-                total_polluted_unlearned += cluster.target_set3
+                total_polluted_unlearned += cluster.target_set3()
                 total_unpolluted_unlearned += cluster.size + 1 - total_polluted_unlearned
 
             outfile.write("STATS\n")
