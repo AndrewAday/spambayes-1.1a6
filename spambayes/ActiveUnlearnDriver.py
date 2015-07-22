@@ -1,9 +1,10 @@
-from random import choice
-from spambayes import TestDriver
+from random import choice, shuffle
+from spambayes import TestDriver, quickselect
 from Distance import distance
 import heapq
 import sys
 import copy
+import os
 
 
 def d(negs, x, opt=None):
@@ -50,10 +51,23 @@ class Cluster:
         self.ham = set()
         self.spam = set()
         self.opt = opt
+        self.dist_list = self.distance_array()
+        """
         self.cluster_set, self.cluster_heap = self.make_cluster()
+        """
+        self.cluster_set = self.make_cluster()
         self.divide()
 
+    def distance_array(self):
+        dist_list = []
+        for i in range(len(self.active_unlearner.driver.tester.train_examples)):
+            for train in self.active_unlearner.driver.tester.train_examples[i]:
+                if train != self.clustroid:
+                    dist_list.append((distance(self.clustroid, train, self.opt), train))
+        return dist_list
+
     def make_cluster(self):
+        """
         heap = PriorityQueue()
         for i in range(len(self.active_unlearner.driver.tester.train_examples)):
             for train in self.active_unlearner.driver.tester.train_examples[i]:
@@ -66,6 +80,9 @@ class Cluster:
         l = heap.taskify()
         assert (len(l) == self.size)
         return l, heap
+        """
+        cluster = set(item[1] for item in quickselect.k_smallest(self.dist_list, self.size))
+        return cluster
 
     def divide(self):
         """Divides messages in the cluster between spam and ham"""
@@ -105,10 +122,22 @@ class Cluster:
 
         return counter
 
+    def target_set4(self):
+        """Returns a count of the number of Set4 emails in the cluster"""
+        counter = 0
+        for msg in self.cluster_set:
+            if "Set4" in msg.tag:
+                counter += 1
+
+        if "Set4" in self.clustroid.tag:
+            counter += 1
+
+        return counter
+
     def cluster_more(self, n):
-        old_cluster_set = copy.deepcopy(self.cluster_set)
+        old_cluster_set = self.cluster_set
         self.size += n
-        k = self.size
+        """
         for i in range(len(self.active_unlearner.driver.tester.train_examples)):
             for train in self.active_unlearner.driver.tester.train_examples[i]:
                 if train != self.clustroid and train not in self.cluster_set:
@@ -121,8 +150,12 @@ class Cluster:
         self.cluster_set = self.cluster_heap.taskify()
         assert(len(self.cluster_heap) == k), len(self.cluster_heap)
         assert(len(self.cluster_set) == k), len(self.cluster_set)
+        """
+        new_cluster_set = set(item[1] for item in quickselect.k_smallest(self.dist_list, self.size))
+        new_elements = set(item for item in new_cluster_set if item not in old_cluster_set)
+        self.cluster_set = new_cluster_set
 
-        new_elements = self.cluster_set - old_cluster_set
+        assert(len(self.cluster_set) == self.size), len(self.cluster_set)
         assert(len(new_elements) == n), len(new_elements)
 
         for msg in new_elements:
@@ -168,6 +201,14 @@ class ProxyCluster:
                 counter += 1
         return counter
 
+    def target_set4(self):
+        counter = 0
+
+        for msg in self.cluster_set:
+            if "Set4" in msg.tag:
+                counter += 1
+        return counter
+
 
 class ActiveUnlearner:
 
@@ -184,7 +225,10 @@ class ActiveUnlearner:
         self.all_negs = False
         self.set_training_nums()
         self.set_dict_nums()
-        self.init_ground()
+        self.init_ground(True)
+        self.mislabeled_chosen = set()
+        self.current_detection_rate = self.driver.tester.correct_classification_rate()
+        print "Initial detection rate:", self.current_detection_rate
 
     def set_driver(self):
         self.driver.new_classifier()
@@ -193,8 +237,12 @@ class ActiveUnlearner:
         for hamstream, spamstream in self.hamspams:
             self.driver.train(hamstream, spamstream)
 
-    def init_ground(self):
-        self.driver.test(self.testing_ham, self.testing_spam)
+    def init_ground(self, first_test=False):
+        if first_test:
+            self.driver.test(self.testing_ham, self.testing_spam, first_test)
+
+        else:
+            self.driver.test(self.driver.tester.truth_examples[1], self.driver.tester.truth_examples[0], first_test)
 
     def set_training_nums(self):
         hamstream, spamstream = self.hamspams[0]
@@ -205,6 +253,10 @@ class ActiveUnlearner:
         self.driver.dict_test(hamstream, spamstream)
 
     def unlearn(self, cluster):
+        if len(cluster.ham) + len(cluster.spam) != cluster.size + 1:
+            print "\nUpdating cluster ham and spam sets...\n"
+            cluster.divide()
+
         self.driver.untrain(cluster.ham, cluster.spam)
 
         for ham in cluster.ham:
@@ -230,14 +282,14 @@ class ActiveUnlearner:
         """Returns the detection rate if a given cluster is unlearned.
            Relearns the cluster afterwards"""
         self.unlearn(cluster)
-        self.driver.test(self.testing_ham, self.testing_spam)
+        self.init_ground()
         detection_rate = self.driver.tester.correct_classification_rate()
         self.learn(cluster)
         return detection_rate
 
     def start_detect_rate(self, cluster):
         self.unlearn(cluster)
-        self.driver.test(self.testing_ham, self.testing_spam)
+        self.init_ground()
         detection_rate = self.driver.tester.correct_classification_rate()
         return detection_rate
 
@@ -263,7 +315,7 @@ class ActiveUnlearner:
             self.driver.tester.train_examples[unlearn.train].remove(unlearn)
 
         self.driver.untrain(unlearn_hams, unlearn_spams)
-        self.driver.test(self.testing_ham, self.testing_spam)
+        self.init_ground()
         detection_rate = self.driver.tester.correct_classification_rate()
         return detection_rate
 
@@ -275,19 +327,25 @@ class ActiveUnlearner:
             center and return False."""
 
         print "\nDetermining appropriate cluster around", center.tag, "...\n"
-        old_detection_rate = self.driver.tester.correct_classification_rate()
+        old_detection_rate = self.current_detection_rate
         counter = 0
         cluster = Cluster(center, self.increment, self)
 
         # Test detection rate after unlearning cluster
         self.unlearn(cluster)
-        self.driver.test(self.testing_ham, self.testing_spam)
+        self.init_ground()
         new_detection_rate = self.driver.tester.correct_classification_rate()
 
         if new_detection_rate <= old_detection_rate:    # Detection rate worsens - Reject
             print "\nCenter is inviable.\n"
+            proxy_cluster = ProxyCluster(cluster)
             self.learn(cluster)
-            return False
+            """
+            print "\nResetting numbers...\n"
+            self.init_ground()
+            """
+
+            return False, proxy_cluster
 
         else:                                           # Detection rate improves - Grow cluster
             proxy_cluster = None
@@ -318,7 +376,7 @@ class ActiveUnlearner:
                     self.driver.tester.train_examples[unlearn.train].remove(unlearn)
 
                 self.driver.untrain(unlearn_hams, unlearn_spams)
-                self.driver.test(self.testing_ham, self.testing_spam)
+                self.init_ground()
                 new_detection_rate = self.driver.tester.correct_classification_rate()
 
             # This part is done because we've clustered just past the peak point, so we need to go back
@@ -330,42 +388,141 @@ class ActiveUnlearner:
             assert(proxy_cluster.size == self.increment * counter), counter
 
             print "\nAppropriate cluster found, with size " + str(proxy_cluster.size) + ".\n"
-            return proxy_cluster
+            """
+            print "\nResetting numbers...\n"
+            self.init_ground()
+            """
+            self.current_detection_rate = old_detection_rate
+            return True, proxy_cluster
 
     # -----------------------------------------------------------------------------------
-    def active_unlearn(self, outfile, test=False):
+    def active_unlearn(self, outfile, test=False, pollution_set3=True):
 
         cluster_list = []
-        chosen = set()
+        chosen = self.mislabeled_chosen
         cluster_count = 0
-        detection_rate = self.driver.tester.correct_classification_rate()
+        attempt_count = 0
+        detection_rate = self.current_detection_rate
 
         while detection_rate < self.threshold:
             current = self.select_initial(chosen)
+            attempt_count += 1
             cluster = self.determine_cluster(current)
-            chosen.add(current)
-            self.driver.test(self.testing_ham, self.testing_spam)
+            print "\nAttempted", attempt_count, "attempts so far.\n"
 
-            while not cluster:
+            while not cluster[0]:
                 current = self.select_initial(chosen)
+                attempt_count += 1
                 cluster = self.determine_cluster(current)
-                chosen.add(current)
-                self.driver.test(self.testing_ham, self.testing_spam)
+                print "\nAttempted", attempt_count, "attempts so far.\n"
 
-            cluster_list.append(cluster)
+            cluster_list.append(cluster[1])
             cluster_count += 1
             print "\nUnlearned", cluster_count, "cluster(s) so far.\n"
 
-            detection_rate = self.driver.tester.correct_classification_rate()
+            detection_rate = self.current_detection_rate
             print "\nCurrent detection rate achieved is " + str(detection_rate) + ".\n"
             if outfile is not None:
-                outfile.write(str(cluster_count) + ": " + str(detection_rate) + ", " + str(cluster.size + 1) + ", "
-                              + str(cluster.target_set3()) + "\n")
+                if pollution_set3:
+                    outfile.write(str(cluster_count) + ", " + str(attempt_count) + ": " + str(detection_rate) + ", " +
+                                  str(cluster[1].size + 1) + ", " + str(cluster[1].target_set3()) + "\n")
+
+                else:
+                    outfile.write(str(cluster_count) + ", " + str(attempt_count) + ": " + str(detection_rate) + ", " +
+                                  str(cluster[1].size + 1) + ", " + str(cluster[1].target_set4()) + "\n")
+                outfile.flush()
+                os.fsync(outfile)
+
         if test:
             return cluster_list
 
-        print "\nThreshold achieved after", cluster_count, "clusters unlearned.\n"
+        print "\nThreshold achieved after", cluster_count, "clusters unlearned and", attempt_count, "attempts.\n"
     # -----------------------------------------------------------------------------------
+
+    def brute_force_active_unlearn(self, outfile, test=False, center_iteration=True, pollution_set3=True):
+        cluster_list = []
+        cluster_count = 0
+        rejection_count = 0
+        rejections = set()
+        training = self.shuffle_training()
+        original_training_size = len(training)
+        detection_rate = self.current_detection_rate
+        print "\nCurrent detection rate achieved is " + str(detection_rate) + ".\n"
+
+        while len(training) > 0:
+            print "\nStarting new round of untraining;", len(training), "out of", original_training_size, "training left" \
+                                                                                                          ".\n"
+
+            current = training[len(training) - 1]
+            cluster = self.determine_cluster(current)
+
+            if not cluster[0]:
+                print "\nMoving on from inviable cluster center...\n"
+                if center_iteration:
+                    training.remove(current)
+                    rejections.add(current)
+                    rejection_count += 1
+
+                else:
+                    for msg in cluster[1].cluster_set:
+                        if msg not in rejections:
+                            training.remove(msg)
+                            rejections.add(msg)
+
+                    if current not in rejections:
+                        training.remove(current)
+                        rejections.add(current)
+                    rejection_count += 1
+
+                print "\nRejected", rejection_count, "attempt(s) so far.\n"
+
+            else:
+                cluster_list.append(cluster[1])
+                print "\nRemoving cluster from shuffled training set...\n"
+
+                for msg in cluster[1].cluster_set:
+                    if msg not in rejections:
+                        training.remove(msg)
+                        rejections.add(msg)
+
+                if current not in rejections:
+                    rejections.add(current)
+                    training.remove(current)
+
+                cluster_count += 1
+                print "\nUnlearned", cluster_count, "cluster(s) so far.\n"
+
+                detection_rate = self.current_detection_rate
+                print "\nCurrent detection rate achieved is " + str(detection_rate) + ".\n"
+                if outfile is not None:
+                    if pollution_set3:
+                        outfile.write(str(cluster_count) + ", " + str(rejection_count + cluster_count) + ": " +
+                                      str(detection_rate) + ", " + str(cluster[1].size + 1) + ", " +
+                                      str(cluster[1].target_set3()) + "\n")
+
+                    else:
+                        outfile.write(str(cluster_count) + ", " + str(rejection_count + cluster_count) + ": " +
+                                      str(detection_rate) + ", " + str(cluster[1].size + 1) + ", " +
+                                      str(cluster[1].target_set4()) + "\n")
+
+                    outfile.flush()
+                    os.fsync(outfile)
+
+        if test:
+            return cluster_list
+
+        print "\nIteration through training space complete after", cluster_count, "clusters unlearned and", \
+            rejection_count, "rejections made.\n"
+
+        print "\nFinal detection rate: " + str(detection_rate) + ".\n"
+
+    def shuffle_training(self):
+        training = []
+        for i in range(len(self.driver.tester.train_examples)):
+            training += self.driver.tester.train_examples[i]
+
+        shuffle(training)
+        return training
 
     def get_mislabeled(self, update=False):
         """ Returns the set of mislabeled emails (from the ground truth) based off of the
@@ -389,13 +546,13 @@ class ActiveUnlearner:
 
         return mislabeled
 
-    def select_initial(self, chosen=set(), use_rowsum=False):
+    def select_initial(self, use_rowsum=False):
         """ Returns an email to be used as the initial unlearning email based on
             the mislabeled data (our tests show that the mislabeled and pollutant
             emails are strongly, ~80%, correlated) if option is true (which is default)."""
         mislabeled = self.get_mislabeled()
-        print "Chosen: ", chosen
-        print "Total Chosen: ", len(chosen)
+        print "Chosen: ", self.mislabeled_chosen
+        print "Total Chosen: ", len(self.mislabeled_chosen)
         if use_rowsum:
             # We want to minimize the distances (rowsum) between the email we select
             # and the mislabeled emails. This ensures that the initial email we select
@@ -419,7 +576,8 @@ class ActiveUnlearner:
             # This chooses an arbitrary point from the mislabeled emails and simply finds the email
             # in training that is closest to this point.
             try:
-                mislabeled_point = choice(list(mislabeled - chosen))
+                mislabeled_point = choice(list(mislabeled - self.mislabeled_chosen))
+                self.mislabeled_chosen.add(mislabeled_point)
             except:
                 raise AssertionError(str(mislabeled))
 

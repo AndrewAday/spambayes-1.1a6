@@ -11,10 +11,14 @@ class DictionaryWriter:
     # A simple class to write dictionaries to Set 3 of the spam directories.
     # Used for unlearning experiments.
 
-    def __init__(self, num_files, dir_num=3):
+    def __init__(self, num_files, dir_num=3, dictionary=True, wordlist=True, words=True, wordsEn=True):
         self.NUMFILES = num_files
         self.destination = get_pathname_option("TestDriver", "spam_directories") % dir_num + "/"
         self.destination_files = listdir(self.destination)
+        self.dictionary = dictionary
+        self.wordlist = wordlist
+        self.words = words
+        self.wordsEn = wordsEn
 
     def reset(self):
         """Deletes all dictionary files"""
@@ -29,17 +33,62 @@ class DictionaryWriter:
 
         print "Initial # of Files: " + str(len(self.destination_files))
 
+<<<<<<< HEAD
         for i in range(0, self.NUMFILES):
             print "Preparing wordlist.txt # " + str(i + 1)
+=======
+        if self.dictionary:
+            for i in range(0, self.NUMFILES):
+                print "Preparing dictionary.txt # " + str(i + 1)
 
-            file_in = open("wordlist.txt", 'r')
-            file_out = open(self.destination + "00000wordlist" + str(i + 1) + ".spam" + ".txt", 'w')
+                file_in = open("dictionary.txt", 'r')
+                file_out = open(self.destination + "00000dictionary" + str(i + 1) + ".spam" + ".txt", 'w')
 
-            file_out.write(file_in.read())
+                file_out.write(file_in.read())
 
-            file_in.close()
-            file_out.close()
+                file_in.close()
+                file_out.close()
 
+        if self.wordlist:
+            for i in range(0, self.NUMFILES):
+                print "Preparing wordlist.txt # " + str(i + 1)
+>>>>>>> origin/master
+
+                file_in = open("wordlist.txt", 'r')
+                file_out = open(self.destination + "00000wordlist" + str(i + 1) + ".spam" + ".txt", 'w')
+
+                file_out.write(file_in.read())
+
+                file_in.close()
+                file_out.close()
+
+<<<<<<< HEAD
+=======
+        if self.words:
+            for i in range(0, self.NUMFILES):
+                print "Preparing words.txt # " + str(i + 1)
+
+                file_in = open("words.txt", 'r')
+                file_out = open(self.destination + "00000words" + str(i + 1) + ".spam" + ".txt", 'w')
+
+                file_out.write(file_in.read())
+
+                file_in.close()
+                file_out.close()
+
+        if self.wordsEn:
+            for i in range(0, self.NUMFILES):
+                print "Preparing wordsEn.txt # " + str(i + 1)
+
+                file_in = open("wordsEn.txt", 'r')
+                file_out = open(self.destination + "00000wordsEn" + str(i + 1) + ".spam" + ".txt", 'w')
+
+                file_out.write(file_in.read())
+
+                file_in.close()
+                file_out.close()
+
+>>>>>>> origin/master
         self.destination_files = listdir(self.destination)
         print "Final # of Files: " + str(len(self.destination_files))
 

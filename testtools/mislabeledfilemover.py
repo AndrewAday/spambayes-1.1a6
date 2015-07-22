@@ -5,7 +5,7 @@ sys.path.insert(-1, os.getcwd())
 sys.path.insert(-1, os.path.dirname(os.getcwd()))
 
 from os import listdir
-from random import randint, choice
+from random import choice
 from shutil import move
 from spambayes.Options import get_pathname_option
 
@@ -15,21 +15,24 @@ class MislabeledFileMover:
     # from Set1 to Set3 of both the spam and ham directories. The
     # class randomly divides the given number between ham and spam.
 
-    def __init__(self, number):
+    def __init__(self, number, train_dir=1, test_dir=2, dest_dir=3):
         self.NUMBER = number
+        self.train_dir = train_dir
+        self.test_dir = test_dir
+        self.dest_dir = dest_dir
 
-        self.ham_num = 0
-        self.ham_source = get_pathname_option("TestDriver", "ham_directories") % 1 + "/"
-        self.ham_test = get_pathname_option("TestDriver", "ham_directories") % 2 + "/"
-        self.ham_destination = get_pathname_option("TestDriver", "spam_directories") % 3 + "/"
-        self.ham_source_files = listdir(self.ham_source)
+        self.ham_num = self.NUMBER
+        self.ham_train = get_pathname_option("TestDriver", "ham_directories") % train_dir + "/"
+        self.ham_test = get_pathname_option("TestDriver", "ham_directories") % test_dir + "/"
+        self.ham_destination = get_pathname_option("TestDriver", "spam_directories") % dest_dir + "/"
+        self.ham_source_files = listdir(self.ham_train)
         self.ham_destination_files = listdir(self.ham_destination)
 
         self.spam_num = self.NUMBER
-        self.spam_source = get_pathname_option("TestDriver", "spam_directories") % 1 + "/"
-        self.spam_test = get_pathname_option("TestDriver", "spam_directories") % 2 + "/"
-        self.spam_destination = get_pathname_option("TestDriver", "ham_directories") % 3 + "/"
-        self.spam_source_files = listdir(self.spam_source)
+        self.spam_train = get_pathname_option("TestDriver", "spam_directories") % train_dir + "/"
+        self.spam_test = get_pathname_option("TestDriver", "spam_directories") % test_dir + "/"
+        self.spam_destination = get_pathname_option("TestDriver", "ham_directories") % dest_dir + "/"
+        self.spam_source_files = listdir(self.spam_train)
         self.spam_destination_files = listdir(self.spam_destination)
 
     def reset(self):
@@ -37,22 +40,39 @@ class MislabeledFileMover:
         print "Replacing Files..."
 
         for ham in self.ham_destination_files:
-            print " - \tReturning " + ham + " from Spam Set3 to Ham Set1"
-            move(self.ham_destination + ham, self.ham_source + ham)
+            print " - \tReturning " + ham + " from Spam Set" + str(self.dest_dir) + " to Ham Set" + str(self.train_dir)
+            move(self.ham_destination + ham, self.ham_train + ham)
 
         for spam in self.spam_destination_files:
-            print " - \tReturning " + spam + " from Ham Set3 to Spam Set1"
-            move(self.spam_destination + spam, self.spam_source + spam)
+            print " - \tReturning " + spam + " from Ham Set" + str(self.dest_dir) + " to Spam Set" + str(self.train_dir)
+            move(self.spam_destination + spam, self.spam_train + spam)
 
     def print_filelist(self):
         """Prints the number of files in all Sets, for both Spam and Ham"""
+        dir_list = [(self.train_dir, "train"), (self.test_dir, "test"), (self.dest_dir, "destination")]
+        dir_list.sort()
+
         print "File List:"
-        print " - \tFiles in Ham Set1: " + str(listdir(self.ham_source).__len__())
-        print " - \tFiles in Ham Set2: " + str(listdir(self.ham_test).__len__())
-        print " - \tFiles in Ham Set3: " + str(listdir(self.spam_destination).__len__())
-        print " - \tFiles in Spam Set1: " + str(listdir(self.spam_source).__len__())
-        print " - \tFiles in Spam Set2: " + str(listdir(self.spam_test).__len__())
-        print " - \tFiles in Spam Set3: " + str(listdir(self.ham_destination).__len__())
+        print " - \tFiles in Ham Set1: " + str(listdir(self.attr_name(0, dir_list[0][1])).__len__())
+        print " - \tFiles in Ham Set2: " + str(listdir(self.attr_name(0, dir_list[1][1])).__len__())
+        print " - \tFiles in Ham Set3: " + str(listdir(self.attr_name(0, dir_list[2][1])).__len__())
+        print " - \tFiles in Spam Set1: " + str(listdir(self.attr_name(1, dir_list[0][1])).__len__())
+        print " - \tFiles in Spam Set2: " + str(listdir(self.attr_name(1, dir_list[1][1])).__len__())
+        print " - \tFiles in Spam Set3: " + str(listdir(self.attr_name(1, dir_list[2][1])).__len__())
+
+    def attr_name(self, ham_or_spam, dir_type):
+        # Ham
+        if ham_or_spam == 0:
+            attribute_name = "ham_" + dir_type
+            return getattr(self, attribute_name)
+
+        # Spam
+        elif ham_or_spam == 1:
+            attribute_name = "spam_" + dir_type
+            return getattr(self, attribute_name)
+
+        else:
+            raise AssertionError
 
     def random_move_file(self):
         """Moves a number of random files from Set1 of both spam and ham to Set3"""
@@ -70,7 +90,7 @@ class MislabeledFileMover:
                 i -= 1
                 continue
             else:
-                move(self.ham_source + ham, self.ham_destination + ham)
+                move(self.ham_train + ham, self.ham_destination + ham)
 
         print "Number of Spam Files to Move: " + str(self.spam_num)
         for i in range(self.spam_num):
@@ -84,15 +104,13 @@ class MislabeledFileMover:
                 i -= 1
                 continue
             else:
-                move(self.spam_source + spam, self.spam_destination + spam)
+                move(self.spam_train + spam, self.spam_destination + spam)
 
         self.print_filelist()
 
 
 def main():
     f = MislabeledFileMover(3)
-
-
     f.print_filelist()
 
 if __name__ == "__main__":
