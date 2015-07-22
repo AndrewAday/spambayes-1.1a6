@@ -12,7 +12,7 @@ SPAMTRAIN = None
 SEED = random.randrange(2000000000)
 
 class Msg(object):
-    __slots__ = 'tag', 'guts', 'prob', 'probdiff', 'clues', 'allclues', 'train', 'word_set'
+    __slots__ = 'tag', 'guts', 'prob', 'probdiff', 'clues', 'allclues', 'train', 'word_set', 'word_iter'
 
     def __init__(self, dir, name):
         path = dir + "/" + name
@@ -25,19 +25,23 @@ class Msg(object):
         self.allclues = []
         self.clues = []
 
+        self.word_iter = tokenize(self.guts)
+
+
     def __iter__(self):
+        
         word_set = set()
         word_iter = tokenize(self.guts)
         try:
             while True:
-                word = word_iter.next()
+                word = self.word_iter.next()
                 word_set.add(word)
         except StopIteration:
             pass
 
         for word in word_set:
             yield word
-
+        
     # Compare msgs by their paths; this is appropriate for sets of msgs.
     def __hash__(self):
         return hash(self.tag)

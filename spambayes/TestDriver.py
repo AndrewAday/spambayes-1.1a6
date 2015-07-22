@@ -149,14 +149,22 @@ class Driver:
         self.trained_spam_hist = Hist()
 
     def train(self, ham, spam):
-        print "-> Training on", ham, "&", spam, "...",
+        try:
+            print "-> Training on ham of size " + str(len(ham)) + " & spam of size " + str(len(spam)) +  " ..."
+
+        except TypeError:
+            print "-> Training on", ham, "&", spam, "..."
         c = self.classifier
         nham, nspam = c.nham, c.nspam
         self.tester.train(ham, spam)
         print c.nham - nham, "hams &", c.nspam - nspam, "spams"
 
     def untrain(self, ham, spam):
-        print "-> Forgetting", ham, "&", spam, "...",
+        try:
+            print "-> Forgetting ham of size " + str(len(ham)) + " & spam of size " + str(len(spam)) +  " ..."
+
+        except TypeError:
+            print "-> Forgetting", ham, "&", spam, "..."
         c = self.classifier
         nham, nspam = c.nham, c.nspam
         self.tester.untrain(ham, spam)

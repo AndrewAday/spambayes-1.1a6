@@ -69,7 +69,7 @@ def main():
                     print "\nTallying up final counts...\n"
                     for cluster in cluster_list:
                         total_unlearned += cluster.size + 1
-                        total_polluted_unlearned += cluster.target_set4()
+                        total_polluted_unlearned += cluster.target_set3()
                         total_unpolluted_unlearned += cluster.size + 1 - total_polluted_unlearned
 
                     outfile.write("\nSTATS\n")
