@@ -4,7 +4,7 @@ from random import choice
 from spambayes.Options import get_pathname_option
 
 
-def write_dictionary_sets(x=0.3, y=200):
+def write_dictionary_sets(x=0.5, y=200):
 
     destination = get_pathname_option("TestDriver", "spam_directories") % 3 + "/"
 
@@ -49,7 +49,6 @@ def reset():
 
 def main():
     reset()
-    write_dictionary_sets(x=0.3, y=500)
 
 if __name__ == "__main__":
     main()
