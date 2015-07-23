@@ -19,6 +19,7 @@ def test():
     prev_detection_rate = None
 
     detection_rates = []
+    detection_rates_on_mislabeled = []
     correct_results = []
     results_from_mislabeled = []
     for y_val in y:
@@ -42,6 +43,7 @@ def test():
             prev_detection_rate = rate
             correct_results.append("")
             results_from_mislabeled.append("")
+            detection_rates_on_mislabeled.append("")
 
             d.untrain(msgs.HamStream(hamdirs[2], [hamdirs[2]]),
                       msgs.SpamStream(spamdirs[2], [spamdirs[2]]))
@@ -79,16 +81,20 @@ def test():
 
             d.test(ham, spam)
 
-            if d.tester.correct_classification_rate() > 0.5:  # Properly labeled some previously mislabled points
+            rate = d.tester.correct_classification_rate()
+            if rate > 0.5:      # Properly labeled some previously mislabled points
                 results_from_mislabeled.append("Improved")
-            elif d.tester.correct_classification_rate() is 0: # Unchanged
+                detection_rates_on_mislabeled.append(rate)
+            elif rate is 0:     # Unchanged
                 results_from_mislabeled.append("Worsened")
+                detection_rates_on_mislabeled.append(rate)
 
             dw.reset()
 
     outfile = open("mislabeled_rates.txt", 'w')
-    outfile.write(tabulate({"# of Dictionaries": y, "Detection Rate": detection_rates,
-                            "True Change": correct_results, "Interpreted Change": results_from_mislabeled},
+    outfile.write(tabulate({"# of Dictionaries": y, "Detection Rate": detection_rates, "True Change": correct_results,
+                            "Detection Rate from Mislabeled": detection_rates_on_mislabeled,
+                            "Interpreted Change": results_from_mislabeled},
                            headers="keys"))
 
 def main():
