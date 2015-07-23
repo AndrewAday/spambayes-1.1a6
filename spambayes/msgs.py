@@ -12,11 +12,10 @@ SPAMTRAIN = None
 SEED = random.randrange(2000000000)
 
 class Msg(object):
-    __slots__ = 'tag', 'guts', 'prob', 'probdiff', 'clues', 'allclues', 'train', 'train_bool'
+    __slots__ = 'tag', 'guts', 'prob', 'probdiff', 'clues', 'allclues', 'train'
 
     def __init__(self, dir, name):
         path = dir + "/" + name
-        self.train_bool = False
         self.tag = path
         f = open(path, 'rb')
         self.guts = f.read()
@@ -29,8 +28,6 @@ class Msg(object):
         self.guts = " ".join(tokenize(self.guts))
         """
         self.guts = list(set(word for word in tokenize(self.guts)))
-        if self.train_bool:
-            self.guts = []
 
     def __iter__(self):
         for word in self.guts:
@@ -48,6 +45,9 @@ class Msg(object):
 
     def __str__(self):
         return self.guts
+
+    def guts_clear(self):
+        self.guts = []
 
     # We have defined __slots__, so need these to be able to be pickled.
     def __getstate__(self):

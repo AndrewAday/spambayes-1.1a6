@@ -1,6 +1,7 @@
 from random import choice, shuffle
 from spambayes import TestDriver, quickselect
 from Distance import distance
+from itertools import chain
 import heapq
 import sys
 import copy
@@ -44,7 +45,7 @@ class PriorityQueue:
 
 class Cluster:
 
-    def __init__(self, msg, size, active_unlearner, opt="extreme"):
+    def __init__(self, msg, size, active_unlearner, opt="extreme", working_set=None):
         self.clustroid = msg
         self.size = size
         self.active_unlearner = active_unlearner
@@ -57,13 +58,24 @@ class Cluster:
         """
         self.cluster_set = self.make_cluster()
         self.divide()
+        self.working_set = working_set
 
-    def distance_array(self):
+    def distance_array(self, working_set):
         dist_list = []
-        for i in range(len(self.active_unlearner.driver.tester.train_examples)):
-            for train in self.active_unlearner.driver.tester.train_examples[i]:
-                if train != self.clustroid:
-                    dist_list.append((distance(self.clustroid, train, self.opt), train))
+        train_examples = self.active_unlearner.driver.tester.train_examples
+        if working_set is not None:
+            """
+            for i in range(len(self.active_unlearner.driver.tester.train_examples)):
+                for train in self.active_unlearner.driver.tester.train_examples[i]:
+                    if train != self.clustroid:
+                        dist_list.append((distance(self.clustroid, train, self.opt), train))
+            """
+            dist_list = [(distance(self.clustroid, train, self.opt), train) for train in chain(train_examples[0], train_examples[1], train_examples[2],
+                train_examples[3]) if train != self.clustroid]
+
+        else:
+            dist_list = [(distance(self.clustroid, train, self.opt), train) for train in working_set if train != self.clustroid]
+
         return dist_list
 
     def make_cluster(self):
@@ -81,7 +93,11 @@ class Cluster:
         assert (len(l) == self.size)
         return l, heap
         """
-        cluster = set(item[1] for item in quickselect.k_smallest(self.dist_list, self.size))
+        if working_set:
+
+        else:
+            k_smallest = quickselect.k_smallest
+            cluster = set(item[1] for item in k_smallest(self.dist_list, self.size))
         return cluster
 
     def divide(self):
@@ -151,7 +167,8 @@ class Cluster:
         assert(len(self.cluster_heap) == k), len(self.cluster_heap)
         assert(len(self.cluster_set) == k), len(self.cluster_set)
         """
-        new_cluster_set = set(item[1] for item in quickselect.k_smallest(self.dist_list, self.size))
+        k_smallest = quickselect.k_smallest
+        new_cluster_set = set(item[1] for item in k_smallest(self.dist_list, self.size))
         new_elements = list(item for item in new_cluster_set if item not in old_cluster_set)
         self.cluster_set = new_cluster_set
 
@@ -321,7 +338,7 @@ class ActiveUnlearner:
 
     # --------------------------------------------------------------------------------------------------------------
 
-    def determine_cluster(self, center):
+    def determine_cluster(self, center, working_set=None):
         """ Given a chosen starting center and a given increment of cluster size, it continues to grow and cluster more
             until the detection rate hits a maximum peak (i.e. optimal cluster); if first try is a decrease, reject this
             center and return False."""
@@ -329,7 +346,7 @@ class ActiveUnlearner:
         print "\nDetermining appropriate cluster around", center.tag, "...\n"
         old_detection_rate = self.current_detection_rate
         counter = 0
-        cluster = Cluster(center, self.increment, self)
+        cluster = Cluster(center, self.increment, self, working_set=working_set)
 
         # Test detection rate after unlearning cluster
         self.unlearn(cluster)
@@ -454,7 +471,7 @@ class ActiveUnlearner:
                                                                                                           ".\n"
 
             current = training[len(training) - 1]
-            cluster = self.determine_cluster(current)
+            cluster = self.determine_cluster(current, working_set=training)
 
             if not cluster[0]:
                 print "\nMoving on from inviable cluster center...\n"
@@ -518,11 +535,9 @@ class ActiveUnlearner:
 
     def shuffle_training(self):
         training = []
-        for i in range(len(self.driver.tester.train_examples)):
-            training += self.driver.tester.train_examples[i]
-
-        shuffle(training)
-        return training
+        train_examples = self.driver.tester.train_examples
+        training = [train for train in chain(train_examples[0], train_examples[1], train_examples[2], train_examples[3])]
+        return shuffle(training)
 
     def get_mislabeled(self, update=False):
         """ Returns the set of mislabeled emails (from the ground truth) based off of the

@@ -33,10 +33,6 @@ class DictionaryWriter:
 
         print "Initial # of Files: " + str(len(self.destination_files))
 
-<<<<<<< HEAD
-        for i in range(0, self.NUMFILES):
-            print "Preparing wordlist.txt # " + str(i + 1)
-=======
         if self.dictionary:
             for i in range(0, self.NUMFILES):
                 print "Preparing dictionary.txt # " + str(i + 1)
@@ -52,7 +48,6 @@ class DictionaryWriter:
         if self.wordlist:
             for i in range(0, self.NUMFILES):
                 print "Preparing wordlist.txt # " + str(i + 1)
->>>>>>> origin/master
 
                 file_in = open("wordlist.txt", 'r')
                 file_out = open(self.destination + "00000wordlist" + str(i + 1) + ".spam" + ".txt", 'w')
@@ -62,8 +57,6 @@ class DictionaryWriter:
                 file_in.close()
                 file_out.close()
 
-<<<<<<< HEAD
-=======
         if self.words:
             for i in range(0, self.NUMFILES):
                 print "Preparing words.txt # " + str(i + 1)
@@ -88,7 +81,6 @@ class DictionaryWriter:
                 file_in.close()
                 file_out.close()
 
->>>>>>> origin/master
         self.destination_files = listdir(self.destination)
         print "Final # of Files: " + str(len(self.destination_files))
 
