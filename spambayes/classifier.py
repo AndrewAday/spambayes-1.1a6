@@ -469,14 +469,31 @@ class Classifier:
             clues.reverse()
 
         else:
+            if len(wordstream.clues) != 0:
+                return map(lambda (prob, word, record): (self.probability(self.wordinfo.get(word)), word, self.wordinfo.get(word)), wordstream.clues) 
+
             # The all-unigram scheme just scores the tokens as-is.  A set()
             # is used to weed out duplicates at high speed.
             clues = []
             push = clues.append
+            """
             for word in wordstream:
                 tup = self._worddistanceget(word)
                 if tup[0] >= mindist:
                     push(tup)
+            """
+            for word in wordstream:
+                record = self.wordinfo.get(word)
+                if record is not None:
+                    prob = self.probability(record)
+
+                else:
+                    prob = options["Classifier", "unknown_word_prob"]
+
+                distance = abs(prob - 0.5)
+                if distance >= mindist:
+                    push((distance, prob, word, record))
+
             clues.sort()
 
         if len(clues) > options["Classifier", "max_discriminators"]:

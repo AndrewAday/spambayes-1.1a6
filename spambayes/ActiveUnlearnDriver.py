@@ -152,7 +152,7 @@ class Cluster:
         assert(len(self.cluster_set) == k), len(self.cluster_set)
         """
         new_cluster_set = set(item[1] for item in quickselect.k_smallest(self.dist_list, self.size))
-        new_elements = set(item for item in new_cluster_set if item not in old_cluster_set)
+        new_elements = list(item for item in new_cluster_set if item not in old_cluster_set)
         self.cluster_set = new_cluster_set
 
         assert(len(self.cluster_set) == self.size), len(self.cluster_set)

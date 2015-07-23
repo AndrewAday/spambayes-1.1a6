@@ -139,6 +139,7 @@ class Test:
         guess = self.classifier.spamprob
         counter = 1
         for example in stream:
+            example.train_bool = True
             old_prob = 0
 
             if example.prob is not None:
