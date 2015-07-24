@@ -45,10 +45,12 @@ class PriorityQueue:
 
 class Cluster:
 
-    def __init__(self, msg, size, active_unlearner, opt="extreme", working_set=None):
+    def __init__(self, msg, size, active_unlearner, opt="extreme", working_set=None, sort_first=True):
         self.clustroid = msg
         self.size = size
         self.active_unlearner = active_unlearner
+        self.sort_first = sort_first
+        self.working_set = working_set
         self.ham = set()
         self.spam = set()
         self.opt = opt
@@ -58,12 +60,11 @@ class Cluster:
         """
         self.cluster_set = self.make_cluster()
         self.divide()
-        self.working_set = working_set
 
-    def distance_array(self, working_set):
+    def distance_array(self):
         dist_list = []
         train_examples = self.active_unlearner.driver.tester.train_examples
-        if working_set is not None:
+        if self.working_set is not None:
             """
             for i in range(len(self.active_unlearner.driver.tester.train_examples)):
                 for train in self.active_unlearner.driver.tester.train_examples[i]:
@@ -74,9 +75,13 @@ class Cluster:
                 train_examples[3]) if train != self.clustroid]
 
         else:
-            dist_list = [(distance(self.clustroid, train, self.opt), train) for train in working_set if train != self.clustroid]
+            dist_list = [(distance(self.clustroid, train, self.opt), train) for train in self.working_set if train != self.clustroid]
 
-        return dist_list
+        if sort_first:
+            return dict_list.sort()
+
+        else:
+            return dict_list
 
     def make_cluster(self):
         """
@@ -93,12 +98,12 @@ class Cluster:
         assert (len(l) == self.size)
         return l, heap
         """
-        if working_set:
+        if self.sort_first:
+            return set(item[1] for item in self.dist_list[:self.size])
 
         else:
             k_smallest = quickselect.k_smallest
-            cluster = set(item[1] for item in k_smallest(self.dist_list, self.size))
-        return cluster
+            return set(item[1] for item in k_smallest(self.dist_list, self.size))
 
     def divide(self):
         """Divides messages in the cluster between spam and ham"""
@@ -167,8 +172,12 @@ class Cluster:
         assert(len(self.cluster_heap) == k), len(self.cluster_heap)
         assert(len(self.cluster_set) == k), len(self.cluster_set)
         """
-        k_smallest = quickselect.k_smallest
-        new_cluster_set = set(item[1] for item in k_smallest(self.dist_list, self.size))
+        if sort_first:
+            new_cluster_set = set(item[1] for item in self.dict_list[:self.size])
+        else:
+            k_smallest = quickselect.k_smallest
+            new_cluster_set = set(item[1] for item in k_smallest(self.dist_list, self.size))
+
         new_elements = list(item for item in new_cluster_set if item not in old_cluster_set)
         self.cluster_set = new_cluster_set
 
@@ -186,9 +195,6 @@ class Cluster:
 
 class ProxyCluster:
     def __init__(self, cluster):
-        hams = []
-        spams = []
-        cluster_set = set()
 
         if len(cluster.ham) + len(cluster.spam) != cluster.size + 1:
             print "\nUpdating cluster ham and spam sets for proxy...\n"
@@ -197,13 +203,11 @@ class ProxyCluster:
         else:
             print "\nProxy cluster ham/spam sets do not need updating; continuing.\n"
 
-        for ham in cluster.ham:
-            hams.append(ham)
-            cluster_set.add(ham)
+        hams = [ham for ham in cluster.ham]
+        spams = [spam for spam in cluster.spam]
+        cluster_set = set(msg for msg in chain(cluster.ham, cluster.spam))
 
-        for spam in cluster.spam:
-            spams.append(spam)
-            cluster_set.add(spam)
+        assert(len(cluster_set) == len(cluster.ham) + len(cluster.spam))
 
         self.ham = hams
         self.spam = spams
@@ -338,7 +342,7 @@ class ActiveUnlearner:
 
     # --------------------------------------------------------------------------------------------------------------
 
-    def determine_cluster(self, center, working_set=None):
+    def determine_cluster(self, center, working_set=None, binary=False):
         """ Given a chosen starting center and a given increment of cluster size, it continues to grow and cluster more
             until the detection rate hits a maximum peak (i.e. optimal cluster); if first try is a decrease, reject this
             center and return False."""

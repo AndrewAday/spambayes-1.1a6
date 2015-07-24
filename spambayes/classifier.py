@@ -501,6 +501,14 @@ class Classifier:
         # Return (prob, word, record).
         return [t[1:] for t in clues]
 
+    def update_clue_prob(self, record):
+        mindist = options["Classifier", "minimum_prob_strength"]
+        prob = self.probability(record)
+        if abs(prob - 0.5) >= mindist:
+            return prob
+        else:
+            raise AssertionError("Cached record has become too weak.")
+
     def _worddistanceget(self, word):
         record = self._wordinfoget(word)
         if record is None:
