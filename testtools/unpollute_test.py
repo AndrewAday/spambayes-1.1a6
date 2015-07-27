@@ -34,7 +34,7 @@ def main():
                                                  msgs.SpamStream(spam[0], [spam[0]]),   # Testing Spam
                                                  )
         while keep_going:
-            with open("C:\Users\Alex\Desktop\unlearn_stats" + str(trial_number) + ".txt", 'w') as outfile:
+            with open("C:\Users\Alex\Desktop\unpollute_tests\unlearn_stats" + str(trial_number) + ".txt", 'w') as outfile:
                 try:
                     outfile.write("CLUSTER AND RATE COUNTS:\n")
                     outfile.write("---------------------------\n")
