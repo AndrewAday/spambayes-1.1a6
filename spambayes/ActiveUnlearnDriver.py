@@ -214,7 +214,7 @@ class Cluster:
             k_smallest = quickselect.k_smallest
             new_cluster_set = set(item[1] for item in k_smallest(self.dist_list, self.size))
 
-        new_elements = list(item for item in new_cluster_set if item not in old_cluster_set)
+        new_elements = list(item for item in old_cluster_set if item not in new_cluster_set)
         self.cluster_set = new_cluster_set
 
         assert(len(self.cluster_set) == self.size), len(self.cluster_set)
@@ -222,10 +222,10 @@ class Cluster:
 
         for msg in new_elements:
             if msg.train == 1 or msg.train == 3:
-                self.ham.add(msg)
+                self.ham.remove(msg)
 
             elif msg.train == 0 or msg.train == 2:
-                self.spam.add(msg)
+                self.spam.remove(msg)
 
         return new_elements
 
@@ -420,7 +420,7 @@ class ActiveUnlearner:
             print "\nCenter is inviable.\n"
             proxy_cluster = ProxyCluster(cluster)
             self.learn(cluster)
-            return False, proxy_cluster
+            return False, proxy_cluster, None
 
         else:                                           # Detection rate improves - Grow cluster
             unlearn_hams = []
@@ -453,7 +453,7 @@ class ActiveUnlearner:
                     cluster.cluster_less(self.increment)
                     assert(cluster.size == self.increment * counter), cluster.size
                     assert(counter == 3), counter
-                    return True, cluster
+                    return True, cluster, None
 
                 if try_gold:
                     extra_cluster = int(phi * cluster.size)
@@ -520,7 +520,7 @@ class ActiveUnlearner:
 
                 print "\nAppropriate cluster found, with size " + str(cluster.size) + ".\n"
                 self.current_detection_rate = old_detection_rate
-                return True, cluster
+                return True, cluster, None
 
     def golden_section_search(self, cluster, left_index, middle_index, right_index, tolerance, sizes, detection_rates):
         print "\nPerforming golden section search...\n"
@@ -652,7 +652,7 @@ class ActiveUnlearner:
         print "\nThreshold achieved after", cluster_count, "clusters unlearned and", attempt_count, "attempts.\n"
     # -----------------------------------------------------------------------------------
 
-    def brute_force_active_unlearn(self, outfile, test=False, center_iteration=True, pollution_set3=True):
+    def brute_force_active_unlearn(self, outfile, test=False, center_iteration=True, pollution_set3=True, gold=False):
         cluster_list = []
         cluster_count = 0
         rejection_count = 0
