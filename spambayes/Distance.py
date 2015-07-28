@@ -1,5 +1,6 @@
 import Levenshtein
 from math import sqrt
+from spambayes.Options import options
 
 l_distance = Levenshtein.distance
 
@@ -21,17 +22,6 @@ def e_f(x, is_eu):
 
 
 def distance(msg1, msg2, opt=None, is_eu=True):
-    mindist = options["Classifier", "minimum_prob_strength"]
-    """
-    for prob, word, record in msg1.clues:
-        if abs(prob - 0.5) < mindist:
-            raise AssertionError
-
-    for prob, word, record in msg2.clues:
-        if abs(prob - 0.5) < mindist:
-            raise AssertionError
-    """
-
     if opt is None:
         s = 0
         for i in range(min(len(msg1.clues), len(msg2.clues))):

@@ -29,15 +29,53 @@ class DictionaryWriter:
 
         print "Initial # of Files: " + str(len(self.destination_files))
 
-        for i in range(0, self.NUMFILES):
-            print "Preparing wordlist.txt #" + str(i + 1)
-            file_in = open("wordlist.txt", 'r')
-            file_out = open(self.destination + "00000wordlist" + str(i + 1) + ".spam" + ".txt", 'w')
+        if self.dictionary:
+            for i in range(0, self.NUMFILES):
+                print "Preparing dictionary.txt # " + str(i + 1)
 
-            file_out.write(file_in.read())
+                file_in = open("dictionary.txt", 'r')
+                file_out = open(self.destination + "00000dictionary" + str(i + 1) + ".spam" + ".txt", 'w')
 
-            file_in.close()
-            file_out.close()
+                file_out.write(file_in.read())
+
+                file_in.close()
+                file_out.close()
+
+        if self.wordlist:
+            for i in range(0, self.NUMFILES):
+                print "Preparing wordlist.txt # " + str(i + 1)
+
+                file_in = open("wordlist.txt", 'r')
+                file_out = open(self.destination + "00000wordlist" + str(i + 1) + ".spam" + ".txt", 'w')
+
+                file_out.write(file_in.read())
+
+                file_in.close()
+                file_out.close()
+
+        if self.words:
+            for i in range(0, self.NUMFILES):
+                print "Preparing words.txt # " + str(i + 1)
+
+                file_in = open("words.txt", 'r')
+                file_out = open(self.destination + "00000words" + str(i + 1) + ".spam" + ".txt", 'w')
+
+                file_out.write(file_in.read())
+
+                file_in.close()
+                file_out.close()
+
+        if self.wordsEn:
+            for i in range(0, self.NUMFILES):
+                print "Preparing wordsEn.txt # " + str(i + 1)
+
+                file_in = open("wordsEn.txt", 'r')
+                file_out = open(self.destination + "00000wordsEn" + str(i + 1) + ".spam" + ".txt", 'w')
+
+                file_out.write(file_in.read())
+
+                file_in.close()
+                file_out.close()
 
         self.destination_files = listdir(self.destination)
         print "Final # of Files: " + str(len(self.destination_files))
