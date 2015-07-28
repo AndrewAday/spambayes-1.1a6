@@ -5,7 +5,7 @@ from dictionarywriter import DictionaryWriter
 
 def test():
 
-    y = [0, 60, 120]
+    y = [0, 60, 120, 240, 480]
 
     hamdirs = [get_pathname_option("TestDriver", "ham_directories") % i for i in range(1, 4)]
     spamdirs = [get_pathname_option("TestDriver", "spam_directories") % i for i in range(1, 4)]
@@ -39,11 +39,29 @@ def test():
             mislabeled[1] = d.tester.spam_wrong_examples   # Spam mislabeled as Ham
             mislabeled[2] = d.tester.unsure_examples       # Unsure
 
+            ham = []
+            spam = []
+
+            ham += mislabeled[0]
+            spam += mislabeled[1]
+
+            for msg in mislabeled[2]:
+                if msg.tag.endswith(".ham.txt"):
+                    ham.append(msg)
+                elif msg.tag.endswith(".spam.txt"):
+                    spam.append(msg)
+                else:
+                    print "What"
+                    exit()
+
+            d.test(ham, spam)
+            m_rate = d.tester.correct_classification_rate()
+
             detection_rates.append(rate)
             prev_detection_rate = rate
             correct_results.append("")
             results_from_mislabeled.append("")
-            detection_rates_on_mislabeled.append("")
+            detection_rates_on_mislabeled.append(m_rate)
 
             d.untrain(msgs.HamStream(hamdirs[2], [hamdirs[2]]),
                       msgs.SpamStream(spamdirs[2], [spamdirs[2]]))
@@ -70,24 +88,18 @@ def test():
             ham += mislabeled[0]
             spam += mislabeled[1]
 
-            for msg in mislabeled[2]:
-                if msg.tag.endswith(".ham.txt"):
-                    ham.append(msg)
-                elif msg.tag.endswith(".spam.txt"):
-                    spam.append(msg)
-                else:
-                    print "What"
-                    exit()
+            #for msg in mislabeled[2]:
+            #    if msg.tag.endswith(".ham.txt"):
+            #        ham.append(msg)
+            #    elif msg.tag.endswith(".spam.txt"):
+            #        spam.append(msg)
+            #    else:
+            #        print "What"
+            #        exit()
 
             d.test(ham, spam)
-
             rate = d.tester.correct_classification_rate()
-            if rate > 0.5:      # Properly labeled some previously mislabled points
-                results_from_mislabeled.append("Improved")
-                detection_rates_on_mislabeled.append(rate)
-            elif rate is 0:     # Unchanged
-                results_from_mislabeled.append("Worsened")
-                detection_rates_on_mislabeled.append(rate)
+            detection_rates_on_mislabeled.append(rate)
 
             dw.reset()
 

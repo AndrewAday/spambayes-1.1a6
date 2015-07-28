@@ -1,10 +1,10 @@
 from string import ascii_lowercase
 from os import listdir, remove
-from random import choice
+from random import choice, sample
 from spambayes.Options import get_pathname_option
 
 
-def write_dictionary_sets(x=0.5, y=200):
+def write_dictionary_sets(number_clusters=26, x=0.5, y=200):
 
     destination = get_pathname_option("TestDriver", "spam_directories") % 3 + "/"
 
@@ -18,9 +18,11 @@ def write_dictionary_sets(x=0.5, y=200):
             letter = line[0]
             letterset[letter].append(line.strip())
 
-    for letter in letterset.keys():
+    keys = sample(letterset.keys(), number_clusters)
+    for letter in keys:
         print "Writing sets for letter " + letter + " ..."
-
+        x = x                       # Percentage overlap of words between sets
+        y = y                       # Number of sets per letter
         o_set = letterset[letter]   # Size of original set of words beginning with letter
         b = len(o_set)              # Size of set being pulled from
         a = int(b * x)              # Size of resultant sets

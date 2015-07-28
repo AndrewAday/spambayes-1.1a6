@@ -1,34 +1,19 @@
 from spambayes.Options import get_pathname_option
-from benignfilemover import BenignFileMover
 from os import listdir
-from foo import random_words
 
 class InjectionPolluter:
 
     # Inject a common feature into some mislabeled benign data samples
 
-    def __init__(self, number, number_inject = 0, inject_type = 1):
-        self.number = number
+    def __init__(self, spam_feature=None, ham_feature=None, inject_type=0):
 
         self.h_injected = get_pathname_option("TestDriver", "ham_directories") % 3 + "/"
         self.s_injected = get_pathname_option("TestDriver", "spam_directories") % 3 + "/"
 
-        if inject_type is 1:
-            self.spam_feature = "$"
-
-            self.feature = self.spam_feature
-        elif inject_type is 2:
-            self.ham_feature = ""
-
-            self.feature = self.ham_feature
-        elif inject_type is 3:
-            self.number_inject = number_inject
-
-            self.random_feature = ""
-            for word in random_words(self.number_inject):
-                self.random_feature = self.random_feature + word + " "
-
-            self.feature = self.random_feature
+        if inject_type is 0:
+            self.feature = spam_feature
+        elif inject_type is 1:
+            self.feature = ham_feature
 
     # Remove all injected features
     def reset(self):

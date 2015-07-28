@@ -18,14 +18,14 @@ class MislabeledFileMover:
     def __init__(self, number):
         self.NUMBER = number
 
-        self.ham_num = self.NUMBER
+        self.ham_num = 0
         self.ham_source = get_pathname_option("TestDriver", "ham_directories") % 1 + "/"
         self.ham_test = get_pathname_option("TestDriver", "ham_directories") % 2 + "/"
         self.ham_destination = get_pathname_option("TestDriver", "spam_directories") % 3 + "/"
         self.ham_source_files = listdir(self.ham_source)
         self.ham_destination_files = listdir(self.ham_destination)
 
-        self.spam_num = 0
+        self.spam_num = self.NUMBER
         self.spam_source = get_pathname_option("TestDriver", "spam_directories") % 1 + "/"
         self.spam_test = get_pathname_option("TestDriver", "spam_directories") % 2 + "/"
         self.spam_destination = get_pathname_option("TestDriver", "ham_directories") % 3 + "/"
@@ -46,11 +46,11 @@ class MislabeledFileMover:
         """Returns all files in Set3 of both spam and ham to their respective Set1"""
         print "Replacing Files..."
 
-        for ham in self.ham_destination_files:
+        for ham in listdir(self.ham_destination):
             print " - \tReturning " + ham + " from Spam Set3 to Ham Set1"
             move(self.ham_destination + ham, self.ham_source + ham)
 
-        for spam in self.spam_destination_files:
+        for spam in listdir(self.spam_destination):
             print " - \tReturning " + spam + " from Ham Set3 to Spam Set1"
             move(self.spam_destination + spam, self.spam_source + spam)
 
