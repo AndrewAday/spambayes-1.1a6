@@ -24,13 +24,14 @@ class Msg(object):
         self.probdiff = None
         self.allclues = []
         self.clues = []
+        
+        self.guts = "^^".join(set(tokenize(self.guts)))
+        
         """
-        self.guts = " ".join(tokenize(self.guts))
+        self.guts = list(set(tokenize(self.guts)))
         """
-        self.guts = list(set(word for word in tokenize(self.guts)))
-
     def __iter__(self):
-        for word in self.guts:
+        for word in self.guts.split("^^"):
             yield word
         
     # Compare msgs by their paths; this is appropriate for sets of msgs.

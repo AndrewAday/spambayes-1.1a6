@@ -162,7 +162,6 @@ class Driver:
     def untrain(self, ham, spam):
         try:
             print "-> Forgetting ham of size " + str(len(ham)) + " & spam of size " + str(len(spam)) +  " ..."
-
         except TypeError:
             print "-> Forgetting", ham, "&", spam, "..."
         c = self.classifier

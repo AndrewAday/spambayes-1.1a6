@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 
 sys.path.insert(-1, os.getcwd())
 sys.path.insert(-1, os.path.dirname(os.getcwd()))
@@ -28,13 +29,17 @@ def main():
     trial_number = 1
 
     try:
+        time_1 = time.time()
         au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham[1], [ham[1]]), msgs.HamStream(ham[2], [ham[2]])],       # Training Ham
                                                  [msgs.SpamStream(spam[1], [spam[1]]), msgs.SpamStream(spam[2], [spam[2]])], # Training Spam
                                                  msgs.HamStream(ham[0], [ham[0]]),      # Testing Ham
                                                  msgs.SpamStream(spam[0], [spam[0]]),   # Testing Spam
                                                  )
+
+        time_2 = time.time()
+        print "Train time:", time_2 - time_1, "\n"
         while keep_going:
-            with open("C:\Users\Alex\Desktop\unpollute_tests\unlearn_stats" + str(trial_number) + ".txt", 'w') as outfile:
+            with open("C:\Users\Alex\Desktop\unpollute_stats\unlearn_stats" + str(trial_number) + ".txt", 'w') as outfile:
                 try:
                     outfile.write("CLUSTER AND RATE COUNTS:\n")
                     outfile.write("---------------------------\n")
@@ -60,7 +65,10 @@ def main():
 
                     outfile.write("0: " + str(original_detection_rate) + "\n")
 
+                    time_start = time.time()
                     cluster_list = au.brute_force_active_unlearn(outfile, test=True, center_iteration=False)
+                    time_end = time.time()
+                    brute_force_time = time_end - time_start
                     total_polluted_unlearned = 0
                     total_unlearned = 0
                     total_unpolluted_unlearned = 0
@@ -83,7 +91,9 @@ def main():
                     outfile.write("Unpolluted Percentage of Unlearned:\n")
                     outfile.write(str(float(total_unpolluted_unlearned) / float(total_unlearned)) + "\n")
                     outfile.write("Percentage of Polluted Unlearned:\n")
-                    outfile.write(str(float(total_polluted_unlearned) / 1200))
+                    outfile.write(str(float(total_polluted_unlearned) / 1200) + "\n")
+                    outfile.write("Time for unlearning:\n")
+                    outfile.write(str(brute_force_time))
 
                 except KeyboardInterrupt:
                     outfile.flush()

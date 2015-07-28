@@ -167,7 +167,6 @@ class Classifier:
         Hexp = Sexp = 0
 
         clues = self._getclues(wordstream)
-        wordstream.clues = clues
         """
         wordstream.allclues = list(set(wordstream.allclues + clues))
         """
@@ -363,6 +362,10 @@ class Classifier:
 
             if is_spam:
                 record.spamcount += 1
+                if record.spamcount > self.nspam:
+                    print wordstream.guts
+                    print "Word: " + word
+                    raise AssertionError(str(record.spamcount) + " " + str(self.nspam))
             else:
                 record.hamcount += 1
 
@@ -380,7 +383,6 @@ class Classifier:
             if self.nham <= 0:
                 raise ValueError("non-spam count would go negative!")
             self.nham -= 1
-
         for word in wordstream:
             record = self._wordinfoget(word)
             if record is not None:
@@ -470,36 +472,48 @@ class Classifier:
 
         else:
             if len(wordstream.clues) != 0:
-                return map(lambda (prob, word, record): (self.probability(self.wordinfo.get(word)), word, self.wordinfo.get(word)), wordstream.clues) 
+                clues = map(self._tupledistanceget, wordstream.clues) 
+                wordstream.clues = clues
+                return clues
 
-            # The all-unigram scheme just scores the tokens as-is.  A set()
-            # is used to weed out duplicates at high speed.
-            clues = []
-            push = clues.append
-            """
-            for word in wordstream:
-                tup = self._worddistanceget(word)
-                if tup[0] >= mindist:
-                    push(tup)
-            """
-            for word in wordstream:
-                record = self.wordinfo.get(word)
-                if record is not None:
-                    prob = self.probability(record)
+            else:
+                # The all-unigram scheme just scores the tokens as-is.  A set()
+                # is used to weed out duplicates at high speed.
+                clues = []
+                push = clues.append
+                """
+                for word in wordstream:
+                    tup = self._worddistanceget(word)
+                    if tup[0] >= mindist:
+                        push(tup)
+                """
+                for word in wordstream:
+                    record = self.wordinfo.get(word)
+                    if record is not None:
+                        try:
+                            prob = self.probability(record)
 
-                else:
-                    prob = options["Classifier", "unknown_word_prob"]
+                        except AssertionError:
+                            print "Word: " + word
+                            print wordstream.guts
+                            print "Record: " + str(record)
+                            raise AssertionError
 
-                distance = abs(prob - 0.5)
-                if distance >= mindist:
-                    push((distance, prob, word, record))
+                    else:
+                        prob = options["Classifier", "unknown_word_prob"]
 
-            clues.sort()
+                    distance = abs(prob - 0.5)
+                    if distance >= mindist:
+                        push((distance, prob, word, record))
+
+                clues.sort()
 
         if len(clues) > options["Classifier", "max_discriminators"]:
             del clues[0 : -options["Classifier", "max_discriminators"]]
         # Return (prob, word, record).
-        return [t[1:] for t in clues]
+        trunc_clues = [t[1:] for t in clues]
+        wordstream.clues = trunc_clues
+        return trunc_clues
 
     def update_clue_prob(self, record):
         mindist = options["Classifier", "minimum_prob_strength"]
@@ -508,6 +522,9 @@ class Classifier:
             return prob
         else:
             raise AssertionError("Cached record has become too weak.")
+
+    def _tupledistanceget(self, clue):
+        return tuple(self._worddistanceget(clue[1])[1:])
 
     def _worddistanceget(self, word):
         record = self._wordinfoget(word)

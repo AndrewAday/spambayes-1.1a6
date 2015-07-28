@@ -76,18 +76,15 @@ class Cluster:
             dist_list = [(distance(self.clustroid, train, self.opt), train) for train in chain(train_examples[0],
                                                                                                train_examples[1],
                                                                                                train_examples[2],
-                                                                                               train_examples[3])
-                         if train != self.clustroid]
+                                                                                               train_examples[3])]
 
         else:
-            dist_list = [(distance(self.clustroid, train, self.opt), train) for train in self.working_set
-                         if train != self.clustroid]
+            dist_list = [(distance(self.clustroid, train, self.opt), train) for train in self.working_set]
 
         if self.sort_first:
-            return dist_list.sort()
+            dist_list.sort()
 
-        else:
-            return dist_list
+        return dist_list
 
     def make_cluster(self):
         """
@@ -114,16 +111,19 @@ class Cluster:
     def divide(self):
         """Divides messages in the cluster between spam and ham"""
         for msg in self.cluster_set:
-            if msg.train == 1:
+            if msg.train == 1 or msg.train == 3:
                 self.ham.add(msg)
-            elif msg.ttrain == 0:
+            elif msg.train == 0 or msg.train == 2:
                 self.spam.add(msg)
-
-        if self.clustroid.train == 1:
+            else:
+                raise AssertionError
+        """            
+        if self.clustroid.train == 1 or msg.train == 3:
             self.ham.add(self.clustroid)
 
-        elif self.clustroid.train == 0:
+        elif self.clustroid.train == 0 or msg.train == 2:
             self.spam.add(self.clustroid)
+        """
 
     def target_spam(self):
         """Returns a count of the number of spam emails in the cluster"""
@@ -132,8 +132,10 @@ class Cluster:
             if msg.tag.endswith(".spam.txt"):
                 counter += 1
 
+        """
         if self.clustroid.tag.endswith(".spam.txt"):
             counter += 1
+        """
 
         return counter
 
@@ -144,8 +146,10 @@ class Cluster:
             if "Set3" in msg.tag:
                 counter += 1
 
+        """
         if "Set3" in self.clustroid.tag:
             counter += 1
+        """
 
         return counter
 
@@ -156,8 +160,10 @@ class Cluster:
             if "Set4" in msg.tag:
                 counter += 1
 
+        """
         if "Set4" in self.clustroid.tag:
             counter += 1
+        """
 
         return counter
 
@@ -191,9 +197,9 @@ class Cluster:
         assert(len(new_elements) == n), len(new_elements)
 
         for msg in new_elements:
-            if msg.train == 1:
+            if msg.train == 1 or msg.train == 3:
                 self.ham.add(msg)
-            elif msg.train == 0:
+            elif msg.train == 0 or msg.train == 2:
                 self.spam.add(msg)
 
         return new_elements
@@ -215,10 +221,10 @@ class Cluster:
         assert(len(new_elements) == n), len(new_elements)        
 
         for msg in new_elements:
-            if msg.train == 1:
+            if msg.train == 1 or msg.train == 3:
                 self.ham.add(msg)
 
-            elif msg.train == 0:
+            elif msg.train == 0 or msg.train == 2:
                 self.spam.add(msg)
 
         return new_elements
@@ -227,7 +233,7 @@ class Cluster:
 class ProxyCluster:
     def __init__(self, cluster):
 
-        if len(cluster.ham) + len(cluster.spam) != cluster.size + 1:
+        if len(cluster.ham) + len(cluster.spam) != cluster.size:
             print "\nUpdating cluster ham and spam sets for proxy...\n"
             cluster.divide()
 
@@ -290,6 +296,7 @@ class ActiveUnlearner:
             self.driver.train(hamstream, spamstream)
 
     def init_ground(self, first_test=False):
+        
         if first_test:
             self.driver.test(self.testing_ham, self.testing_spam, first_test)
 
@@ -305,7 +312,7 @@ class ActiveUnlearner:
         self.driver.dict_test(hamstream, spamstream)
 
     def unlearn(self, cluster):
-        if len(cluster.ham) + len(cluster.spam) != cluster.size + 1:
+        if len(cluster.ham) + len(cluster.spam) != cluster.size:
             print "\nUpdating cluster ham and spam sets...\n"
             cluster.divide()
 
@@ -317,7 +324,7 @@ class ActiveUnlearner:
             self.driver.tester.train_examples[spam.train].remove(spam)
 
     def learn(self, cluster):
-        if len(cluster.ham) + len(cluster.spam) != cluster.size + 1:
+        if len(cluster.ham) + len(cluster.spam) != cluster.size:
             print "\nUpdating cluster ham and spam sets...\n"
             cluster.divide()
 
@@ -358,10 +365,10 @@ class ActiveUnlearner:
         unlearn_spams = []
 
         for unlearn in new_unlearns:
-            if unlearn.train == 1:
+            if unlearn.train == 1 or unlearn.train == 3:
                 unlearn_hams.append(unlearn)
 
-            elif unlearn.train == 0:
+            elif unlearn.train == 0 or unlearn.train == 2:
                 unlearn_spams.append(unlearn)
 
             self.driver.tester.train_examples[unlearn.train].remove(unlearn)
@@ -377,14 +384,14 @@ class ActiveUnlearner:
         hams = []
         spams = []
         for message in messages:
-            if message.train == 1:
+            if message.train == 1 or message.train == 3:
                 hams.append(message)
 
-            elif message.train == 0:
+            elif message.train == 0 or message.train == 2:
                 spams.append(message)
 
             else:
-                raise AssertionError("Message lacks correct extension.")
+                raise AssertionError("Message lacks train attribute.")
 
             if unlearn:
                 self.driver.tester.train_examples[message.train].remove(message)
@@ -416,7 +423,6 @@ class ActiveUnlearner:
             return False, proxy_cluster
 
         else:                                           # Detection rate improves - Grow cluster
-            proxy_cluster = None
             unlearn_hams = []
             unlearn_spams = []
             new_unlearns = set()
@@ -430,7 +436,6 @@ class ActiveUnlearner:
                     old_detection_rate = new_detection_rate
                     print "\nExploring cluster of size", cluster.size, "...\n"
 
-                    proxy_cluster = ProxyCluster(cluster)
                     new_unlearns = cluster.cluster_more(self.increment)
 
                     assert(len(new_unlearns) == self.increment), len(new_unlearns)
@@ -445,9 +450,10 @@ class ActiveUnlearner:
                     try_gold = True
 
                 else:
-                    assert(proxy_cluster.size == self.increment * counter), proxy_cluster.size
+                    cluster.cluster_less(self.increment)
+                    assert(cluster.size == self.increment * counter), cluster.size
                     assert(counter == 3), counter
-                    return True, proxy_cluster
+                    return True, cluster
 
                 if try_gold:
                     extra_cluster = int(phi * cluster.size)
@@ -480,12 +486,14 @@ class ActiveUnlearner:
 
                     if (counter + iterations) <= float(cluster.size) / float(self.increment):
                         print "Gold is at least as efficient as straight up incrementing.\n"
+                        efficient = True
 
                     else:
                         print "Gold is less efficient than striaght up incrementing.\n"
+                        efficient = False
 
                     self.current_detection_rate = detection_rate
-                    return True, cluster               
+                    return True, cluster, efficient
 
             else:
                 while new_detection_rate > old_detection_rate:
@@ -493,7 +501,6 @@ class ActiveUnlearner:
                     print "\nExploring cluster of size", (counter + 1) * self.increment, "...\n"
 
                     old_detection_rate = new_detection_rate
-                    proxy_cluster = ProxyCluster(cluster)
                     new_unlearns = cluster.cluster_more(self.increment)
 
                     assert(len(new_unlearns) == self.increment), len(new_unlearns)
@@ -501,17 +508,19 @@ class ActiveUnlearner:
                     self.driver.untrain(unlearn_hams, unlearn_spams)
                     self.init_ground()
                     new_detection_rate = self.driver.tester.correct_classification_rate()
-                assert(proxy_cluster.size == self.increment * counter), counter            
 
                 # This part is done because we've clustered just past the peak point, so we need to go back
                 # one increment and relearn the extra stuff.
+
+                cluster.cluster_less(self.increment)
+                assert(cluster.size == self.increment * counter), counter  
                 for unlearn in new_unlearns:
                     self.driver.tester.train_examples[unlearn.train].append(unlearn)
                 self.driver.train(unlearn_hams, unlearn_spams)
 
-                print "\nAppropriate cluster found, with size " + str(proxy_cluster.size) + ".\n"
+                print "\nAppropriate cluster found, with size " + str(cluster.size) + ".\n"
                 self.current_detection_rate = old_detection_rate
-                return True, proxy_cluster
+                return True, cluster
 
     def golden_section_search(self, cluster, left_index, middle_index, right_index, tolerance, sizes, detection_rates):
         print "\nPerforming golden section search...\n"
@@ -629,11 +638,11 @@ class ActiveUnlearner:
             if outfile is not None:
                 if pollution_set3:
                     outfile.write(str(cluster_count) + ", " + str(attempt_count) + ": " + str(detection_rate) + ", " +
-                                  str(cluster[1].size + 1) + ", " + str(cluster[1].target_set3()) + "\n")
+                                  str(cluster[1].size) + ", " + str(cluster[1].target_set3()) + ", " + str(cluster[2]) + "\n")
 
                 else:
                     outfile.write(str(cluster_count) + ", " + str(attempt_count) + ": " + str(detection_rate) + ", " +
-                                  str(cluster[1].size + 1) + ", " + str(cluster[1].target_set4()) + "\n")
+                                  str(cluster[1].size) + ", " + str(cluster[1].target_set4()) + ", " + str(cluster[2]) + "\n")
                 outfile.flush()
                 os.fsync(outfile)
 
@@ -701,13 +710,13 @@ class ActiveUnlearner:
                 if outfile is not None:
                     if pollution_set3:
                         outfile.write(str(cluster_count) + ", " + str(rejection_count + cluster_count) + ": " +
-                                      str(detection_rate) + ", " + str(cluster[1].size + 1) + ", " +
-                                      str(cluster[1].target_set3()) + "\n")
+                                      str(detection_rate) + ", " + str(cluster[1].size) + ", " +
+                                      str(cluster[1].target_set3()) + ", " + str(cluster[2]) + "\n")
 
                     else:
                         outfile.write(str(cluster_count) + ", " + str(rejection_count + cluster_count) + ": " +
-                                      str(detection_rate) + ", " + str(cluster[1].size + 1) + ", " +
-                                      str(cluster[1].target_set4()) + "\n")
+                                      str(detection_rate) + ", " + str(cluster[1].size) + ", " +
+                                      str(cluster[1].target_set4()) + ", " + str(cluster[2]) + "\n")
 
                     outfile.flush()
                     os.fsync(outfile)
@@ -724,7 +733,8 @@ class ActiveUnlearner:
         train_examples = self.driver.tester.train_examples
         training = [train for train in chain(train_examples[0], train_examples[1], train_examples[2],
                                              train_examples[3])]
-        return shuffle(training)
+        shuffle(training)
+        return training
 
     def get_mislabeled(self, update=False):
         """ Returns the set of mislabeled emails (from the ground truth) based off of the
