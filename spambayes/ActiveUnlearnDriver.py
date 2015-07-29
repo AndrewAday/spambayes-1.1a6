@@ -547,6 +547,7 @@ class ActiveUnlearner:
                     self.init_ground()
                     rate_1 = self.driver.tester.correct_classification_rate()
                     iterations += 1
+                    f[middle_1] = rate_1
 
                 elif pointer < middle_1:
                     raise AssertionError("Pointer is on the left of middle_1.")
@@ -565,6 +566,7 @@ class ActiveUnlearner:
                     self.init_ground()
                     rate_2 = self.driver.tester.correct_classification_rate()
                     iterations += 1
+                    f[middle_2] = rate_2
 
                 elif pointer > middle_2:
                     raise AssertionError("Pointer is on the right of middle_2.")
@@ -587,6 +589,7 @@ class ActiveUnlearner:
         assert (size <= right), right
         if pointer < size:
             new_unlearns = cluster.cluster_more(size - pointer)
+            assert(cluster.size == size), size
             self.divide_new_elements(new_unlearns, True)
             self.init_ground()
             detection_rate = self.driver.tester.correct_classification_rate()
@@ -594,6 +597,7 @@ class ActiveUnlearner:
 
         elif pointer > size:
             new_relearns = cluster.cluster_less(pointer - size)
+            assert(cluster.size == size), size
             self.divide_new_elements(new_relearns, False)
             self.init_ground()
             detection_rate = self.driver.tester.correct_classification_rate()
@@ -617,6 +621,7 @@ class ActiveUnlearner:
             current = self.select_initial(chosen)
             attempt_count += 1
             cluster = self.determine_cluster(current, gold=gold)
+            print "\n-----------------------------------------------------\n"
             print "\nAttempted", attempt_count, "attempts so far.\n"
 
             while not cluster[0]:
@@ -659,6 +664,7 @@ class ActiveUnlearner:
         print "\nCurrent detection rate achieved is " + str(detection_rate) + ".\n"
 
         while len(training) > 0:
+            print "\n-----------------------------------------------------\n"
             print "\nStarting new round of untraining;", len(training), "out of", original_training_size, "training left" \
                                                                                                           ".\n"
 

@@ -6,11 +6,11 @@ sys.path.insert(-1, os.getcwd())
 sys.path.insert(-1, os.path.dirname(os.getcwd()))
 
 from spambayes import ActiveUnlearnDriver
-from spambayes.Options import get_pathname_option
+from spambayes.Options import get_pathname_option, options
 from spambayes import msgs
 from testtools import dictionarywriter, mislabeledfilemover
 
-
+options["TestDriver", "show_histograms"] = False
 def main():
 
     ham = [get_pathname_option("TestDriver", "ham_directories") % i for i in range(1, 5)]
