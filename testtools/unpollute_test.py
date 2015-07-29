@@ -31,7 +31,7 @@ def main():
     try:
         time_1 = time.time()
         au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham[1], [ham[1]]), msgs.HamStream(ham[2], [ham[2]])],       # Training Ham
-                                                 [msgs.SpamStream(spam[1], [spam[1]]), msgs.SpamStream(spam[2], [spam[2]])], # Training Spam
+                                                 [msgs.SpamStream(spam[1], [spam[1]]), msgs.SpamStream(spam[3], [spam[3]])], # Training Spam
                                                  msgs.HamStream(ham[0], [ham[0]]),      # Testing Ham
                                                  msgs.SpamStream(spam[0], [spam[0]]),   # Testing Spam
                                                  )

@@ -66,7 +66,7 @@ class Cluster:
 
     def distance_array(self):
         train_examples = self.active_unlearner.driver.tester.train_examples
-        if self.working_set is not None:
+        if self.working_set is None:
             """
             for i in range(len(self.active_unlearner.driver.tester.train_examples)):
                 for train in self.active_unlearner.driver.tester.train_examples[i]:
@@ -399,7 +399,11 @@ class ActiveUnlearner:
             else:
                 self.driver.tester.train_examples[message.train].append(message)
 
-        return hams, spams
+        if unlearn:
+            self.driver.untrain(hams, spams)
+
+        else:
+            self.driver.train(hams, spams)
 
     def determine_cluster(self, center, working_set=None, gold=False, tolerance=200):
         """ Given a chosen starting center and a given increment of cluster size, it continues to grow and cluster more
@@ -440,8 +444,7 @@ class ActiveUnlearner:
 
                     assert(len(new_unlearns) == self.increment), len(new_unlearns)
 
-                    unlearn_hams, unlearn_spams = self.divide_new_elements(new_unlearns, True)
-                    self.driver.untrain(unlearn_hams, unlearn_spams)
+                    self.divide_new_elements(new_unlearns, True)
                     self.init_ground()
                     new_detection_rate = self.driver.tester.correct_classification_rate()
 
@@ -450,9 +453,9 @@ class ActiveUnlearner:
                     try_gold = True
 
                 else:
-                    cluster.cluster_less(self.increment)
+                    new_learns = cluster.cluster_less(self.increment)
                     assert(cluster.size == self.increment * counter), cluster.size
-                    assert(counter == 3), counter
+                    self.divide_new_elements(new_unlearns, False)
                     return True, cluster, None
 
                 if try_gold:
@@ -465,13 +468,10 @@ class ActiveUnlearner:
                         old_detection_rate = new_detection_rate
                         print "\nExploring cluster of size", cluster.size, "...\n"
 
-                        new_unlearns = cluster.cluster_more(extra_cluster)
+                        new_unlearns = cluster.cluster_more(int(extra_cluster))
                         extra_cluster *= phi
 
-                        assert(len(new_unlearns) == 2 * cluster.size), len(new_unlearns)
-
-                        unlearn_hams, unlearn_spams = self.divide_new_elements(new_unlearns, True)
-                        self.driver.untrain(unlearn_hams, unlearn_spams)
+                        self.divide_new_elements(new_unlearns, True)
                         self.init_ground()
                         new_detection_rate = self.driver.tester.correct_classification_rate()
 
@@ -504,19 +504,16 @@ class ActiveUnlearner:
                     new_unlearns = cluster.cluster_more(self.increment)
 
                     assert(len(new_unlearns) == self.increment), len(new_unlearns)
-                    unlearn_hams, unlearn_spams = self.divide_new_elements(new_unlearns, True)
-                    self.driver.untrain(unlearn_hams, unlearn_spams)
+                    self.divide_new_elements(new_unlearns, True)
                     self.init_ground()
                     new_detection_rate = self.driver.tester.correct_classification_rate()
 
                 # This part is done because we've clustered just past the peak point, so we need to go back
                 # one increment and relearn the extra stuff.
 
-                cluster.cluster_less(self.increment)
+                new_learns = cluster.cluster_less(self.increment)
                 assert(cluster.size == self.increment * counter), counter  
-                for unlearn in new_unlearns:
-                    self.driver.tester.train_examples[unlearn.train].append(unlearn)
-                self.driver.train(unlearn_hams, unlearn_spams)
+                self.divide_new_elements(new_unlearns, False)
 
                 print "\nAppropriate cluster found, with size " + str(cluster.size) + ".\n"
                 self.current_detection_rate = old_detection_rate
@@ -528,7 +525,7 @@ class ActiveUnlearner:
         left = sizes[left_index]
         middle_1 = sizes[middle_index]
         right = sizes[right_index]
-        pointer = right
+        pointer = middle_1
         iterations = 0
 
         assert(len(sizes) == len(detection_rates)), len(sizes) - len(detection_rates)
@@ -537,7 +534,8 @@ class ActiveUnlearner:
         middle_2 = right - (middle_1 - left)
 
         while abs(right - left) > tolerance:
-            print "Window is between " + str(left) + " and " + str(right) + ".\n"
+            print "\nWindow is between " + str(left) + " and " + str(right) + ".\n"
+            print "Middles are " + str(middle_1) + " and " + str(middle_2) + ".\n"
             try:
                 rate_1 = f[middle_1]
 
@@ -545,8 +543,7 @@ class ActiveUnlearner:
                 if pointer > middle_1:
                     new_relearns = cluster.cluster_less(pointer - middle_1)
                     pointer = middle_1
-                    relearn_hams, relearn_spams = self.divide_new_elements(new_relearns, False)
-                    self.driver.train(relearn_hams, relearn_spams)
+                    self.divide_new_elements(new_relearns, False)
                     self.init_ground()
                     rate_1 = self.driver.tester.correct_classification_rate()
                     iterations += 1
@@ -564,8 +561,7 @@ class ActiveUnlearner:
                 if pointer < middle_2:
                     new_unlearns = cluster.cluster_more(middle_2 - pointer)
                     pointer = middle_2
-                    unlearn_hams, unlearn_spams = self.divide_new_elements(new_unlearns, True)
-                    self.driver.untrain(unlearn_hams, unlearn_spams)
+                    self.divide_new_elements(new_unlearns, True)
                     self.init_ground()
                     rate_2 = self.driver.tester.correct_classification_rate()
                     iterations += 1
@@ -587,18 +583,18 @@ class ActiveUnlearner:
                 middle_2 = left + int((right - left) / phi)
 
         size = int(float(left + right) / 2)
+        assert (left <= size), left
+        assert (size <= right), right
         if pointer < size:
             new_unlearns = cluster.cluster_more(size - pointer)
-            unlearn_hams, unlearn_spams = self.divide_new_elements(new_unlearns, True)
-            self.driver.untrain(unlearn_hams, unlearn_spams)
+            self.divide_new_elements(new_unlearns, True)
             self.init_ground()
             detection_rate = self.driver.tester.correct_classification_rate()
             iterations += 1
 
         elif pointer > size:
             new_relearns = cluster.cluster_less(pointer - size)
-            relearn_hams, relearn_spams = self.divide_new_elements(new_relearns, False)
-            self.driver.untrain(relearn_hams, relearn_spams)
+            self.divide_new_elements(new_relearns, False)
             self.init_ground()
             detection_rate = self.driver.tester.correct_classification_rate()
             iterations += 1
@@ -620,13 +616,13 @@ class ActiveUnlearner:
         while detection_rate < self.threshold:
             current = self.select_initial(chosen)
             attempt_count += 1
-            cluster = self.determine_cluster(current)
+            cluster = self.determine_cluster(current, gold=gold)
             print "\nAttempted", attempt_count, "attempts so far.\n"
 
             while not cluster[0]:
                 current = self.select_initial(chosen)
                 attempt_count += 1
-                cluster = self.determine_cluster(current)
+                cluster = self.determine_cluster(current, gold=gold)
                 print "\nAttempted", attempt_count, "attempts so far.\n"
 
             cluster_list.append(cluster[1])
@@ -667,7 +663,7 @@ class ActiveUnlearner:
                                                                                                           ".\n"
 
             current = training[len(training) - 1]
-            cluster = self.determine_cluster(current, working_set=training)
+            cluster = self.determine_cluster(current, working_set=training, gold=gold)
 
             if not cluster[0]:
                 print "\nMoving on from inviable cluster center...\n"
@@ -682,9 +678,6 @@ class ActiveUnlearner:
                             training.remove(msg)
                             rejections.add(msg)
 
-                    if current not in rejections:
-                        training.remove(current)
-                        rejections.add(current)
                     rejection_count += 1
 
                 print "\nRejected", rejection_count, "attempt(s) so far.\n"
@@ -697,10 +690,6 @@ class ActiveUnlearner:
                     if msg not in rejections:
                         training.remove(msg)
                         rejections.add(msg)
-
-                if current not in rejections:
-                    rejections.add(current)
-                    training.remove(current)
 
                 cluster_count += 1
                 print "\nUnlearned", cluster_count, "cluster(s) so far.\n"
