@@ -528,6 +528,10 @@ class ActiveUnlearner:
         pointer = middle_1
         iterations = 0
 
+        if cluster.size > pointer:
+            new_relearns = cluster.cluster_less(cluster.size - pointer)
+            self.divide_new_elements(new_relearns, False)
+
         assert(len(sizes) == len(detection_rates)), len(sizes) - len(detection_rates)
         f = dict(zip(sizes, detection_rates))
 
@@ -543,6 +547,8 @@ class ActiveUnlearner:
                 if pointer > middle_1:
                     new_relearns = cluster.cluster_less(pointer - middle_1)
                     pointer = middle_1
+                    print "Pointer is at " + str(pointer) + ".\n"
+                    assert(cluster.size == pointer), cluster.size
                     self.divide_new_elements(new_relearns, False)
                     self.init_ground()
                     rate_1 = self.driver.tester.correct_classification_rate()
@@ -562,6 +568,8 @@ class ActiveUnlearner:
                 if pointer < middle_2:
                     new_unlearns = cluster.cluster_more(middle_2 - pointer)
                     pointer = middle_2
+                    print "Pointer is at " + str(pointer) + ".\n"
+                    assert(cluster.size == pointer), cluster.size
                     self.divide_new_elements(new_unlearns, True)
                     self.init_ground()
                     rate_2 = self.driver.tester.correct_classification_rate()
@@ -589,7 +597,7 @@ class ActiveUnlearner:
         assert (size <= right), right
         if pointer < size:
             new_unlearns = cluster.cluster_more(size - pointer)
-            assert(cluster.size == size), size
+            assert(cluster.size == size), str(size) + " " + str(cluster.size)
             self.divide_new_elements(new_unlearns, True)
             self.init_ground()
             detection_rate = self.driver.tester.correct_classification_rate()
@@ -597,7 +605,7 @@ class ActiveUnlearner:
 
         elif pointer > size:
             new_relearns = cluster.cluster_less(pointer - size)
-            assert(cluster.size == size), size
+            assert(cluster.size == size), str(size) + " " + str(cluster.size)
             self.divide_new_elements(new_relearns, False)
             self.init_ground()
             detection_rate = self.driver.tester.correct_classification_rate()
