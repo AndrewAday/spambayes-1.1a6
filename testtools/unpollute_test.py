@@ -11,6 +11,8 @@ from spambayes import msgs
 from testtools import dictionarywriter, mislabeledfilemover
 
 options["TestDriver", "show_histograms"] = False
+
+
 def main():
 
     ham = [get_pathname_option("TestDriver", "ham_directories") % i for i in range(1, 5)]
