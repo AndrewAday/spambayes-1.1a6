@@ -430,10 +430,6 @@ class ActiveUnlearner:
             return False, proxy_cluster, None
 
         else:                                           # Detection rate improves - Grow cluster
-            unlearn_hams = []
-            unlearn_spams = []
-            new_unlearns = set()
-
             if gold:
                 sizes = [cluster.size]
                 detection_rates = [new_detection_rate]
@@ -458,7 +454,7 @@ class ActiveUnlearner:
                 else:
                     new_learns = cluster.cluster_less(self.increment)
                     assert(cluster.size == self.increment * counter), cluster.size
-                    self.divide_new_elements(new_unlearns, False)
+                    self.divide_new_elements(new_learns, False)
                     return True, cluster, None
 
                 if try_gold:
@@ -516,7 +512,7 @@ class ActiveUnlearner:
 
                 new_learns = cluster.cluster_less(self.increment)
                 assert(cluster.size == self.increment * counter), counter  
-                self.divide_new_elements(new_unlearns, False)
+                self.divide_new_elements(new_learns, False)
 
                 print "\nAppropriate cluster found, with size " + str(cluster.size) + ".\n"
                 self.current_detection_rate = old_detection_rate
@@ -649,11 +645,13 @@ class ActiveUnlearner:
             if outfile is not None:
                 if pollution_set3:
                     outfile.write(str(cluster_count) + ", " + str(attempt_count) + ": " + str(detection_rate) + ", " +
-                                  str(cluster[1].size) + ", " + str(cluster[1].target_set3()) + ", " + str(cluster[2]) + "\n")
+                                  str(cluster[1].size) + ", " + str(cluster[1].target_set3()) + ", " + str(cluster[2]) +
+                                  "\n")
 
                 else:
                     outfile.write(str(cluster_count) + ", " + str(attempt_count) + ": " + str(detection_rate) + ", " +
-                                  str(cluster[1].size) + ", " + str(cluster[1].target_set4()) + ", " + str(cluster[2]) + "\n")
+                                  str(cluster[1].size) + ", " + str(cluster[1].target_set4()) + ", " + str(cluster[2]) +
+                                  "\n")
                 outfile.flush()
                 os.fsync(outfile)
 
@@ -763,7 +761,7 @@ class ActiveUnlearner:
 
         return mislabeled
 
-    def select_initial(self, option="mislabeled", distance_opt = "extreme"):
+    def select_initial(self, option="mislabeled", distance_opt="extreme"):
         """ Returns an email to be used as the initial unlearning email based on
             the mislabeled data (our tests show that the mislabeled and pollutant
             emails are strongly, ~80%, correlated) if option is true (which is default)."""
@@ -799,6 +797,7 @@ class ActiveUnlearner:
                 raise AssertionError(str(mislabeled))
 
             min_distance = sys.maxint
+            init_email = None
 
             for email in chain(t_e[0], t_e[1], t_e[2], t_e[3]):
                 current_distance = distance(email, mislabeled_point, distance_opt)
@@ -811,6 +810,7 @@ class ActiveUnlearner:
         if option == "max_sum":
             try:
                 max_sum = 0
+                init_email = None
 
                 for email in chain(t_e[0], t_e[1], t_e[2], t_e[3]):
                     current_sum = chosen_sum(self.training_chosen, email, distance_opt)
@@ -821,6 +821,6 @@ class ActiveUnlearner:
                 self.training_chosen.add(init_email)
                 return init_email
 
-            except:
+            except TypeError:
                 print "Returning initial seed based off of mislabeled...\n"
                 return self.select_initial(option="mislabeled")

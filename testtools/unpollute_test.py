@@ -66,7 +66,7 @@ def main():
                     outfile.write("0: " + str(original_detection_rate) + "\n")
 
                     time_start = time.time()
-                    cluster_list = au.brute_force_active_unlearn(outfile, test=True, gold=True, center_iteration=False)
+                    cluster_list = au.active_unlearn(outfile, test=True, gold=True, select_initial="max_sum")
                     time_end = time.time()
                     brute_force_time = time_end - time_start
                     total_polluted_unlearned = 0
