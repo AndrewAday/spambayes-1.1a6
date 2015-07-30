@@ -819,8 +819,9 @@ class ActiveUnlearner:
                         max_sum = current_sum
 
                 self.training_chosen.add(init_email)
+                assert(init_email is not None)
                 return init_email
 
-            except TypeError:
+            except AssertionError:
                 print "Returning initial seed based off of mislabeled...\n"
                 return self.select_initial(option="mislabeled")
