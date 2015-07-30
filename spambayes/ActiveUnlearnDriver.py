@@ -816,7 +816,7 @@ class ActiveUnlearner:
                     current_sum = chosen_sum(self.training_chosen, email, distance_opt)
                     if current_sum > max_sum:
                         init_email = email
-                        max_distance = current_distance
+                        max_sum = current_sum
 
                 self.training_chosen.add(init_email)
                 return init_email
