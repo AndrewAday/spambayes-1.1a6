@@ -18,14 +18,14 @@ class MislabeledFileMover:
     def __init__(self, number):
         self.NUMBER = number
 
-        self.ham_num = 0
+        self.ham_num = self.NUMBER / 2
         self.ham_source = get_pathname_option("TestDriver", "ham_directories") % 1 + "/"
         self.ham_test = get_pathname_option("TestDriver", "ham_directories") % 2 + "/"
         self.ham_destination = get_pathname_option("TestDriver", "spam_directories") % 3 + "/"
         self.ham_source_files = listdir(self.ham_source)
         self.ham_destination_files = listdir(self.ham_destination)
 
-        self.spam_num = self.NUMBER
+        self.spam_num = self.NUMBER / 2
         self.spam_source = get_pathname_option("TestDriver", "spam_directories") % 1 + "/"
         self.spam_test = get_pathname_option("TestDriver", "spam_directories") % 2 + "/"
         self.spam_destination = get_pathname_option("TestDriver", "ham_directories") % 3 + "/"
@@ -90,9 +90,9 @@ class MislabeledFileMover:
 
 
 def main():
-    f = MislabeledFileMover(3)
-    f.reset()
-    f.print_filelist()
+    f = MislabeledFileMover(6000)
+    f.random_move_file()
+
 
 if __name__ == "__main__":
     main()
