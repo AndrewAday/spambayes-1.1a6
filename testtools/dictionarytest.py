@@ -24,7 +24,7 @@ def test():
             s_s.append(size)
 
             reset()
-            write_dictionary_sets(size, x=p_val, y=500)
+            write_dictionary_sets(size, x=p_val, y=1000)
 
             d.train(msgs.HamStream(hamdirs[2], [hamdirs[2]]),
                     msgs.SpamStream(spamdirs[2], [spamdirs[2]]))

@@ -50,7 +50,7 @@ def reset():
         remove(dir + dictionary)
 
 def main():
-    reset()
+    write_dictionary_sets(26, x=0.5, y=1000)
 
 if __name__ == "__main__":
     main()
