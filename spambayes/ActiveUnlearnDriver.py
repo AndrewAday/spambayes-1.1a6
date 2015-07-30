@@ -11,10 +11,10 @@ from math import sqrt
 phi = (1 + sqrt(5)) / 2
 
 
-def d(negs, x, opt=None):
+def chosen_sum(chosen, x, opt=None):
     s = 0
-    for neg in negs:
-        s += distance(neg, x, opt)
+    for msg in chosen:
+        s += distance(msg, x, opt)
     return s
 
 
@@ -169,7 +169,11 @@ class Cluster:
 
     def cluster_more(self, n):
         old_cluster_set = self.cluster_set
-        self.size += n
+        if self.size + n <= len(self.dist_list):
+            self.size += n
+
+        else:
+            self.size = len(self.dist_list)
         """
         for i in range(len(self.active_unlearner.driver.tester.train_examples)):
             for train in self.active_unlearner.driver.tester.train_examples[i]:
@@ -279,12 +283,11 @@ class ActiveUnlearner:
         self.set_data()
         self.testing_spam = testing_spam
         self.testing_ham = testing_ham
-        self.negs = set()
-        self.all_negs = False
         self.set_training_nums()
         self.set_dict_nums()
         self.init_ground(True)
         self.mislabeled_chosen = set()
+        self.training_chosen = set()
         self.current_detection_rate = self.driver.tester.correct_classification_rate()
         print "Initial detection rate:", self.current_detection_rate
 
@@ -617,23 +620,22 @@ class ActiveUnlearner:
         return cluster, detection_rate, iterations
 
     # -----------------------------------------------------------------------------------
-    def active_unlearn(self, outfile, test=False, pollution_set3=True):
+    def active_unlearn(self, outfile, test=False, pollution_set3=True, gold=False, select_initial="mislabeled"):
 
         cluster_list = []
-        chosen = self.mislabeled_chosen
         cluster_count = 0
         attempt_count = 0
         detection_rate = self.current_detection_rate
 
         while detection_rate < self.threshold:
-            current = self.select_initial(chosen)
+            current = self.select_initial(select_initial)
             attempt_count += 1
             cluster = self.determine_cluster(current, gold=gold)
             print "\n-----------------------------------------------------\n"
             print "\nAttempted", attempt_count, "attempts so far.\n"
 
             while not cluster[0]:
-                current = self.select_initial(chosen)
+                current = self.select_initial(select_initial)
                 attempt_count += 1
                 cluster = self.determine_cluster(current, gold=gold)
                 print "\nAttempted", attempt_count, "attempts so far.\n"
@@ -761,33 +763,33 @@ class ActiveUnlearner:
 
         return mislabeled
 
-    def select_initial(self, use_rowsum=False):
+    def select_initial(self, option="mislabeled", distance_opt = "extreme"):
         """ Returns an email to be used as the initial unlearning email based on
             the mislabeled data (our tests show that the mislabeled and pollutant
             emails are strongly, ~80%, correlated) if option is true (which is default)."""
         mislabeled = self.get_mislabeled()
+        t_e = self.driver.tester.train_examples
         print "Chosen: ", self.mislabeled_chosen
         print "Total Chosen: ", len(self.mislabeled_chosen)
-        if use_rowsum:
+        if option == "rowsum":
             # We want to minimize the distances (rowsum) between the email we select
             # and the mislabeled emails. This ensures that the initial email we select
             # is correlated with the mislabeled emails.
 
             minrowsum = sys.maxint
             init_email = None
-            for i in range(len(self.driver.tester.train_examples)):
-                for email in self.driver.tester.train_examples[i]:
-                    rowsum = 0
-                    for email2 in mislabeled:
-                        dist = distance(email, email2, "extreme")
-                        rowsum += dist ** 2
-                    if rowsum < minrowsum:
-                        minrowsum = rowsum
-                        init_email = email
+            for email in chain(t_e[0], t_e[1], t_e[2], t_e[3]):
+                rowsum = 0
+                for email2 in mislabeled:
+                    dist = distance(email, email2, distance_opt)
+                    rowsum += dist ** 2
+                if rowsum < minrowsum:
+                    minrowsum = rowsum
+                    init_email = email
 
             return init_email
 
-        else:
+        if option == "mislabeled":
             # This chooses an arbitrary point from the mislabeled emails and simply finds the email
             # in training that is closest to this point.
             try:
@@ -797,13 +799,28 @@ class ActiveUnlearner:
                 raise AssertionError(str(mislabeled))
 
             min_distance = sys.maxint
-            init_email = None
 
-            for i in range(len(self.driver.tester.train_examples)):
-                for email in self.driver.tester.train_examples[i]:
-                    current_distance = distance(email, mislabeled_point, "extreme")
-                    if current_distance < min_distance:
-                        init_email = email
-                        min_distance = current_distance
+            for email in chain(t_e[0], t_e[1], t_e[2], t_e[3]):
+                current_distance = distance(email, mislabeled_point, distance_opt)
+                if current_distance < min_distance:
+                    init_email = email
+                    min_distance = current_distance
 
             return init_email
+
+        if option == "max_sum":
+            try:
+                max_sum = 0
+
+                for email in chain(t_e[0], t_e[1], t_e[2], t_e[3]):
+                    current_sum = chosen_sum(self.training_chosen, email, distance_opt)
+                    if current_sum > max_sum:
+                        init_email = email
+                        max_distance = current_distance
+
+                self.training_chosen.add(init_email)
+                return init_email
+
+            except:
+                print "Returning initial seed based off of mislabeled...\n"
+                return self.select_initial(option="mislabeled")
