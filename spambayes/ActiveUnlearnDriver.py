@@ -48,7 +48,7 @@ class PriorityQueue:
 
 class Cluster:
 
-    def __init__(self, msg, size, active_unlearner, opt="extreme", working_set=None, sort_first=True):
+    def __init__(self, msg, size, active_unlearner, distance_opt, working_set=None, sort_first=True):
         self.clustroid = msg
         self.size = size
         self.active_unlearner = active_unlearner
@@ -56,7 +56,7 @@ class Cluster:
         self.working_set = working_set
         self.ham = set()
         self.spam = set()
-        self.opt = opt
+        self.opt = distance_opt
         self.dist_list = self.distance_array()
         """
         self.cluster_set, self.cluster_heap = self.make_cluster()
@@ -170,9 +170,11 @@ class Cluster:
     def cluster_more(self, n):
         old_cluster_set = self.cluster_set
         if self.size + n <= len(self.dist_list):
+            old_size = self.size
             self.size += n
 
         else:
+            old_size = self.size
             self.size = len(self.dist_list)
         """
         for i in range(len(self.active_unlearner.driver.tester.train_examples)):
@@ -198,7 +200,7 @@ class Cluster:
         self.cluster_set = new_cluster_set
 
         assert(len(self.cluster_set) == self.size), len(self.cluster_set)
-        assert(len(new_elements) == n), len(new_elements)
+        assert(len(new_elements) == n or len(new_elements) == len(self.dist_list) - old_size), len(new_elements)
 
         for msg in new_elements:
             if msg.train == 1 or msg.train == 3:
@@ -274,7 +276,9 @@ class ProxyCluster:
 
 class ActiveUnlearner:
 
-    def __init__(self, training_ham, training_spam, testing_ham, testing_spam, threshold=90, increment=100,):
+    def __init__(self, training_ham, training_spam, testing_ham, testing_spam, threshold=90, increment=100,
+                 distance_opt="extreme"):
+        self.distance_opt = distance_opt
         self.increment = increment
         self.threshold = threshold
         self.driver = TestDriver.Driver()
@@ -416,7 +420,7 @@ class ActiveUnlearner:
         print "\nDetermining appropriate cluster around", center.tag, "...\n"
         old_detection_rate = self.current_detection_rate
         counter = 0
-        cluster = Cluster(center, self.increment, self, working_set=working_set)
+        cluster = Cluster(center, self.increment, self, working_set=working_set, distance_opt=self.distance_opt)
 
         # Test detection rate after unlearning cluster
         self.unlearn(cluster)
@@ -430,10 +434,6 @@ class ActiveUnlearner:
             return False, proxy_cluster, None
 
         else:                                           # Detection rate improves - Grow cluster
-            unlearn_hams = []
-            unlearn_spams = []
-            new_unlearns = set()
-
             if gold:
                 sizes = [cluster.size]
                 detection_rates = [new_detection_rate]
@@ -458,7 +458,7 @@ class ActiveUnlearner:
                 else:
                     new_learns = cluster.cluster_less(self.increment)
                     assert(cluster.size == self.increment * counter), cluster.size
-                    self.divide_new_elements(new_unlearns, False)
+                    self.divide_new_elements(new_learns, False)
                     return True, cluster, None
 
                 if try_gold:
@@ -516,7 +516,7 @@ class ActiveUnlearner:
 
                 new_learns = cluster.cluster_less(self.increment)
                 assert(cluster.size == self.increment * counter), counter  
-                self.divide_new_elements(new_unlearns, False)
+                self.divide_new_elements(new_learns, False)
 
                 print "\nAppropriate cluster found, with size " + str(cluster.size) + ".\n"
                 self.current_detection_rate = old_detection_rate
@@ -628,17 +628,18 @@ class ActiveUnlearner:
         detection_rate = self.current_detection_rate
 
         while detection_rate < self.threshold:
-            current = self.select_initial(select_initial)
+            print "\n-----------------------------------------------------\n"
+            current = self.select_initial(self.distance_opt, select_initial)
             attempt_count += 1
             cluster = self.determine_cluster(current, gold=gold)
-            print "\n-----------------------------------------------------\n"
-            print "\nAttempted", attempt_count, "attempts so far.\n"
+            print "\nAttempted", attempt_count, "attempt(s) so far.\n"
 
             while not cluster[0]:
-                current = self.select_initial(select_initial)
+                print "\n-----------------------------------------------------\n"
+                current = self.select_initial(select_initial, self.distance_opt)
                 attempt_count += 1
                 cluster = self.determine_cluster(current, gold=gold)
-                print "\nAttempted", attempt_count, "attempts so far.\n"
+                print "\nAttempted", attempt_count, "attempt(s) so far.\n"
 
             cluster_list.append(cluster[1])
             cluster_count += 1
@@ -649,11 +650,13 @@ class ActiveUnlearner:
             if outfile is not None:
                 if pollution_set3:
                     outfile.write(str(cluster_count) + ", " + str(attempt_count) + ": " + str(detection_rate) + ", " +
-                                  str(cluster[1].size) + ", " + str(cluster[1].target_set3()) + ", " + str(cluster[2]) + "\n")
+                                  str(cluster[1].size) + ", " + str(cluster[1].target_set3()) + ", " + str(cluster[2]) +
+                                  "\n")
 
                 else:
                     outfile.write(str(cluster_count) + ", " + str(attempt_count) + ": " + str(detection_rate) + ", " +
-                                  str(cluster[1].size) + ", " + str(cluster[1].target_set4()) + ", " + str(cluster[2]) + "\n")
+                                  str(cluster[1].size) + ", " + str(cluster[1].target_set4()) + ", " + str(cluster[2]) +
+                                  "\n")
                 outfile.flush()
                 os.fsync(outfile)
 
@@ -726,13 +729,13 @@ class ActiveUnlearner:
                     outfile.flush()
                     os.fsync(outfile)
 
-        if test:
-            return cluster_list
-
         print "\nIteration through training space complete after", cluster_count, "clusters unlearned and", \
             rejection_count, "rejections made.\n"
 
         print "\nFinal detection rate: " + str(detection_rate) + ".\n"
+
+        if test:
+            return cluster_list
 
     def shuffle_training(self):
         train_examples = self.driver.tester.train_examples
@@ -763,14 +766,12 @@ class ActiveUnlearner:
 
         return mislabeled
 
-    def select_initial(self, option="mislabeled", distance_opt = "extreme"):
+    def select_initial(self, distance_opt, option="mislabeled"):
         """ Returns an email to be used as the initial unlearning email based on
             the mislabeled data (our tests show that the mislabeled and pollutant
             emails are strongly, ~80%, correlated) if option is true (which is default)."""
         mislabeled = self.get_mislabeled()
         t_e = self.driver.tester.train_examples
-        print "Chosen: ", self.mislabeled_chosen
-        print "Total Chosen: ", len(self.mislabeled_chosen)
         if option == "rowsum":
             # We want to minimize the distances (rowsum) between the email we select
             # and the mislabeled emails. This ensures that the initial email we select
@@ -790,6 +791,7 @@ class ActiveUnlearner:
             return init_email
 
         if option == "mislabeled":
+            print "Total Chosen: ", len(self.mislabeled_chosen)
             # This chooses an arbitrary point from the mislabeled emails and simply finds the email
             # in training that is closest to this point.
             try:
@@ -799,6 +801,7 @@ class ActiveUnlearner:
                 raise AssertionError(str(mislabeled))
 
             min_distance = sys.maxint
+            init_email = None
 
             for email in chain(t_e[0], t_e[1], t_e[2], t_e[3]):
                 current_distance = distance(email, mislabeled_point, distance_opt)
@@ -809,18 +812,23 @@ class ActiveUnlearner:
             return init_email
 
         if option == "max_sum":
+            print "Total Chosen: ", len(self.training_chosen)
             try:
                 max_sum = 0
+                init_email = None
 
                 for email in chain(t_e[0], t_e[1], t_e[2], t_e[3]):
                     current_sum = chosen_sum(self.training_chosen, email, distance_opt)
-                    if current_sum > max_sum:
+                    if current_sum > max_sum and email not in self.training_chosen:
                         init_email = email
                         max_sum = current_sum
 
+                assert(init_email is not None)
                 self.training_chosen.add(init_email)
                 return init_email
 
-            except:
+            except AssertionError:
                 print "Returning initial seed based off of mislabeled...\n"
-                return self.select_initial(option="mislabeled")
+                init_email = self.select_initial(self.distance_opt, option="mislabeled")
+                self.training_chosen.add(init_email)
+                return init_email

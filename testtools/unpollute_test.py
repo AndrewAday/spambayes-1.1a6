@@ -11,6 +11,8 @@ from spambayes import msgs
 from testtools import dictionarywriter, mislabeledfilemover
 
 options["TestDriver", "show_histograms"] = False
+
+
 def main():
 
     ham = [get_pathname_option("TestDriver", "ham_directories") % i for i in range(1, 5)]
@@ -72,13 +74,13 @@ def main():
                     total_polluted_unlearned = 0
                     total_unlearned = 0
                     total_unpolluted_unlearned = 0
-                    final_detection_rate = au.driver.tester.correct_classification_rate()
+                    final_detection_rate = au.current_detection_rate
 
                     print "\nTallying up final counts...\n"
                     for cluster in cluster_list:
-                        total_unlearned += cluster.size + 1
+                        total_unlearned += cluster.size
                         total_polluted_unlearned += cluster.target_set3()
-                        total_unpolluted_unlearned += cluster.size + 1 - total_polluted_unlearned
+                        total_unpolluted_unlearned += (cluster.size - total_polluted_unlearned)
 
                     outfile.write("\nSTATS\n")
                     outfile.write("---------------------------\n")
