@@ -80,7 +80,7 @@ def main():
                     for cluster in cluster_list:
                         total_unlearned += cluster.size
                         total_polluted_unlearned += cluster.target_set3()
-                        total_unpolluted_unlearned += (cluster.size - total_polluted_unlearned)
+                        total_unpolluted_unlearned += (cluster.size - cluster.target_set3())
 
                     outfile.write("\nSTATS\n")
                     outfile.write("---------------------------\n")

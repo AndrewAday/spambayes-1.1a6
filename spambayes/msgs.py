@@ -25,13 +25,13 @@ class Msg(object):
         self.allclues = []
         self.clues = []
         
-        self.guts = "^^".join(set(tokenize(self.guts)))
+        self.guts = "`~`".join(set(tokenize(self.guts)))
         
         """
         self.guts = list(set(tokenize(self.guts)))
         """
     def __iter__(self):
-        for word in self.guts.split("^^"):
+        for word in self.guts.split("`~`"):
             yield word
         
     # Compare msgs by their paths; this is appropriate for sets of msgs.
