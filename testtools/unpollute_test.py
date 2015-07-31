@@ -68,19 +68,19 @@ def main():
                     outfile.write("0: " + str(original_detection_rate) + "\n")
 
                     time_start = time.time()
-                    cluster_list = au.active_unlearn(outfile, test=True, gold=True, select_initial="max_sum")
+                    cluster_list = au.brute_force_active_unlearn(outfile, test=True, gold=True, center_iteration=False)
                     time_end = time.time()
                     brute_force_time = time_end - time_start
                     total_polluted_unlearned = 0
                     total_unlearned = 0
                     total_unpolluted_unlearned = 0
-                    final_detection_rate = au.driver.tester.correct_classification_rate()
+                    final_detection_rate = au.current_detection_rate
 
                     print "\nTallying up final counts...\n"
                     for cluster in cluster_list:
-                        total_unlearned += cluster.size + 1
+                        total_unlearned += cluster.size
                         total_polluted_unlearned += cluster.target_set3()
-                        total_unpolluted_unlearned += cluster.size + 1 - total_polluted_unlearned
+                        total_unpolluted_unlearned += (cluster.size - total_polluted_unlearned)
 
                     outfile.write("\nSTATS\n")
                     outfile.write("---------------------------\n")
