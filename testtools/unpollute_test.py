@@ -39,7 +39,7 @@ def main():
         time_2 = time.time()
         print "Train time:", time_2 - time_1, "\n"
         while keep_going:
-            with open("C:\Users\Alex\Desktop\unpollute_stats\unlearn_stats" + str(trial_number) + ".txt", 'w') as outfile:
+            with open("/Users/AlexYang/Desktop/unlearn_stats" + str(trial_number) + ".txt", 'w') as outfile:
                 try:
                     outfile.write("CLUSTER AND RATE COUNTS:\n")
                     outfile.write("---------------------------\n")
@@ -66,7 +66,7 @@ def main():
                     outfile.write("0: " + str(original_detection_rate) + "\n")
 
                     time_start = time.time()
-                    cluster_list = au.brute_force_active_unlearn(outfile, test=True, gold=True, center_iteration=False)
+                    cluster_list = au.brute_force_active_unlearn(outfile, test=True, center_iteration=False, pollution_set3=True, gold=True)
                     time_end = time.time()
                     brute_force_time = time_end - time_start
                     total_polluted_unlearned = 0

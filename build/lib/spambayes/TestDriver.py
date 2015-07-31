@@ -149,14 +149,21 @@ class Driver:
         self.trained_spam_hist = Hist()
 
     def train(self, ham, spam):
-        print "-> Training on", ham, "&", spam, "...",
+        try:
+            print "-> Training on ham of size " + str(len(ham)) + " & spam of size " + str(len(spam)) +  " ..."
+
+        except TypeError:
+            print "-> Training on", ham, "&", spam, "..."
         c = self.classifier
         nham, nspam = c.nham, c.nspam
         self.tester.train(ham, spam)
         print c.nham - nham, "hams &", c.nspam - nspam, "spams"
 
     def untrain(self, ham, spam):
-        print "-> Forgetting", ham, "&", spam, "...",
+        try:
+            print "-> Forgetting ham of size " + str(len(ham)) + " & spam of size " + str(len(spam)) +  " ..."
+        except TypeError:
+            print "-> Forgetting", ham, "&", spam, "..."
         c = self.classifier
         nham, nspam = c.nham, c.nspam
         self.tester.untrain(ham, spam)
@@ -216,7 +223,7 @@ class Driver:
                 print "    saving %s histogram pickle to %s" % (f, fname)
                 pickle_write(fname, h, 1)
 
-    def test(self, ham, spam):
+    def test(self, ham, spam, init_ground=False):
         c = self.classifier
         t = self.tester
         local_ham_hist = Hist()
@@ -243,10 +250,14 @@ class Driver:
                 printmsg(msg, prob, clues)
 
         t.reset_test_results()
-        t.reset_truth_list()
-        print "-> Predicting", ham, "&", spam, "..."
-        t.predict(spam, True, new_spam)
-        t.predict(ham, False, new_ham)
+        try:
+            print "-> Predicting ham of size " + str(len(ham)) + " & spam of size " + str(len(spam)) +  " ..."
+
+        except TypeError:
+            print "-> Predicting", ham, "&", spam, "..."
+
+        t.predict(spam, True, init_ground, new_spam)
+        t.predict(ham, False, init_ground, new_ham)
         print "-> <stat> tested", t.nham_tested, "hams &", t.nspam_tested, \
               "spams against", c.nham, "hams &", c.nspam, "spams"
 
@@ -263,42 +274,51 @@ class Driver:
         self.falsepos |= newfpos
         print "-> <stat> %d total false positives" % len(set(t.false_positives()))
 
+        """
         if newfpos:
             print "    new fp:", [e.tag for e in newfpos]
+        """
         if not options["TestDriver", "show_false_positives"]:
             newfpos = ()
+        """
         for e in newfpos:
             print '*' * 78
             prob, clues = c.spamprob(e, True)
             printmsg(e, prob, clues)
-
+        """
         newfneg = set(t.false_negatives()) - self.falseneg
         self.falseneg |= newfneg
         print "-> <stat> %d total false negatives" % len(set(t.false_negatives()))
 
+        """
         if newfneg:
             print "    new fn:", [e.tag for e in newfneg]
+        """
         if not options["TestDriver", "show_false_negatives"]:
             newfneg = ()
+        """
         for e in newfneg:
             print '*' * 78
             prob, clues = c.spamprob(e, True)
             printmsg(e, prob, clues)
-
+        """
         newunsure = set(t.unsures()) - self.unsure
         self.unsure |= newunsure
 
         print "-> <stat> %d total unsure" % len(set(t.unsures()))
 
+        """
         if newunsure:
             print "    new unsure:", [e.tag for e in newunsure]
+        """
         if not options["TestDriver", "show_unsure"]:
             newunsure = ()
+        """
         for e in newunsure:
             print '*' * 78
             prob, clues = c.spamprob(e, True)
             printmsg(e, prob, clues)
-
+        """
         if options["TestDriver", "show_histograms"]:
             printhist("this pair:", local_ham_hist, local_spam_hist)
         self.trained_ham_hist += local_ham_hist

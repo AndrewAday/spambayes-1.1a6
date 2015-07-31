@@ -1,5 +1,6 @@
 import Levenshtein
 from math import sqrt
+from spambayes.Options import options
 
 l_distance = Levenshtein.distance
 

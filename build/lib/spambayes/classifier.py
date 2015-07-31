@@ -167,8 +167,9 @@ class Classifier:
         Hexp = Sexp = 0
 
         clues = self._getclues(wordstream)
-        wordstream.clues = clues
+        """
         wordstream.allclues = list(set(wordstream.allclues + clues))
+        """
         for prob, word, record in clues:
             S *= 1.0 - prob
             H *= prob
@@ -354,13 +355,17 @@ class Classifier:
         else:
             self.nham += 1
 
-        for word in set(wordstream):
+        for word in wordstream:
             record = self._wordinfoget(word)
             if record is None:
                 record = self.WordInfoClass()
 
             if is_spam:
                 record.spamcount += 1
+                if record.spamcount > self.nspam:
+                    print wordstream.guts
+                    print "Word: " + word
+                    raise AssertionError(str(record.spamcount) + " " + str(self.nspam))
             else:
                 record.hamcount += 1
 
@@ -378,8 +383,7 @@ class Classifier:
             if self.nham <= 0:
                 raise ValueError("non-spam count would go negative!")
             self.nham -= 1
-
-        for word in set(wordstream):
+        for word in wordstream:
             record = self._wordinfoget(word)
             if record is not None:
                 if is_spam:
@@ -411,7 +415,6 @@ class Classifier:
     # aren't returned.
     def _getclues(self, wordstream):
         mindist = options["Classifier", "minimum_prob_strength"]
-
         if options["Classifier", "use_bigrams"]:
             # This scheme mixes single tokens with pairs of adjacent tokens.
             # wordstream is "tiled" into non-overlapping unigrams and
@@ -468,20 +471,60 @@ class Classifier:
             clues.reverse()
 
         else:
-            # The all-unigram scheme just scores the tokens as-is.  A set()
-            # is used to weed out duplicates at high speed.
-            clues = []
-            push = clues.append
-            for word in set(wordstream):
-                tup = self._worddistanceget(word)
-                if tup[0] >= mindist:
-                    push(tup)
-            clues.sort()
+            if len(wordstream.clues) != 0:
+                clues = map(self._tupledistanceget, wordstream.clues) 
+                wordstream.clues = clues
+                return clues
 
-        #if len(clues) > options["Classifier", "max_discriminators"]:
-        #    del clues[0 : -options["Classifier", "max_discriminators"]]
+            else:
+                # The all-unigram scheme just scores the tokens as-is.  A set()
+                # is used to weed out duplicates at high speed.
+                clues = []
+                push = clues.append
+                """
+                for word in wordstream:
+                    tup = self._worddistanceget(word)
+                    if tup[0] >= mindist:
+                        push(tup)
+                """
+                for word in wordstream:
+                    record = self.wordinfo.get(word)
+                    if record is not None:
+                        try:
+                            prob = self.probability(record)
+
+                        except AssertionError:
+                            print "Word: " + word
+                            print wordstream.guts
+                            print "Record: " + str(record)
+                            raise AssertionError
+
+                    else:
+                        prob = options["Classifier", "unknown_word_prob"]
+
+                    distance = abs(prob - 0.5)
+                    if distance >= mindist:
+                        push((distance, prob, word, record))
+
+                clues.sort()
+
+        if len(clues) > options["Classifier", "max_discriminators"]:
+            del clues[0 : -options["Classifier", "max_discriminators"]]
         # Return (prob, word, record).
-        return [t[1:] for t in clues]
+        trunc_clues = [t[1:] for t in clues]
+        wordstream.clues = trunc_clues
+        return trunc_clues
+
+    def update_clue_prob(self, record):
+        mindist = options["Classifier", "minimum_prob_strength"]
+        prob = self.probability(record)
+        if abs(prob - 0.5) >= mindist:
+            return prob
+        else:
+            raise AssertionError("Cached record has become too weak.")
+
+    def _tupledistanceget(self, clue):
+        return tuple(self._worddistanceget(clue[1])[1:])
 
     def _worddistanceget(self, word):
         record = self._wordinfoget(word)

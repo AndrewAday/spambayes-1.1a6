@@ -54,12 +54,19 @@ class Test:
     def train(self, hamstream=None, spamstream=None):
         self.reset_test_results()
         learn = self.classifier.learn
+        spam_set3_counter = 0
+
         if hamstream is not None:
             for example in hamstream:
                 learn(example, False)
+
         if spamstream is not None:
             for example in spamstream:
                 learn(example, True)
+                if "Set3" in example.tag:
+                    spam_set3_counter += 1
+                    if spam_set3_counter % 100 == 0:
+                        print "Trained", spam_set3_counter, "Set 3 spam"
 
     # Untrain the classifier on streams of ham and spam.  Updates
     # probabilities before returning, and resets test results.
@@ -83,7 +90,7 @@ class Test:
     #
     # If specified, callback(msg, spam_probability) is called for each
     # msg in the stream, after the spam probability is computed.
-    def predict(self, stream, is_spam, callback=None):
+    def predict(self, stream, is_spam, init_ground=False, callback=None):
         guess = self.classifier.spamprob
         for example in stream:
             old_prob = 0
@@ -99,7 +106,8 @@ class Test:
             is_ham_guessed  = prob <  options["Categorization", "ham_cutoff"]
             is_spam_guessed = prob >= options["Categorization", "spam_cutoff"]
             if is_spam:
-                self.truth_examples[0].append(example)
+                if init_ground:
+                    self.truth_examples[0].append(example)
                 self.nspam_tested += 1
                 if is_spam_guessed:
                     self.nspam_right += 1
@@ -110,7 +118,8 @@ class Test:
                     self.nspam_unsure += 1
                     self.unsure_examples.append(example)
             else:
-                self.truth_examples[1].append(example)
+                if init_ground:
+                    self.truth_examples[1].append(example)
                 self.nham_tested += 1
                 if is_ham_guessed:
                     self.nham_right += 1

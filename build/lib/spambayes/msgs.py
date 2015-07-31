@@ -24,10 +24,16 @@ class Msg(object):
         self.probdiff = None
         self.allclues = []
         self.clues = []
-
+        
+        self.guts = "^^".join(set(tokenize(self.guts)))
+        
+        """
+        self.guts = list(set(tokenize(self.guts)))
+        """
     def __iter__(self):
-        return tokenize(self.guts)
-
+        for word in self.guts.split("^^"):
+            yield word
+        
     # Compare msgs by their paths; this is appropriate for sets of msgs.
     def __hash__(self):
         return hash(self.tag)
@@ -40,6 +46,9 @@ class Msg(object):
 
     def __str__(self):
         return self.guts
+
+    def guts_clear(self):
+        self.guts = []
 
     # We have defined __slots__, so need these to be able to be pickled.
     def __getstate__(self):
