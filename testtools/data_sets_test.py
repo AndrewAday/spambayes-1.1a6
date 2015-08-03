@@ -24,6 +24,10 @@ def seterize(main_dir, sub_dir, is_spam, n):
     return [parent_dir % i for i in range(1, n + 1)]
 
 
+def dir_enumerate(dir_name):
+    return len([name for name in os.listdir(dir_name) if os.path.isfile(name)])
+
+
 def main():
 
     data_sets_dir = "C:\\Users\\Alex\\Downloads\\Data Sets"
@@ -43,6 +47,14 @@ def main():
         ham = hams[i]
         spam = spams[i]
 
+        ham_polluted = dir_enumerate(ham[2])
+        spam_polluted = dir_enumerate(spam[2])
+        train_ham = dir_enumerate(ham[1])
+        train_spam = dir_enumerate(spam[1])
+        test_ham = dir_enumerate(ham[0])
+        test_spam = dir_enumerate(spam[0])
+        total_polluted = ham_polluted + spam_polluted
+
         try:
             time_1 = time.time()
             au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham[1], [ham[1]]),
@@ -57,12 +69,16 @@ def main():
             train_time = time_2 - time_1
             print "Train time:", train_time, "\n"
 
-            with open("C:\\Users\\Alex\\Desktop\\unpollute_stats\\Yang_Data_Sets\\brute_force_" + str(i)
+            with open("C:\\Users\\Alex\\Desktop\\unpollute_stats\\Yang_Data_Sets\\brute_force_" + str(i + 1)
                       + ".txt", 'w') \
                     as outfile:
                 try:
                     outfile.write("---------------------------\n")
                     outfile.write("Data Set: " + set_dirs[i] + "\n")
+                    outfile.write("Vanilla Training: " + str(train_ham) + " ham and " + str(train_spam) + " spam.\n")
+                    outfile.write("Testing: " + str(test_ham) + " ham and " + str(train_spam) + " spam.\n")
+                    outfile.write("Pollution Training: " + str(ham_polluted) + " ham and " + str(spam_polluted) +
+                                  " spam.\n")
                     outfile.write("---------------------------\n")
                     outfile.write("\n\n")
                     outfile.write("CLUSTER AND RATE COUNTS:\n")
@@ -99,7 +115,7 @@ def main():
                     outfile.write("Unpolluted Percentage of Unlearned:\n")
                     outfile.write(str(float(total_unpolluted_unlearned) / float(total_unlearned)) + "\n")
                     outfile.write("Percentage of Polluted Unlearned:\n")
-                    outfile.write(str(float(total_polluted_unlearned) / 1200) + "\n")
+                    outfile.write(str(float(total_polluted_unlearned) / float(total_polluted)) + "\n")
                     outfile.write("Time for training:\n")
                     outfile.write(str(train_time) + "\n")
                     outfile.write("Time for unlearning:\n")
