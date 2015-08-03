@@ -1,3 +1,5 @@
+__author__ = 'Alex'
+
 import os
 import sys
 import time
@@ -6,47 +8,63 @@ sys.path.insert(-1, os.getcwd())
 sys.path.insert(-1, os.path.dirname(os.getcwd()))
 
 from spambayes import ActiveUnlearnDriver
-from spambayes.Options import get_pathname_option, options
+from spambayes.Options import options
 from spambayes import msgs
-from testtools import dictionarywriter, mislabeledfilemover
 
 options["TestDriver", "show_histograms"] = False
 
 
+def seterize(main_dir, sub_dir, is_spam, n):
+    if is_spam:
+        parent_dir = main_dir + "\\" + sub_dir + "\\" + "Spam" + "\\" + "Set%d"
+
+    else:
+        parent_dir = main_dir + "\\" + sub_dir + "\\" + "Ham" + "\\" + "Set%d"
+
+    return [parent_dir % i for i in range(1, n + 1)]
+
+
 def main():
 
-    ham = [get_pathname_option("TestDriver", "ham_directories") % i for i in range(1, 5)]
-    spam = [get_pathname_option("TestDriver", "spam_directories") % i for i in range(1, 5)]
+    data_sets_dir = "C:\\Users\\Alex\\Downloads\\Data Sets"
+    set_dirs = ["DictionarySets-1.1", "DictionarySets-1.2", "DictionarySets-2.1", "DictionarySets-2.2",
+                "DictionarySets-3.1", "Mislabeled-Both-1.1", "Mislabeled-Both-1.2", "Mislabeled-Both-2.1",
+                "Mislabeled-Both-2.2", "Mislabeled-Both-3.1", "Mislabeled-HtoS-1.1", "Mislabeled-HtoS-1.2",
+                "Mislabeled-HtoS-1.3", "Mislabeled-HtoS-1.4", "Mislabeled-HtoS-1.5", "Mislabeled-StoH-1.1",
+                "Mislabeled-StoH-1.2", "Mislabeled-StoH-1.3", "Mislabeled-StoH-2.1", "Mislabeled-StoH-2.2"]
 
-    """
-    d = dictionarywriter.DictionaryWriter(600, words=False, wordsEn=False)
-    d.write()
-    """
-    """
-    m = mislabeledfilemover.MislabeledFileMover(1500, train_dir=2, test_dir=1, dest_dir=4)
-    m.print_filelist()
-    m.random_move_file()
-    """
-    keep_going = True
-    trial_number = 1
+    hams = [seterize(data_sets_dir, set_dir, False, 3) for set_dir in set_dirs]
+    spams = [seterize(data_sets_dir, set_dir, True, 3) for set_dir in set_dirs]
 
-    try:
-        time_1 = time.time()
-        au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham[1], [ham[1]]),
-                                                  msgs.HamStream(ham[2], [ham[2]])],        # Training Ham
-                                                 [msgs.SpamStream(spam[1], [spam[1]]),
-                                                  msgs.SpamStream(spam[2], [spam[2]])],     # Training Spam
-                                                 msgs.HamStream(ham[0], [ham[0]]),          # Testing Ham
-                                                 msgs.SpamStream(spam[0], [spam[0]]),       # Testing Spam
-                                                 )
+    num_data_sets = len(hams)
+    assert(len(hams) == len(spams))
 
-        time_2 = time.time()
-        train_time = time_2 - time_1
-        print "Train time:", train_time, "\n"
-        while keep_going:
-            with open("C:\\Users\\Alex\\Desktop\\unpollute_stats\\unlearn_stats" + str(trial_number) + ".txt", 'w') \
+    for i in range(num_data_sets):
+        ham = hams[i]
+        spam = spams[i]
+
+        try:
+            time_1 = time.time()
+            au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham[1], [ham[1]]),
+                                                      msgs.HamStream(ham[2], [ham[2]])],        # Training Ham
+                                                     [msgs.SpamStream(spam[1], [spam[1]]),
+                                                      msgs.SpamStream(spam[2], [spam[2]])],     # Training Spam
+                                                     msgs.HamStream(ham[0], [ham[0]]),          # Testing Ham
+                                                     msgs.SpamStream(spam[0], [spam[0]]),       # Testing Spam
+                                                     )
+
+            time_2 = time.time()
+            train_time = time_2 - time_1
+            print "Train time:", train_time, "\n"
+
+            with open("C:\\Users\\Alex\\Desktop\\unpollute_stats\\Yang_Data_Sets\\brute_force_" + str(i)
+                      + ".txt", 'w') \
                     as outfile:
                 try:
+                    outfile.write("---------------------------\n")
+                    outfile.write("Data Set: " + set_dirs[i] + "\n")
+                    outfile.write("---------------------------\n")
+                    outfile.write("\n\n")
                     outfile.write("CLUSTER AND RATE COUNTS:\n")
                     outfile.write("---------------------------\n")
 
@@ -90,34 +108,10 @@ def main():
                 except KeyboardInterrupt:
                     outfile.flush()
                     os.fsync(outfile)
-                    """
-                    m.reset()
-                    """
                     sys.exit()
 
-            answer = raw_input("\nKeep going (y/n)? You have performed " + str(trial_number) + " trial(s) so far. ")
-            valid_input = False
-
-            while not valid_input:
-                if answer == "n":
-                    keep_going = False
-                    valid_input = True
-
-                elif answer == "y":
-                    for cluster in cluster_list:
-                        au.learn(cluster)
-                    au.init_ground()
-                    trial_number += 1
-                    valid_input = True
-
-                else:
-                    answer = raw_input("Please enter either y or n. ")
-
-    except KeyboardInterrupt:
-        """
-        m.reset()
-        """
-        sys.exit()
+        except KeyboardInterrupt:
+            sys.exit()
 
 if __name__ == "__main__":
     main()

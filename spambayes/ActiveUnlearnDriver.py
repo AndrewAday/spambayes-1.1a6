@@ -384,12 +384,11 @@ class ActiveUnlearner:
 
         if new_detection_rate > old_detection_rate:
             assert(cluster.size == self.increment * 3), cluster.size
-            self.try_gold(cluster, sizes, detection_rates, old_detection_rate, new_detection_rate, counter,
-                          tolerance)
+            return self.try_gold(cluster, sizes, detection_rates, old_detection_rate, new_detection_rate, counter,
+                                 tolerance)
 
         else:
             new_learns = cluster.cluster_less(self.increment)
-            assert(cluster.size == self.increment * counter), cluster.size
             self.divide_new_elements(new_learns, False)
             return True, cluster, None
 
@@ -401,9 +400,9 @@ class ActiveUnlearner:
             sizes.append(cluster.size)
             detection_rates.append(new_detection_rate)
             old_detection_rate = new_detection_rate
-            print "\nExploring cluster of size", cluster.size, "...\n"
+            print "\nExploring cluster of size", cluster.size + int(round(extra_cluster)), "...\n"
 
-            new_unlearns = cluster.cluster_more(int(extra_cluster))
+            new_unlearns = cluster.cluster_more(int(round(extra_cluster)))
             extra_cluster *= phi
 
             self.divide_new_elements(new_unlearns, True)
@@ -438,10 +437,8 @@ class ActiveUnlearner:
         right = sizes[right_index]
         pointer = middle_1
         iterations = 0
-
-        if cluster.size > pointer:
-            new_relearns = cluster.cluster_less(cluster.size - pointer)
-            self.divide_new_elements(new_relearns, False)
+        new_relearns = cluster.cluster_less(right - middle_1)
+        self.divide_new_elements(new_relearns, False)
 
         assert(len(sizes) == len(detection_rates)), len(sizes) - len(detection_rates)
         f = dict(zip(sizes, detection_rates))
@@ -450,6 +447,21 @@ class ActiveUnlearner:
 
         while abs(right - left) > tolerance:
             print "\nWindow is between " + str(left) + " and " + str(right) + ".\n"
+            try:
+                assert(middle_1 < middle_2)
+
+            except AssertionError:
+                print "\nSwitching out of order middles...\n"
+                middle_1, middle_2 = middle_2, middle_1
+                pointer = middle_1
+                if cluster.size > pointer:
+                    new_relearns = cluster.cluster_less(cluster.size - pointer)
+                    self.divide_new_elements(new_relearns, False)
+
+                elif cluster.size < pointer:
+                    new_unlearns = cluster.cluster_more(pointer - cluster.size)
+                    self.divide_new_elements(new_unlearns, True)
+
             print "Middles are " + str(middle_1) + " and " + str(middle_2) + ".\n"
             try:
                 rate_1 = f[middle_1]
@@ -470,7 +482,15 @@ class ActiveUnlearner:
                     raise AssertionError("Pointer is on the left of middle_1.")
 
                 else:
-                    raise AssertionError("Pointer is at the same location as middle_1.")
+                    assert(cluster.size == pointer), cluster.size
+                    self.init_ground()
+                    rate_1 = self.driver.tester.correct_classification_rate()
+                    iterations += 1
+                    if middle_1 in f:
+                        raise AssertionError("Key should not have been in f.")
+
+                    else:
+                        f[middle_1] = rate_1
 
             try:
                 rate_2 = f[middle_2]
@@ -640,6 +660,8 @@ class ActiveUnlearner:
         while detection_rate < original_detection_rate:
             print "\n-----------------------------------------------------\n"
             cluster = cluster_list[len(cluster_list) - 1]
+            self.unlearn(cluster)
+            cluster_list.remove(cluster)
 
         if test:
             return unlearned_cluster_list
@@ -649,6 +671,9 @@ class ActiveUnlearner:
         print "\nFinal detection rate: " + str(detection_rate) + ".\n"
 
     # -----------------------------------------------------------------------------------
+
+    def cluster_rate_check(self, net_rate_change, cluster):
+        pass
 
     def cluster_training(self, gold=False):
         cluster_list = []
