@@ -25,7 +25,7 @@ def seterize(main_dir, sub_dir, is_spam, n):
 
 
 def dir_enumerate(dir_name):
-    return len([name for name in os.listdir(dir_name) if os.path.isfile(name)])
+    return len([name for name in os.listdir(dir_name) if os.path.isfile(os.path.join(dir_name, name))])
 
 
 def main():
@@ -76,7 +76,7 @@ def main():
                     outfile.write("---------------------------\n")
                     outfile.write("Data Set: " + set_dirs[i] + "\n")
                     outfile.write("Vanilla Training: " + str(train_ham) + " ham and " + str(train_spam) + " spam.\n")
-                    outfile.write("Testing: " + str(test_ham) + " ham and " + str(train_spam) + " spam.\n")
+                    outfile.write("Testing: " + str(test_ham) + " ham and " + str(test_spam) + " spam.\n")
                     outfile.write("Pollution Training: " + str(ham_polluted) + " ham and " + str(spam_polluted) +
                                   " spam.\n")
                     outfile.write("---------------------------\n")

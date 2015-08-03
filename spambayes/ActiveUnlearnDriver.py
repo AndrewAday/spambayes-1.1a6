@@ -371,7 +371,9 @@ class ActiveUnlearner:
         sizes = [cluster.size]
         detection_rates = [new_detection_rate]
 
-        while new_detection_rate > old_detection_rate and cluster.size < self.increment * 3:
+        new_unlearns = ['a', 'b', 'c']
+
+        while (new_detection_rate > old_detection_rate and cluster.size < self.increment * 3) and len(new_unlearns) > 0:
             counter += 1
             old_detection_rate = new_detection_rate
             print "\nExploring cluster of size", cluster.size, "...\n"
