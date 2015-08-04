@@ -31,11 +31,7 @@ def dir_enumerate(dir_name):
 def main():
 
     data_sets_dir = "C:\\Users\\Alex\\Downloads\\Data Sets"
-    set_dirs = ["DictionarySets-1.1", "DictionarySets-1.2", "DictionarySets-2.1", "DictionarySets-2.2",
-                "DictionarySets-3.1", "Mislabeled-Both-1.1", "Mislabeled-Both-1.2", "Mislabeled-Both-2.1",
-                "Mislabeled-Both-2.2", "Mislabeled-Both-3.1", "Mislabeled-HtoS-1.1", "Mislabeled-HtoS-1.2",
-                "Mislabeled-HtoS-1.3", "Mislabeled-HtoS-1.4", "Mislabeled-HtoS-1.5", "Mislabeled-StoH-1.1",
-                "Mislabeled-StoH-1.2", "Mislabeled-StoH-1.3", "Mislabeled-StoH-2.1", "Mislabeled-StoH-2.2"]
+    set_dirs = ["Mislabeled-Big"]
 
     hams = [seterize(data_sets_dir, set_dir, False, 3) for set_dir in set_dirs]
     spams = [seterize(data_sets_dir, set_dir, True, 3) for set_dir in set_dirs]
@@ -43,7 +39,7 @@ def main():
     num_data_sets = len(hams)
     assert(len(hams) == len(spams))
 
-    for i in range(5, num_data_sets):
+    for i in range(num_data_sets):
         ham = hams[i]
         spam = spams[i]
 
@@ -69,7 +65,7 @@ def main():
             train_time = time_2 - time_1
             print "Train time:", train_time, "\n"
 
-            with open("C:\\Users\\Alex\\Desktop\\unpollute_stats\\Yang_Data_Sets (big training)\\brute_force_" + str(i + 1)
+            with open("C:\\Users\\Alex\\Desktop\\unpollute_stats\\big_yang_" + str(i + 1)
                       + ".txt", 'w') \
                     as outfile:
                 try:
@@ -129,5 +125,4 @@ def main():
         except KeyboardInterrupt:
             sys.exit()
 
-if __name__ == "__main__":
-    main()
+main()

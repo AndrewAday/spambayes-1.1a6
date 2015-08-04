@@ -96,12 +96,12 @@ class Cluster:
     def cluster_more(self, n):
         old_cluster_set = self.cluster_set
         if self.size + n <= len(self.dist_list):
-            old_size = self.size
             self.size += n
 
         else:
-            old_size = self.size
-            self.size = len(self.dist_list)
+            print "\nTruncating cluster size...\n"
+            if len(self.dist_list) > 0:
+                self.size = len(self.dist_list)
 
         if self.sort_first:
             new_cluster_set = set(item[1] for item in self.dist_list[:self.size])
@@ -113,7 +113,6 @@ class Cluster:
         self.cluster_set = new_cluster_set
 
         assert(len(self.cluster_set) == self.size), len(self.cluster_set)
-        assert(len(new_elements) == n or len(new_elements) == len(self.dist_list) - old_size), len(new_elements)
 
         for msg in new_elements:
             if msg.train == 1 or msg.train == 3:
@@ -326,6 +325,9 @@ class ActiveUnlearner:
             self.learn(cluster)
             return False, cluster, None
 
+        elif cluster.size < self.increment:
+            return True, cluster, None
+
         else:                                           # Detection rate improves - Grow cluster
             if gold:
                 cluster = self.cluster_by_gold(cluster, old_detection_rate, new_detection_rate, counter, tolerance)
@@ -376,7 +378,7 @@ class ActiveUnlearner:
         while (new_detection_rate > old_detection_rate and cluster.size < self.increment * 3) and len(new_unlearns) > 0:
             counter += 1
             old_detection_rate = new_detection_rate
-            print "\nExploring cluster of size", cluster.size, "...\n"
+            print "\nExploring cluster of size", cluster.size + self.increment, "...\n"
 
             new_unlearns = cluster.cluster_more(self.increment)
 
@@ -384,14 +386,18 @@ class ActiveUnlearner:
             self.init_ground()
             new_detection_rate = self.driver.tester.correct_classification_rate()
 
-        if new_detection_rate > old_detection_rate:
-            assert(cluster.size == self.increment * 3), cluster.size
-            return self.try_gold(cluster, sizes, detection_rates, old_detection_rate, new_detection_rate, counter,
-                                 tolerance)
+        if len(new_unlearns) > 0:
+            if new_detection_rate > old_detection_rate:
+                assert(cluster.size == self.increment * 3), cluster.size
+                return self.try_gold(cluster, sizes, detection_rates, old_detection_rate, new_detection_rate, counter,
+                                     tolerance)
+
+            else:
+                new_learns = cluster.cluster_less(self.increment)
+                self.divide_new_elements(new_learns, False)
+                return True, cluster, None
 
         else:
-            new_learns = cluster.cluster_less(self.increment)
-            self.divide_new_elements(new_learns, False)
             return True, cluster, None
 
     def try_gold(self, cluster, sizes, detection_rates, old_detection_rate, new_detection_rate, counter, tolerance):
