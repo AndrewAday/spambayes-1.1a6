@@ -8,7 +8,6 @@ sys.path.insert(-1, os.path.dirname(os.getcwd()))
 from spambayes import ActiveUnlearnDriver
 from spambayes.Options import get_pathname_option, options
 from spambayes import msgs
-from testtools import dictionarywriter, mislabeledfilemover
 
 options["TestDriver", "show_histograms"] = False
 
@@ -17,16 +16,6 @@ def main():
 
     ham = [get_pathname_option("TestDriver", "ham_directories") % i for i in range(1, 5)]
     spam = [get_pathname_option("TestDriver", "spam_directories") % i for i in range(1, 5)]
-
-    """
-    d = dictionarywriter.DictionaryWriter(600, words=False, wordsEn=False)
-    d.write()
-    """
-    """
-    m = mislabeledfilemover.MislabeledFileMover(1500, train_dir=2, test_dir=1, dest_dir=4)
-    m.print_filelist()
-    m.random_move_file()
-    """
     keep_going = True
     trial_number = 1
 

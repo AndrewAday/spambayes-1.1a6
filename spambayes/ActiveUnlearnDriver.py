@@ -17,10 +17,92 @@ def chosen_sum(chosen, x, opt=None):
     return s
 
 
+def cluster_au(au, gold=False):
+    cluster_list = []
+    training = au.shuffle_training()
+    original_training_size = len(training)
+
+    while len(training) > 0:
+        print "\n-----------------------------------------------------\n"
+        print "\n" + str(len(training)) + " emails out of " + str(original_training_size) + \
+              " still unclustered.\n"
+
+        current = training[len(training) - 1]
+        pre_cluster_rate = au.current_detection_rate
+        net_rate_change, cluster = determine_cluster(current, au, working_set=training, gold=gold, impact=True)
+        post_cluster_rate = au.current_detection_rate
+
+        assert(post_cluster_rate == pre_cluster_rate), str(pre_cluster_rate) + " " + str(post_cluster_rate)
+
+        cluster_list.append([net_rate_change, cluster])
+        print "\nRemoving cluster from shuffled training set...\n"
+        for email in cluster[1].cluster_set:
+            training.remove(email)
+
+    cluster_list.sort()
+    cluster_list = [pair[1] for pair in cluster_list]
+    print "\nClustering process done and sorted.\n"
+    return cluster_list
+
+
+def determine_cluster(center, au, working_set=None, gold=False, tolerance=200, impact=False):
+    """ Given a chosen starting center and a given increment of cluster size, it continues to grow and cluster more
+        until the detection rate hits a maximum peak (i.e. optimal cluster); if first try is a decrease, reject this
+        center and return False."""
+
+    print "\nDetermining appropriate cluster around", center.tag, "...\n"
+    old_detection_rate = au.current_detection_rate
+    first_state_rate = au.current_detection_rate
+    counter = 0
+    cluster = Cluster(center, au.increment, au, working_set=working_set, distance_opt=au.distance_opt)
+
+    # Test detection rate after unlearning cluster
+    au.unlearn(cluster)
+    au.init_ground()
+    new_detection_rate = au.driver.tester.correct_classification_rate()
+
+    if new_detection_rate <= old_detection_rate:    # Detection rate worsens - Reject
+        print "\nCenter is inviable.\n"
+        au.learn(cluster)
+        second_state_rate = new_detection_rate
+        net_rate_change = second_state_rate - first_state_rate
+        au.current_detection_rate = first_state_rate
+        if impact:
+            return net_rate_change, (False, cluster, None)
+
+        else:
+            return False, cluster, None
+
+    elif cluster.size < au.increment:
+        return True, cluster, None
+
+    else:                                           # Detection rate improves - Grow cluster
+        if gold:
+            cluster = au.cluster_by_gold(cluster, old_detection_rate, new_detection_rate, counter, tolerance)
+
+        else:
+            cluster = au.cluster_by_increment(cluster, old_detection_rate, new_detection_rate, counter)
+
+        if impact:
+            au.learn(cluster[1])
+            second_state_rate = au.current_detection_rate
+            net_rate_change = second_state_rate - first_state_rate
+            au.current_detection_rate = first_state_rate
+            return net_rate_change, cluster
+
+        else:
+            return cluster
+
+
 class Cluster:
 
-    def __init__(self, msg, size, active_unlearner, distance_opt, working_set=None, sort_first=True):
+    def __init__(self, msg, size, active_unlearner, distance_opt, working_set=None, sort_first=True, separate=True):
         self.clustroid = msg
+        if msg.train == 1 or msg.train == 3:
+            self.train = [1, 3]
+
+        elif msg.train == 0 or msg.train == 2:
+            self.train = [0, 2]
         self.size = size
         self.active_unlearner = active_unlearner
         self.sort_first = sort_first
@@ -28,20 +110,33 @@ class Cluster:
         self.ham = set()
         self.spam = set()
         self.opt = distance_opt
-        self.dist_list = self.distance_array()
+        self.dist_list = self.distance_array(separate)
         self.cluster_set = self.make_cluster()
         self.divide()
 
-    def distance_array(self):
+    def distance_array(self, separate):
         train_examples = self.active_unlearner.driver.tester.train_examples
-        if self.working_set is None:
-            dist_list = [(distance(self.clustroid, train, self.opt), train) for train in chain(train_examples[0],
-                                                                                               train_examples[1],
-                                                                                               train_examples[2],
-                                                                                               train_examples[3])]
 
+        if separate:
+            if self.working_set is None:
+                dist_list = [(distance(self.clustroid, train, self.opt), train) for train in chain(train_examples[0],
+                                                                                                   train_examples[1],
+                                                                                                   train_examples[2],
+                                                                                                   train_examples[3])
+                             if train.train in self.train]
+
+            else:
+                dist_list = [(distance(self.clustroid, train, self.opt), train) for train in self.working_set if
+                             train.train in self.train]
         else:
-            dist_list = [(distance(self.clustroid, train, self.opt), train) for train in self.working_set]
+            if self.working_set is None:
+                dist_list = [(distance(self.clustroid, train, self.opt), train) for train in chain(train_examples[0],
+                                                                                                   train_examples[1],
+                                                                                                   train_examples[2],
+                                                                                                   train_examples[3])]
+
+            else:
+                dist_list = [(distance(self.clustroid, train, self.opt), train) for train in self.working_set]
 
         if self.sort_first:
             dist_list.sort()
@@ -168,7 +263,7 @@ def cluster_print_stats(outfile, pollution_set3, detection_rate, cluster, cluste
 
 class ActiveUnlearner:
 
-    def __init__(self, training_ham, training_spam, testing_ham, testing_spam, threshold=90, increment=100,
+    def __init__(self, training_ham, training_spam, testing_ham, testing_spam, threshold=95, increment=100,
                  distance_opt="extreme"):
         self.distance_opt = distance_opt
         self.increment = increment
@@ -195,7 +290,6 @@ class ActiveUnlearner:
             self.driver.train(hamstream, spamstream)
 
     def init_ground(self, first_test=False):
-        
         if first_test:
             self.driver.test(self.testing_ham, self.testing_spam, first_test)
 
@@ -303,47 +397,6 @@ class ActiveUnlearner:
 
         else:
             self.driver.train(hams, spams)
-
-    def determine_cluster(self, center, working_set=None, gold=False, tolerance=200, impact=False):
-        """ Given a chosen starting center and a given increment of cluster size, it continues to grow and cluster more
-            until the detection rate hits a maximum peak (i.e. optimal cluster); if first try is a decrease, reject this
-            center and return False."""
-
-        print "\nDetermining appropriate cluster around", center.tag, "...\n"
-        old_detection_rate = self.current_detection_rate
-        first_state_rate = self.current_detection_rate
-        counter = 0
-        cluster = Cluster(center, self.increment, self, working_set=working_set, distance_opt=self.distance_opt)
-
-        # Test detection rate after unlearning cluster
-        self.unlearn(cluster)
-        self.init_ground()
-        new_detection_rate = self.driver.tester.correct_classification_rate()
-
-        if new_detection_rate <= old_detection_rate:    # Detection rate worsens - Reject
-            print "\nCenter is inviable.\n"
-            self.learn(cluster)
-            return False, cluster, None
-
-        elif cluster.size < self.increment:
-            return True, cluster, None
-
-        else:                                           # Detection rate improves - Grow cluster
-            if gold:
-                cluster = self.cluster_by_gold(cluster, old_detection_rate, new_detection_rate, counter, tolerance)
-
-            else:
-                cluster = self.cluster_by_increment(cluster, old_detection_rate, new_detection_rate, counter)
-
-            if impact:
-                self.learn(cluster)
-                second_state_rate = self.current_detection_rate
-                net_rate_change = second_state_rate - first_state_rate
-                self.current_detection_rate = first_state_rate
-                return net_rate_change, cluster
-
-            else:
-                return cluster
 
     def cluster_by_increment(self, cluster, old_detection_rate, new_detection_rate, counter):
         while new_detection_rate > old_detection_rate:
@@ -566,14 +619,14 @@ class ActiveUnlearner:
             print "\n-----------------------------------------------------\n"
             current = self.select_initial(self.distance_opt, select_initial)
             attempt_count += 1
-            cluster = self.determine_cluster(current, gold=gold)
+            cluster = determine_cluster(current, self, gold=gold)
             print "\nAttempted", attempt_count, "attempt(s) so far.\n"
 
             while not cluster[0]:
                 print "\n-----------------------------------------------------\n"
                 current = self.select_initial(select_initial, self.distance_opt)
                 attempt_count += 1
-                cluster = self.determine_cluster(current, gold=gold)
+                cluster = determine_cluster(current, self, gold=gold)
                 print "\nAttempted", attempt_count, "attempt(s) so far.\n"
 
             cluster_list.append(cluster[1])
@@ -610,7 +663,7 @@ class ActiveUnlearner:
                                                                                                           ".\n"
 
             current = training[len(training) - 1]
-            cluster = self.determine_cluster(current, working_set=training, gold=gold)
+            cluster = determine_cluster(current, self, working_set=training, gold=gold)
 
             if not cluster[0]:
                 print "\nMoving on from inviable cluster center...\n"
@@ -655,54 +708,63 @@ class ActiveUnlearner:
             return cluster_list
     # -----------------------------------------------------------------------------------
 
-    def greatest_impact_active_unlearn(self, outfile, test=False, pollution_set3=True, gold=False):
+    def greatest_impact_active_unlearn(self, outfile, test=False, pollution_set3=True, gold=False, working_model=False):
         unlearned_cluster_list = []
         cluster_count = 0
         attempt_count = 0
-        original_detection_rate = self.current_detection_rate
         detection_rate = self.current_detection_rate
-        print "\n-----------------------------------------------------\n"
-        print "\nClustering...\n"
-        cluster_list = self.cluster_training(gold)
+        old_detection_rate = self.current_detection_rate
+        if working_model:
+            training_ham = self.driver.tester.train_examples[1] + self.driver.tester.train_examples[3]
+            training_spam = self.driver.tester.train_examples[0] + self.driver.tester.train_examples[2]
+            testing_ham = self.testing_ham
+            testing_spam = self.testing_spam
 
-        while detection_rate < original_detection_rate:
+            print "\nTraining model active unlearner...\n"
+            working_au = ActiveUnlearner(training_ham, training_spam, testing_ham, testing_spam)
+
             print "\n-----------------------------------------------------\n"
-            cluster = cluster_list[len(cluster_list) - 1]
-            self.unlearn(cluster)
-            cluster_list.remove(cluster)
+            print "\nClustering...\n"
+            cluster_list = cluster_au(au=working_au, gold=gold)
 
+        else:
+            print "\n-----------------------------------------------------\n"
+            print "\nClustering...\n"
+            cluster_list = cluster_au(self, gold=gold)
+
+        cluster = None
+
+        while old_detection_rate <= detection_rate <= self.threshold and len(cluster_list) > 0:
+            print "\n-----------------------------------------------------\n"
+            cluster_count += 1
+            cluster = cluster_list[len(cluster_list) - 1]
+            cluster_print_stats(outfile, pollution_set3, detection_rate, cluster, cluster_count,
+                                attempt_count)
+            old_detection_rate = detection_rate
+            self.unlearn(cluster[1])
+            cluster_list.remove(cluster)
+            unlearned_cluster_list.append(cluster)
+            self.init_ground()
+            detection_rate = self.driver.tester.correct_classification_rate()
+            print "\nCurrent detection rate achieved is " + str(detection_rate) + ".\n"
+
+        if detection_rate < old_detection_rate:
+            print "\nReversing back one cluster...\n"
+            self.learn(cluster[1])
+            cluster_list.append(cluster)
+            cluster_count -= 1
+            unlearned_cluster_list.remove(cluster)
+            self.init_ground()
+            detection_rate = self.driver.tester.correct_classification_rate()
+            print "\nCurrent detection rate achieved is " + str(detection_rate) + ".\n"
+
+        print "\nThreshold achieved or all clusters consumed after", cluster_count, "clusters unlearned.\n"
+
+        print "\nFinal detection rate: " + str(detection_rate) + ".\n"
         if test:
             return unlearned_cluster_list
 
-        print "\nThreshold achieved after", cluster_count, "clusters unlearned and", attempt_count, "attempts.\n"
-
-        print "\nFinal detection rate: " + str(detection_rate) + ".\n"
-
     # -----------------------------------------------------------------------------------
-
-    def cluster_rate_check(self, net_rate_change, cluster):
-        pass
-
-    def cluster_training(self, gold=False):
-        cluster_list = []
-        training = self.shuffle_training()
-        original_training_size = len(training)
-        while len(training) > 0:
-            print "\n" + str(len(training)) + " emails out of " + str(len(original_training_size)) + \
-                  " still unclustered.\n"
-            current = training[len(training) - 1]
-            pre_cluster_rate = self.current_detection_rate
-            cluster = self.determine_cluster(current, working_set=training, gold=gold, impact=True)
-            post_cluster_rate = self.current_detection_rate
-
-            assert(post_cluster_rate == pre_cluster_rate), str(pre_cluster_rate) + " " + str(post_cluster_rate)
-
-            cluster_list.append(cluster)
-            for email in cluster:
-                training.remove(email)
-
-        cluster_list.sort()
-        return cluster_list
 
     def shuffle_training(self):
         train_examples = self.driver.tester.train_examples
