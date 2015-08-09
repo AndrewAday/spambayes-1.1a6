@@ -17,7 +17,7 @@ def chosen_sum(chosen, x, opt=None):
     return s
 
 
-def cluster_au(au, gold=False):
+def cluster_au(au, gold=False, test=False):
     cluster_list = []
     training = au.shuffle_training()
     original_training_size = len(training)
@@ -40,9 +40,13 @@ def cluster_au(au, gold=False):
             training.remove(email)
 
     cluster_list.sort()
-    cluster_list = [pair[1] for pair in cluster_list]
     print "\nClustering process done and sorted.\n"
-    return cluster_list
+    if not test:
+        cluster_list = [pair[1] for pair in cluster_list]
+        return cluster_list
+
+    else:
+        return cluster_list
 
 
 def determine_cluster(center, au, working_set=None, gold=False, tolerance=200, impact=False):
@@ -113,6 +117,9 @@ class Cluster:
         self.dist_list = self.distance_array(separate)
         self.cluster_set = self.make_cluster()
         self.divide()
+
+    def __repr__(self):
+        return "(" + self.clustroid.tag + ", " + str(self.size) + ")"
 
     def distance_array(self, separate):
         train_examples = self.active_unlearner.driver.tester.train_examples
@@ -708,7 +715,8 @@ class ActiveUnlearner:
             return cluster_list
     # -----------------------------------------------------------------------------------
 
-    def greatest_impact_active_unlearn(self, outfile, test=False, pollution_set3=True, gold=False, working_model=False):
+    def greatest_impact_active_unlearn(self, outfile, test=False, pollution_set3=True, gold=False, working_model=False,
+                                       unlearn_method="vigilant"):
         unlearned_cluster_list = []
         cluster_count = 0
         attempt_count = 0
@@ -733,19 +741,81 @@ class ActiveUnlearner:
             cluster_list = cluster_au(self, gold=gold)
 
         cluster = None
+        if unlearn_method == "frugal":
+            self.frugal_unlearn(old_detection_rate, detection_rate, cluster, cluster_list, unlearned_cluster_list,
+                                cluster_count, attempt_count, outfile, pollution_set3)
 
+        elif unlearn_method == "vigilant":
+            self.vigilant_unlearn(detection_rate, cluster_list, unlearned_cluster_list, cluster_count, attempt_count,
+                                  outfile, pollution_set3, gold)
+
+        elif unlearn_method == "lazy":
+            self.lazy_unlearn(detection_rate, cluster_list, unlearned_cluster_list, cluster_count, attempt_count,
+                              outfile, pollution_set3, gold)
+
+        print "\nThreshold achieved or all clusters consumed after", cluster_count, "clusters unlearned.\n"
+
+        print "\nFinal detection rate: " + str(detection_rate) + ".\n"
+        if test:
+            return unlearned_cluster_list
+
+    # -----------------------------------------------------------------------------------
+    def vigilant_unlearn(self, detection_rate, cluster_list, unlearned_cluster_list,
+                         cluster_count, attempt_count, outfile, pollution_set3, gold):
+        while detection_rate <= self.threshold and cluster_list[len(cluster_list) - 1][0] > 0:
+            print "\n-----------------------------------------------------\n"
+            cluster_count += 1
+            attempt_count += 1
+            cluster = cluster_list[len(cluster_list) - 1]
+            self.unlearn(cluster[1])
+            unlearned_cluster_list.append(cluster)
+            self.init_ground()
+            detection_rate = self.driver.tester.correct_classification_rate()
+            cluster_print_stats(outfile, pollution_set3, detection_rate, cluster, cluster_count, attempt_count)
+            print "\nCurrent detection rate achieved is " + str(detection_rate) + ".\n"
+            print "\nClustering...\n"
+            cluster_list = cluster_au(self, gold)
+
+    def lazy_unlearn(self, detection_rate, cluster_list, unlearned_cluster_list, cluster_count, attempt_count, outfile,
+                     pollution_set3, gold):
+        while detection_rate <= self.threshold and cluster_list[len(cluster_list) - 1][0] > 0:
+            for cluster in cluster_list:
+                old_detection_rate = detection_rate
+                self.unlearn(cluster[1])
+                self.init_ground()
+                detection_rate = self.driver.tester.correct_classification_rate()
+                if detection_rate > old_detection_rate:
+                    cluster_count += 1
+                    attempt_count += 1
+                    cluster_list.remove(cluster)
+                    unlearned_cluster_list.append(cluster)
+                    cluster_print_stats(outfile, pollution_set3, detection_rate, cluster, cluster_count, attempt_count)
+                    print "\nCurrent detection rate achieved is " + str(detection_rate) + ".\n"
+
+                else:
+                    self.learn(cluster[1])
+                    detection_rate = old_detection_rate
+
+            if detection_rate > self.threshold:
+                break
+
+            else:
+                cluster_list = cluster_au(self, gold=gold)
+
+    def frugal_unlearn(self, old_detection_rate, detection_rate, cluster, cluster_list, unlearned_cluster_list,
+                       cluster_count, attempt_count, outfile, pollution_set3):
         while old_detection_rate <= detection_rate <= self.threshold and len(cluster_list) > 0:
             print "\n-----------------------------------------------------\n"
             cluster_count += 1
+            attempt_count += 1
             cluster = cluster_list[len(cluster_list) - 1]
-            cluster_print_stats(outfile, pollution_set3, detection_rate, cluster, cluster_count,
-                                attempt_count)
             old_detection_rate = detection_rate
             self.unlearn(cluster[1])
             cluster_list.remove(cluster)
             unlearned_cluster_list.append(cluster)
             self.init_ground()
             detection_rate = self.driver.tester.correct_classification_rate()
+            cluster_print_stats(outfile, pollution_set3, detection_rate, cluster, cluster_count, attempt_count)
             print "\nCurrent detection rate achieved is " + str(detection_rate) + ".\n"
 
         if detection_rate < old_detection_rate:
@@ -757,12 +827,6 @@ class ActiveUnlearner:
             self.init_ground()
             detection_rate = self.driver.tester.correct_classification_rate()
             print "\nCurrent detection rate achieved is " + str(detection_rate) + ".\n"
-
-        print "\nThreshold achieved or all clusters consumed after", cluster_count, "clusters unlearned.\n"
-
-        print "\nFinal detection rate: " + str(detection_rate) + ".\n"
-        if test:
-            return unlearned_cluster_list
 
     # -----------------------------------------------------------------------------------
 

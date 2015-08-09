@@ -32,21 +32,23 @@ def main():
 
     data_sets_dir = "C:\\Users\\Alex\\Downloads\\Data Sets"
     set_dirs = ["DictionarySets-1.1", "DictionarySets-1.2", "DictionarySets-2.1", "DictionarySets-2.2",
-                "DictionarySets-3.1", "Mislabeled-Both-1.1", "Mislabeled-Both-1.2", "Mislabeled-Both-2.1",
-                "Mislabeled-Both-2.2", "Mislabeled-Both-3.1", "Mislabeled-HtoS-1.1", "Mislabeled-HtoS-1.2",
-                "Mislabeled-HtoS-1.3", "Mislabeled-HtoS-1.4", "Mislabeled-HtoS-1.5", "Mislabeled-StoH-1.1",
-                "Mislabeled-StoH-1.2", "Mislabeled-StoH-1.3", "Mislabeled-StoH-2.1", "Mislabeled-StoH-2.2"]
+                "DictionarySets-3.1", "Mislabeled-Big", "Mislabeled-Both-1.1", "Mislabeled-Both-1.2",
+                "Mislabeled-Both-2.1", "Mislabeled-Both-2.2", "Mislabeled-Both-3.1", "Mislabeled-HtoS-1.1",
+                "Mislabeled-HtoS-1.2", "Mislabeled-HtoS-1.3", "Mislabeled-HtoS-1.4", "Mislabeled-HtoS-1.5",
+                "Mislabeled-StoH-1.1", "Mislabeled-StoH-1.2", "Mislabeled-StoH-1.3", "Mislabeled-StoH-2.1",
+                "Mislabeled-StoH-2.2"]
 
     hams = [seterize(data_sets_dir, set_dir, False, 3) for set_dir in set_dirs]
     spams = [seterize(data_sets_dir, set_dir, True, 3) for set_dir in set_dirs]
 
     num_data_sets = len(hams)
     assert(len(hams) == len(spams))
-    sets = [0]
+    sets = range(6)
 
     for i in sets:
         ham = hams[i]
         spam = spams[i]
+        data_set = set_dirs[i]
 
         ham_polluted = dir_enumerate(ham[2])
         spam_polluted = dir_enumerate(spam[2])
@@ -70,8 +72,8 @@ def main():
             train_time = time_2 - time_1
             print "Train time:", train_time, "\n"
 
-            with open("C:\\Users\\Alex\\Desktop\\unpollute_stats\\Yang_Data_Sets (impact)\\brute_force (split)_"
-                      + str(i + 1) + ".txt", 'w') as outfile:
+            with open("C:\\Users\\Alex\\Desktop\\unpollute_stats\\Yang_Data_Sets (vigilant impact)\\" + data_set +
+                      ".txt", 'w') as outfile:
                 try:
                     outfile.write("---------------------------\n")
                     outfile.write("Data Set: " + set_dirs[i] + "\n")
@@ -89,7 +91,8 @@ def main():
                     outfile.write("0: " + str(original_detection_rate) + "\n")
 
                     time_start = time.time()
-                    cluster_list = au.greatest_impact_active_unlearn(outfile, test=True, pollution_set3=True, gold=True)
+                    cluster_list = au.greatest_impact_active_unlearn(outfile, test=True, pollution_set3=True, gold=True,
+                                                                     unlearn_method="vigilant")
                     time_end = time.time()
                     unlearn_time = time_end - time_start
                     total_polluted_unlearned = 0

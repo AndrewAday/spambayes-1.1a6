@@ -85,8 +85,7 @@ def main():
                     outfile.write("0: " + str(original_detection_rate) + "\n")
 
                     time_start = time.time()
-                    cluster_list = au.brute_force_active_unlearn(outfile, test=True, center_iteration=False,
-                                                                 pollution_set3=True, gold=True)
+                    cluster_list = au.greatest_impact_active_unlearn(outfile, test=True, pollution_set3=True, gold=True)
                     time_end = time.time()
                     unlearn_time = time_end - time_start
                     total_polluted_unlearned = 0
@@ -96,6 +95,7 @@ def main():
 
                     print "\nTallying up final counts...\n"
                     for cluster in cluster_list:
+                        cluster = cluster[1]
                         total_unlearned += cluster.size
                         total_polluted_unlearned += cluster.target_set3()
                         total_unpolluted_unlearned += (cluster.size - cluster.target_set3())
