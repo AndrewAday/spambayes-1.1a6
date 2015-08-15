@@ -28,6 +28,17 @@ def dir_enumerate(dir_name):
     return len([name for name in os.listdir(dir_name) if os.path.isfile(os.path.join(dir_name, name))])
 
 
+def seconds_to_english(seconds):
+    seconds_trunc_1 = int(seconds // 60) * 60
+    s = seconds - seconds_trunc_1
+    seconds -= s
+    seconds /= 60
+    seconds_trunc_2 = int(seconds // 60) * 60
+    m = int(seconds - seconds_trunc_2)
+    h = seconds_trunc_2 / 60
+    return str(h) + " hours, " + str(m) + " minutes, and " + str(s) + " seconds."
+
+
 def main():
 
     data_sets_dir = "C:\\Users\\Alex\\Downloads\\Data Sets"
@@ -43,7 +54,7 @@ def main():
 
     num_data_sets = len(hams)
     assert(len(hams) == len(spams))
-    sets = range(6)
+    sets = [0]
 
     for i in sets:
         ham = hams[i]
@@ -57,6 +68,7 @@ def main():
         test_ham = dir_enumerate(ham[0])
         test_spam = dir_enumerate(spam[0])
         total_polluted = ham_polluted + spam_polluted
+        total_unpolluted = train_ham + train_spam
 
         try:
             time_1 = time.time()
@@ -69,10 +81,10 @@ def main():
                                                      )
 
             time_2 = time.time()
-            train_time = time_2 - time_1
+            train_time = seconds_to_english(time_2 - time_1)
             print "Train time:", train_time, "\n"
 
-            with open("C:\\Users\\Alex\\Desktop\\unpollute_stats\\Yang_Data_Sets (vigilant impact)\\" + data_set +
+            with open("C:\\Users\\Alex\\Desktop\\unpollute_stats\\Yang_Data_Sets (lazy impact)\\" + data_set +
                       ".txt", 'w') as outfile:
                 try:
                     outfile.write("---------------------------\n")
@@ -92,9 +104,9 @@ def main():
 
                     time_start = time.time()
                     cluster_list = au.greatest_impact_active_unlearn(outfile, test=True, pollution_set3=True, gold=True,
-                                                                     unlearn_method="vigilant")
+                                                                     unlearn_method="lazy")
                     time_end = time.time()
-                    unlearn_time = time_end - time_start
+                    unlearn_time = seconds_to_english(time_end - time_start)
                     total_polluted_unlearned = 0
                     total_unlearned = 0
                     total_unpolluted_unlearned = 0
@@ -119,10 +131,12 @@ def main():
                     outfile.write(str(float(total_unpolluted_unlearned) / float(total_unlearned)) + "\n")
                     outfile.write("Percentage of Polluted Unlearned:\n")
                     outfile.write(str(float(total_polluted_unlearned) / float(total_polluted)) + "\n")
+                    outfile.write("Percentage of Unpolluted Unlearned:\n")
+                    outfile.write(str(float(total_unpolluted_unlearned) / float(total_unpolluted)) + "\n")
                     outfile.write("Time for training:\n")
-                    outfile.write(str(train_time) + "\n")
+                    outfile.write(train_time + "\n")
                     outfile.write("Time for unlearning:\n")
-                    outfile.write(str(unlearn_time))
+                    outfile.write(unlearn_time)
 
                 except KeyboardInterrupt:
                     outfile.flush()
