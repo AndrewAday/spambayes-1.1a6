@@ -22,13 +22,14 @@ def cluster_au(au, gold=False, test=False):
     training = au.shuffle_training()
     print "\nResetting mislabeled...\n"
     mislabeled = au.get_mislabeled(update=True)
+    au.mislabeled_chosen = set()
     original_training_size = len(training)
     while len(training) > 0:
         print "\n-----------------------------------------------------\n"
         print "\n" + str(len(training)) + " emails out of " + str(original_training_size) + \
               " still unclustered.\n"
 
-        current = cluster_methods(au, cluster_list, "mislabeled", original_training_size, training, mislabeled)
+        current = cluster_methods(au, "mislabeled", training, mislabeled)
         pre_cluster_rate = au.current_detection_rate
         net_rate_change, cluster = determine_cluster(current, au, working_set=training, gold=gold, impact=True)
         post_cluster_rate = au.current_detection_rate
@@ -50,7 +51,7 @@ def cluster_au(au, gold=False, test=False):
         return cluster_list
 
 
-def cluster_methods(au, cluster_list, method, original_training_size, working_set, mislabeled):
+def cluster_methods(au, method, working_set, mislabeled):
     if method == "random":
         return working_set[len(working_set) - 1]
 
@@ -91,18 +92,19 @@ def determine_cluster(center, au, working_set=None, gold=False, tolerance=50, im
 
     elif cluster.size < au.increment:
         if impact:
-             au.learn(cluster)
-             second_state_rate = new_detection_rate
-             net_rate_change = second_state_rate - first_state_rate
-             au.current_detection_rate = first_state_rate
-             return net_rate_change, (True, cluster, None)
+            au.learn(cluster)
+            second_state_rate = new_detection_rate
+            net_rate_change = second_state_rate - first_state_rate
+            au.current_detection_rate = first_state_rate
+            return net_rate_change, (True, cluster, None)
 
         else:
             return True, cluster, None
 
     else:                                           # Detection rate improves - Grow cluster
         if gold:
-            cluster = au.cluster_by_gold(cluster, old_detection_rate, new_detection_rate, counter, tolerance, test_waters)
+            cluster = au.cluster_by_gold(cluster, old_detection_rate, new_detection_rate, counter, tolerance,
+                                         test_waters)
 
         else:
             cluster = au.cluster_by_increment(cluster, old_detection_rate, new_detection_rate, counter)
@@ -465,7 +467,8 @@ class ActiveUnlearner:
         new_unlearns = ['a', 'b', 'c']
 
         if test_waters:
-            while (new_detection_rate > old_detection_rate and cluster.size < self.increment * 3) and len(new_unlearns) > 0:
+            while (new_detection_rate > old_detection_rate and cluster.size < self.increment * 3) and len(new_unlearns) \
+                    > 0:
                 counter += 1
                 old_detection_rate = new_detection_rate
                 print "\nExploring cluster of size", cluster.size + self.increment, "...\n"
@@ -646,8 +649,8 @@ class ActiveUnlearner:
 
     # -----------------------------------------------------------------------------------
     def active_unlearn(self, outfile, test=False, pollution_set3=True, gold=False, select_initial="mislabeled"):
+        cluster_list = []
         try:
-            cluster_list = []
             cluster_count = 0
             attempt_count = 0
             detection_rate = self.current_detection_rate
@@ -688,8 +691,8 @@ class ActiveUnlearner:
     # -----------------------------------------------------------------------------------
 
     def brute_force_active_unlearn(self, outfile, test=False, center_iteration=True, pollution_set3=True, gold=False):
+        cluster_list = []
         try:
-            cluster_list = []
             cluster_count = 0
             rejection_count = 0
             rejections = set()
@@ -754,8 +757,8 @@ class ActiveUnlearner:
 
     def greatest_impact_active_unlearn(self, outfile, test=False, pollution_set3=True, gold=False, working_model=False,
                                        unlearn_method="vigilant"):
+        unlearned_cluster_list = []
         try:
-            unlearned_cluster_list = []
             cluster_count = 0
             attempt_count = 0
             detection_rate = self.current_detection_rate
@@ -780,18 +783,24 @@ class ActiveUnlearner:
 
             cluster = None
             if unlearn_method == "frugal":
-                cluster_count, attempt_count = self.frugal_unlearn(old_detection_rate, detection_rate, cluster, cluster_list, unlearned_cluster_list,
-                                                                   cluster_count, attempt_count, outfile, pollution_set3)
+                cluster_count, attempt_count = self.frugal_unlearn(old_detection_rate, detection_rate, cluster,
+                                                                   cluster_list, unlearned_cluster_list,
+                                                                   cluster_count, attempt_count, outfile,
+                                                                   pollution_set3)
 
             elif unlearn_method == "vigilant":
-                cluster_count, attempt_count = self.vigilant_unlearn(detection_rate, cluster_list, unlearned_cluster_list, cluster_count, attempt_count,
+                cluster_count, attempt_count = self.vigilant_unlearn(detection_rate, cluster_list,
+                                                                     unlearned_cluster_list, cluster_count,
+                                                                     attempt_count,
                                                                      outfile, pollution_set3, gold)
 
             elif unlearn_method == "lazy":
-                cluster_count, attempt_count = self.lazy_unlearn(detection_rate, cluster_list, unlearned_cluster_list, cluster_count, attempt_count,
+                cluster_count, attempt_count = self.lazy_unlearn(detection_rate, cluster_list, unlearned_cluster_list,
+                                                                 cluster_count, attempt_count,
                                                                  outfile, pollution_set3, gold)
 
-            print "\nThreshold achieved or all clusters consumed after", cluster_count, "clusters unlearned and", attempt_count, "clustering attempts.\n"
+            print "\nThreshold achieved or all clusters consumed after", cluster_count, "clusters unlearned and", \
+                attempt_count, "clustering attempts.\n"
 
             print "\nFinal detection rate: " + str(self.current_detection_rate) + ".\n"
             if test:
@@ -828,7 +837,7 @@ class ActiveUnlearner:
             list_length = len(cluster_list)
             counter = 1
             for i in range(len(cluster_list)):
-                cluster = cluster_list[len(cluster_list) - 1 - i]
+                cluster = cluster_list[i]
                 print "\n-----------------------------------------------------\n"
                 print "\nChecking cluster " + str(counter) + " of " + str(list_length) + "...\n"
                 counter += 1
@@ -852,7 +861,6 @@ class ActiveUnlearner:
 
             else:
                 cluster_list = []
-
                 cluster_list = cluster_au(self, gold)
                 attempt_count += 1
 

@@ -20,6 +20,12 @@ def e_f(x, is_eu):
         return x
 
 
+def prob_find(clue, msg):
+    for word in msg.guts:
+        if word == clue:
+            return
+
+
 def distance(msg1, msg2, opt=None, is_eu=True):
     if opt is None:
         s = 0
@@ -182,42 +188,15 @@ def distance(msg1, msg2, opt=None, is_eu=True):
                 s += e_s(l_distance(msg2.allclues[i][1], ""), is_eu)
         return e_f(s, is_eu)
 
-    if opt == "ham-spam":
+    if opt == "match":
         msg1.clues.sort()
         msg2.clues.sort()
-        s = 0
+        i = 0
+        j = 0
+        vector = []
 
-        if len(msg1.clues) >= len(msg2.clues):
-            i = 0
-            j = len(msg2.clues) - 1
-
-            while i < j:
-                s += e_s(l_distance(msg1.clues[i][1], msg2.clues[i][1]), is_eu)
-                s += e_s(l_distance(msg1.clues[j - len(msg2.clues) + len(msg1.clues)][1], msg2.clues[j][1]), is_eu)
-                i += 1
-                j -= 1
-
-            if i == j:
-                s += e_s(l_distance(msg1.clues[i][1], msg2.clues[i][1]), is_eu)
-                i += 1
-                j -= 1
-
-            for i in range(i, j - len(msg2.clues) + len(msg1.clues) + 1):
-                s += e_s(l_distance(msg1.clues[i][1], ""), is_eu)
-
-        else:
-            i = 0
-            j = len(msg1.clues) - 1
-
-            while i < j:
-                s += e_s(l_distance(msg2.clues[i][1], msg1.clues[i][1]), is_eu)
-                s += e_s(l_distance(msg2.clues[j - len(msg1.clues) + len(msg2.clues)][1], msg1.clues[j][1]), is_eu)
-                i += 1
-                j -= 1
-
-            if i == j:
-                s += e_s(l_distance(msg1.clues[i][1], msg2.clues[i][1]), is_eu)
-
-            for i in range(i, j - len(msg1.clues) + len(msg2.clues) + 1):
-                s += e_s(l_distance(msg2.clues[i][1], ""), is_eu)
-        return e_f(s, is_eu)
+        while i < len(msg1.clues) or j < len(msg2.clues):
+            clue_1 = msg1.clues[i]
+            clue_2 = msg2.clues[j]
+            if clue_1[0] < clue_2[0]:
+                vector.append([clue_1[1], (clue_1[0], )])

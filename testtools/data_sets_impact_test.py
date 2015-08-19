@@ -54,30 +54,40 @@ def main():
 
     num_data_sets = len(hams)
     assert(len(hams) == len(spams))
-    sets = [0]
+    sets = [1]
 
     for i in sets:
         ham = hams[i]
         spam = spams[i]
         data_set = set_dirs[i]
 
-        ham_polluted = dir_enumerate(ham[2])
-        spam_polluted = dir_enumerate(spam[2])
-        train_ham = dir_enumerate(ham[1])
-        train_spam = dir_enumerate(spam[1])
-        test_ham = dir_enumerate(ham[0])
-        test_spam = dir_enumerate(spam[0])
+        ham_test = ham[0]
+        spam_test = spam[0]
+
+        ham_train = ham[1]
+        spam_train = spam[1]
+
+        ham_p = ham[2]
+        spam_p = spam[2]
+
+
+        ham_polluted = dir_enumerate(ham_p)
+        spam_polluted = dir_enumerate(spam_p)
+        train_ham = dir_enumerate(ham_train)
+        train_spam = dir_enumerate(spam_train)
+        test_ham = dir_enumerate(ham_test)
+        test_spam = dir_enumerate(spam_test)
         total_polluted = ham_polluted + spam_polluted
         total_unpolluted = train_ham + train_spam
 
         try:
             time_1 = time.time()
-            au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham[1], [ham[1]]),
-                                                      msgs.HamStream(ham[2], [ham[2]])],        # Training Ham
-                                                     [msgs.SpamStream(spam[1], [spam[1]]),
-                                                      msgs.SpamStream(spam[2], [spam[2]])],     # Training Spam
-                                                     msgs.HamStream(ham[0], [ham[0]]),          # Testing Ham
-                                                     msgs.SpamStream(spam[0], [spam[0]]),       # Testing Spam
+            au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham_train, [ham_train]),
+                                                      msgs.HamStream(ham_p, [ham_p])],        # Training Ham
+                                                     [msgs.SpamStream(spam_train, [spam_train]),
+                                                      msgs.SpamStream(spam_p, [spam_p])],     # Training Spam
+                                                     msgs.HamStream(ham_test, [ham_test]),          # Testing Ham
+                                                     msgs.SpamStream(spam_test, [spam_test]),       # Testing Spam
                                                      )
 
             time_2 = time.time()

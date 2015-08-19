@@ -24,12 +24,8 @@ class Msg(object):
         self.probdiff = None
         self.allclues = []
         self.clues = []
-        
         self.guts = "`~`".join(set(tokenize(self.guts)))
-        
-        """
-        self.guts = list(set(tokenize(self.guts)))
-        """
+
     def __iter__(self):
         for word in self.guts.split("`~`"):
             yield word
