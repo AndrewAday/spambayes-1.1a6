@@ -67,7 +67,7 @@ def feature_combine(n, p_features, p_dict, v_features, v_dict):
 
 
 def main():
-    sets = [0]
+    sets = [5]
 
     for i in sets:
         ham = hams[i]
