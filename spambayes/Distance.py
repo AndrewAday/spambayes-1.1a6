@@ -4,6 +4,7 @@ import sys
 
 l_distance = Levenshtein.distance
 
+match = {"inv-match", "sub-match"}
 
 def e_s(x, is_eu):
     if is_eu:
@@ -22,16 +23,19 @@ def e_f(x, is_eu):
 
 
 def distance(msg1, msg2, opt=None, is_eu=True):
-    if opt == "inv-match":
+    if opt in match:
         msg1.clues.sort()
         msg2.clues.sort()
+        words_1 = msg1.clues
+        words_2 = msg2.clues
+
         i = 0
         j = 0
         counter = 0
 
-        while i < len(msg1.clues) or j < len(msg2.clues):
-            clue_1 = msg1.clues[i]
-            clue_2 = msg2.clues[j]
+        while i < len(words_1) or j < len(words_2):
+            clue_1 = words_1[i]
+            clue_2 = words_2[j]
             if clue_1[0] < clue_2[0]:
                 i += 1
 
@@ -43,34 +47,15 @@ def distance(msg1, msg2, opt=None, is_eu=True):
                 i += 1
                 j += 1
 
-        if counter == 0:
-            return sys.maxint
-
-        else:
-            return float(1) / float(counter)
-
-    if opt == "sub-match":
-        msg1.clues.sort()
-        msg2.clues.sort()
-        i = 0
-        j = 0
-        counter = 0
-
-        while i < len(msg1.clues) or j < len(msg2.clues):
-            clue_1 = msg1.clues[i]
-            clue_2 = msg2.clues[j]
-            if clue_1[0] < clue_2[0]:
-                i += 1
-
-            elif clue_1[0] > clue_2[0]:
-                j += 1
+        if opt == "inv-match":
+            if counter == 0:
+                return sys.maxint
 
             else:
-                counter += 1
-                i += 1
-                j += 1
+                return float(1) / float(counter)
 
-        return max(len(msg1.clues), len(msg2.clues)) - counter
+        elif opt == "sub-match":
+            return max(len(msg1.clues), len(msg2.clues)) - counter
 
     if opt is None:
         s = 0

@@ -3,6 +3,7 @@ __author__ = 'Alex'
 import os
 import sys
 import numpy as np
+import time
 
 sys.path.insert(-1, os.getcwd())
 sys.path.insert(-1, os.path.dirname(os.getcwd()))
@@ -11,11 +12,14 @@ from spambayes import ActiveUnlearnDriver
 from spambayes.Options import options
 from spambayes import msgs
 from testtools import data_sets as ds
+from testtools import data_sets_impact_test as d_test
 
 options["TestDriver", "show_histograms"] = False
 
 hams, spams = ds.hams, ds.spams
 set_dirs, dir_enumerate = ds.set_dirs, ds.dir_enumerate
+stats = d_test.unlearn_stats
+seconds_to_english = ds.seconds_to_english
 
 
 def au_sig_words(au, words):
@@ -34,51 +38,88 @@ def au_sig_words(au, words):
     return features, dict(r_features)
 
 
-def feature_combine(n, p_features, p_dict, v_features, v_dict):
-    assert(len(p_features) > 0)
-    p_most_sig = p_features[:n] + p_features[-n:]
-    assert(len(p_most_sig) == 2 * n), len(p_most_sig)
-    v_most_sig = v_features[:n] + v_features[-n:]
-    p_sig_words = set(feature[1] for feature in p_most_sig)
-    v_sig_words = set(feature[1] for feature in v_most_sig)
-    all_sig_words = p_sig_words.union(v_sig_words)
+def feature_combine(feature_dict_list, n=None):
+    most_sigs = []
+    sig_words = []
+    for pair in feature_dict_list:
+        pair[0] = [(feature[0], feature_trunc(feature[1])) for feature in pair[0]]
+
+        if n is not None:
+            p_most_sig = pair[0][:n] + pair[0][-n:]
+            assert(len(p_most_sig) == 2 * n), len(p_most_sig)
+            most_sigs.append(p_most_sig)
+        else:
+            p_most_sig = pair[0]
+            most_sigs.append(p_most_sig)
+
+        sig_words.append(set(feature[1] for feature in p_most_sig))
+
+    all_sig_words = set().union(sig_words)
     features = []
 
     for word in all_sig_words:
-        v_prob = 0
-        try:
-            v_prob = v_dict[word]
+        prob_list = []
+        for pair in feature_dict_list:
+            prob = 0
+            try:
+                prob = pair[1][word]
 
-        except KeyError:
-            pass
+            except KeyError:
+                pass
 
-        p_prob = 0
-        try:
-            p_prob = p_dict[word]
+            prob_list.append(prob)
 
-        except KeyError:
-            pass
-
-        features.append([word, v_prob, p_prob])
+        features.append([word] + prob_list)
 
     data = np.array(features)
-    features = data[np.argsort(data[:,1])]
-    return features, p_most_sig, v_most_sig
+    features = data[np.argsort(data[:, 1])]
+    return features, most_sigs
+
+
+def feature_trunc(feature):
+    if len(feature) > 30:
+        return feature[:30]
+
+    else:
+        return feature
+
+
+def feature_print(most_sig, i):
+    try:
+        return str(most_sig[i][0] + ": " + str(most_sig[i][1]))
+
+    except IndexError:
+        return "N/A"
+
+
+def feature_lists(most_sigs, unlearned_num):
+    length = max(len(most_sig) for most_sig in most_sigs)
+    header = [["", "Unpolluted", "Polluted"] + ["Unlearned %d" % d for d in range(unlearned_num)]]
+    data = [[str(i + 1)] + [feature_print(most_sig, i)] for i in range(length) for most_sig in most_sigs]
+    return header + data
 
 
 def main():
-    sets = [5]
+    sets = [0]
 
     for i in sets:
         ham = hams[i]
         spam = spams[i]
         data_set = set_dirs[i]
 
-        ham_test = ham[0]
-        spam_test = spam[0]
+        if i > 5:
+            ham_test = ham[1]
+            spam_test = spam[1]
 
-        ham_train = ham[1]
-        spam_train = spam[1]
+            ham_train = ham[0]
+            spam_train = spam[0]
+
+        else:
+            ham_test = ham[0]
+            spam_test = spam[0]
+
+            ham_train = ham[1]
+            spam_train = spam[1]
 
         ham_p = ham[2]
         spam_p = spam[2]
@@ -89,7 +130,10 @@ def main():
         train_spam = dir_enumerate(spam_train)
         test_ham = dir_enumerate(ham_test)
         test_spam = dir_enumerate(spam_test)
+        total_polluted = ham_polluted + spam_polluted
+        total_unpolluted = train_ham + train_spam
 
+        time_1 = time.time()
         p_au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham_train, [ham_train]),
                                                    msgs.HamStream(ham_p, [ham_p])],        # Training Ham
                                                    [msgs.SpamStream(spam_train, [spam_train]),
@@ -97,6 +141,9 @@ def main():
                                                    msgs.HamStream(ham_test, [ham_test]),          # Testing Ham
                                                    msgs.SpamStream(spam_test, [spam_test]),       # Testing Spam
                                                    )
+        time_2 = time.time()
+        train_time = seconds_to_english(time_2 - time_1)
+        print "Train time:", train_time, "\n"
 
         v_au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham_train, [ham_train]),
                                                     []],
@@ -107,24 +154,29 @@ def main():
 
         p_c = p_au.driver.tester.classifier
         v_c = p_au.driver.tester.classifier
-        words = set(p_c.wordinfo.keys()).union(v_c.wordinfo.keys())
+        words = set().union(p_c.wordinfo.keys(), v_c.wordinfo.keys())
+        p_pair = au_sig_words(p_au, words)
+        v_pair = au_sig_words(v_au, words)
 
-        p_features, p_dict = au_sig_words(p_au, words)
-        v_features, v_dict = au_sig_words(v_au, words)
-        features, p_most_sig, v_most_sig = feature_combine(75, p_features, p_dict, v_features, v_dict)
-        assert(len(p_most_sig) == 150)
-        feature_matrix = [["", "Unpolluted", "Polluted"]] + [[str(i + 1), str(v_most_sig[i][0]) + ": " +
-                                                              str(v_most_sig[i][1]), str(p_most_sig[i][0]) + ": " +
-                                                              str(p_most_sig[i][1])] for i in range(150)]
+        with open("C:/Users/bzpru/Dropbox/unpollute_stats/Yang_Data_Sets (feature compare)/" + data_set +
+                  "(unlearn_stats).txt", 'w') as outfile:
+            stats(p_au, outfile, data_set, [train_ham, train_spam], [test_ham, test_spam], [ham_p, spam_p],
+                  total_polluted, total_unpolluted, train_time)
+        words = words.union(p_c.wordinfo.keys())
+        u_pair = au_sig_words(p_au, words)
 
-        combined_matrix = [["", "Unpolluted", "Polluted"]] + [[feature[0], str(feature[1]), str(feature[2])]
+        features, most_sigs = feature_combine([p_pair, v_pair, u_pair])
+        feature_matrix = feature_lists(most_sigs, 1)
+
+        combined_matrix = [["", "Unpolluted", "Polluted"]] + [[str(feature[0]), str(feature[1]), str(feature[2])]
                                                               for feature in features]
 
-        feature_col_width = max(len(item) for row in feature_matrix for item in row) + 2
+        feature_col_width = max(len(row[1]) for row in feature_matrix) + 2
         combined_col_width = max(len(item) for row in combined_matrix for item in row) + 2
+        feature_num_col_width = max(len(row[0]) for row in feature_matrix) + 2
 
-        with open("C:\\Users\\Alex\\Desktop\\unpollute_stats\\Yang_Data_Sets (feature compare)\\" + data_set +
-                  ".txt", 'w') as outfile:
+        with open("C:/Users/bzpru/Dropbox/unpollute_stats/Yang_Data_Sets (feature compare)/" + data_set +
+                  " (Separate Features).txt", 'w') as outfile:
             outfile.write("---------------------------\n")
             outfile.write("Data Set: " + data_set + "\n")
             outfile.write("Vanilla Training: " + str(train_ham) + " ham and " + str(train_spam) + " spam.\n")
@@ -136,15 +188,25 @@ def main():
             outfile.write("Unpolluted and Polluted Most Significant Features:\n")
             outfile.write("---------------------------\n")
             for row in feature_matrix:
-                outfile.write("".join([row[0].ljust(5), row[1].ljust(feature_col_width), row[2].ljust(feature_col_width)
-                                       ]) + "\n")
+                outfile.write("".join([row[0].ljust(feature_num_col_width), row[1].strip().ljust(feature_col_width),
+                                       row[2].strip().ljust(feature_col_width)]) + "\n")
 
+        with open("C:/Users/bzpru/Dropbox/unpollute_stats/Yang_Data_Sets (feature compare)/" + data_set +
+                  " (Combined Features).txt", 'w') as outfile:
+            outfile.write("---------------------------\n")
+            outfile.write("Data Set: " + data_set + "\n")
+            outfile.write("Vanilla Training: " + str(train_ham) + " ham and " + str(train_spam) + " spam.\n")
+            outfile.write("Testing: " + str(test_ham) + " ham and " + str(test_spam) + " spam.\n")
+            outfile.write("Pollution Training: " + str(ham_polluted) + " ham and " + str(spam_polluted) +
+                          " spam.\n")
+            outfile.write("---------------------------\n")
             outfile.write("\n\n")
             outfile.write("Feature Comparison:\n")
             outfile.write("---------------------------\n")
 
             for row in combined_matrix:
-                outfile.write("".join(word.ljust(combined_col_width) for word in row) + "\n")
+                outfile.write("".join(word.strip().ljust(combined_col_width) for word in row) + "\n")
+
 
 if __name__ == "__main__":
     main()

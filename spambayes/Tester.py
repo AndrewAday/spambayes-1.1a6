@@ -90,7 +90,7 @@ class Test:
     #
     # If specified, callback(msg, spam_probability) is called for each
     # msg in the stream, after the spam probability is computed.
-    def predict(self, stream, is_spam, init_ground=False, callback=None):
+    def predict(self, stream, is_spam, init_ground=False, callback=None, update=False, all_opt=False):
         guess = self.classifier.spamprob
         for example in stream:
             old_prob = 0
@@ -98,7 +98,7 @@ class Test:
             if example.prob is not None:
                 old_prob = example.prob
 
-            prob = guess(example)
+            prob = guess(example, update, all_opt)
             example.probdiff = prob - old_prob
 
             if callback:
@@ -135,7 +135,7 @@ class Test:
         assert (self.nspam_right + self.nspam_wrong + self.nspam_unsure ==
                 self.nspam_tested)
 
-    def train_predict(self, stream, is_spam, callback=None):
+    def train_predict(self, stream, is_spam, callback=None, update=False, all_opt=False):
         guess = self.classifier.spamprob
         counter = 1
         for example in stream:
@@ -144,7 +144,7 @@ class Test:
             if example.prob is not None:
                 old_prob = example.prob
 
-            prob = guess(example)
+            prob = guess(example, update, all_opt)
             example.probdiff = prob - old_prob
 
             if callback:
@@ -159,12 +159,14 @@ class Test:
                 example.train = 1
 
             if is_spam == 2:
-                print "Trained on dictionary", counter, "..."
+                if counter % 100 == 0:
+                    print "Trained on", counter, "Set3 spam..."
                 self.train_examples[2].append(example)  # Spam Set3
                 example.train = 2
 
             if is_spam == 3:
-                print "Training on Set3 Email..."
+                if counter % 100 == 0:
+                    print "Trained on", counter, "Set3 ham..."
                 self.train_examples[3].append(example)  # Ham Set3
                 example.train = 3
 

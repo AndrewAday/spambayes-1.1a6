@@ -138,7 +138,7 @@ class Classifier:
     # there are many strong ham *and* spam clues, this reliably scores
     # close to 0.5.  Most other schemes are extremely certain then -- and
     # often wrong.
-    def chi2_spamprob(self, wordstream, evidence=False):
+    def chi2_spamprob(self, wordstream, evidence=False, update=False, all_opt=False):
         """Return best-guess probability that wordstream is spam.
 
         wordstream is an iterable object producing words.
@@ -166,7 +166,7 @@ class Classifier:
         H = S = 1.0
         Hexp = Sexp = 0
 
-        clues = self._getclues(wordstream)
+        clues = self._getclues(wordstream, update, all_opt)
         """
         wordstream.allclues = list(set(wordstream.allclues + clues))
         """
@@ -212,7 +212,7 @@ class Classifier:
             wordstream.prob = prob
             return prob
 
-    def slurping_spamprob(self, wordstream, evidence=False):
+    def slurping_spamprob(self, wordstream, evidence=False, update=False, all_opt=False):
         """Do the standard chi-squared spamprob, but if the evidence
         leaves the score in the unsure range, and we have fewer tokens
         than max_discriminators, also generate tokens from the text
@@ -221,7 +221,7 @@ class Classifier:
         s_cut = options["Categorization", "spam_cutoff"]
 
         # Get the raw score.
-        prob, clues = self.chi2_spamprob(wordstream, True)
+        prob, clues = self.chi2_spamprob(wordstream, True, update, all_opt)
 
         # If necessary, enhance it with the tokens from whatever is
         # at the URL's destination.
@@ -413,7 +413,7 @@ class Classifier:
     # the strongest (farthest from 0.5) spamprobs of all tokens in wordstream.
     # Tokens with spamprobs less than minimum_prob_strength away from 0.5
     # aren't returned.
-    def _getclues(self, wordstream):
+    def _getclues(self, wordstream, update=False, all_opt=False):
         mindist = options["Classifier", "minimum_prob_strength"]
         if options["Classifier", "use_bigrams"]:
             # This scheme mixes single tokens with pairs of adjacent tokens.
@@ -471,7 +471,7 @@ class Classifier:
             clues.reverse()
 
         else:
-            if len(wordstream.clues) != 0:
+            if len(wordstream.clues) != 0 and not update:
                 clues = map(self._tupledistanceget, wordstream.clues) 
                 wordstream.clues = clues
                 return clues
@@ -507,12 +507,14 @@ class Classifier:
                         push((distance, prob, word, record))
 
                 clues.sort()
-
+        if all_opt:
+            wordstream.clues = [t[1:] for t in clues]
         if len(clues) > options["Classifier", "max_discriminators"]:
             del clues[0 : -options["Classifier", "max_discriminators"]]
         # Return (prob, word, record).
         trunc_clues = [t[1:] for t in clues]
-        wordstream.clues = trunc_clues
+        if not all_opt:
+            wordstream.clues = trunc_clues
         return trunc_clues
 
     def update_clue_prob(self, record):

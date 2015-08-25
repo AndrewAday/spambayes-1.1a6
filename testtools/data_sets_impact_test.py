@@ -21,6 +21,60 @@ spams = ds.spams
 set_dirs = ds.set_dirs
 
 
+def unlearn_stats(au, outfile, data_set, train, test, polluted, total_polluted, total_unpolluted,
+                  train_time):
+        outfile.write("---------------------------\n")
+        outfile.write("Data Set: " + data_set + "\n")
+        outfile.write("Vanilla Training: " + str(train[0]) + " ham and " + str(train[1]) + " spam.\n")
+        outfile.write("Testing: " + str(test[0]) + " ham and " + str(test[1]) + " spam.\n")
+        outfile.write("Pollution Training: " + str(polluted[0]) + " ham and " + str(polluted[1]) +
+                      " spam.\n")
+        outfile.write("---------------------------\n")
+        outfile.write("\n\n")
+        outfile.write("CLUSTER AND RATE COUNTS:\n")
+        outfile.write("---------------------------\n")
+
+        original_detection_rate = au.driver.tester.correct_classification_rate()
+
+        outfile.write("0: " + str(original_detection_rate) + "\n")
+
+        time_start = time.time()
+        cluster_list = au.impact_active_unlearn(outfile, test=True, pollution_set3=True, gold=True,
+                                                unlearn_method="lazy")
+        time_end = time.time()
+        unlearn_time = seconds_to_english(time_end - time_start)
+        total_polluted_unlearned = 0
+        total_unlearned = 0
+        total_unpolluted_unlearned = 0
+        final_detection_rate = au.current_detection_rate
+
+        print "\nTallying up final counts...\n"
+        for cluster in cluster_list:
+            cluster = cluster[1]
+            total_unlearned += cluster.size
+            total_polluted_unlearned += cluster.target_set3()
+            total_unpolluted_unlearned += (cluster.size - cluster.target_set3())
+
+        outfile.write("\nSTATS\n")
+        outfile.write("---------------------------\n")
+        outfile.write("Initial Detection Rate: " + str(original_detection_rate) + "\n")
+        outfile.write("Final Detection Rate: " + str(final_detection_rate) + "\n")
+        outfile.write("Total Unlearned:\n")
+        outfile.write(str(total_unlearned) + "\n")
+        outfile.write("Polluted Percentage of Unlearned:\n")
+        outfile.write(str(float(total_polluted_unlearned) / float(total_unlearned)) + "\n")
+        outfile.write("Unpolluted Percentage of Unlearned:\n")
+        outfile.write(str(float(total_unpolluted_unlearned) / float(total_unlearned)) + "\n")
+        outfile.write("Percentage of Polluted Unlearned:\n")
+        outfile.write(str(float(total_polluted_unlearned) / float(total_polluted)) + "\n")
+        outfile.write("Percentage of Unpolluted Unlearned:\n")
+        outfile.write(str(float(total_unpolluted_unlearned) / float(total_unpolluted)) + "\n")
+        outfile.write("Time for training:\n")
+        outfile.write(train_time + "\n")
+        outfile.write("Time for unlearning:\n")
+        outfile.write(unlearn_time)
+
+
 def main():
     num_data_sets = len(hams)
     assert(len(hams) == len(spams))
@@ -82,8 +136,8 @@ def main():
                     outfile.write("0: " + str(original_detection_rate) + "\n")
 
                     time_start = time.time()
-                    cluster_list = au.greatest_impact_active_unlearn(outfile, test=True, pollution_set3=True, gold=True,
-                                                                     unlearn_method="lazy")
+                    cluster_list = au.impact_active_unlearn(outfile, test=True, pollution_set3=True, gold=True,
+                                                            unlearn_method="lazy")
                     time_end = time.time()
                     unlearn_time = seconds_to_english(time_end - time_start)
                     total_polluted_unlearned = 0
@@ -119,7 +173,6 @@ def main():
 
                 except KeyboardInterrupt:
                     outfile.flush()
-                    os.fsync(outfile)
                     sys.exit()
 
         except KeyboardInterrupt:

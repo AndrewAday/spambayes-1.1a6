@@ -2,7 +2,7 @@ __author__ = 'Alex'
 
 import os
 
-data_sets_dir = "C:\\Users\\Alex\\Downloads\\Data Sets"
+data_sets_dir = "C:/Users/bzpru/Downloads/Data Sets"
 set_dirs = ["DictionarySets-1.1", "DictionarySets-1.2", "DictionarySets-2.1", "DictionarySets-2.2",
             "DictionarySets-3.1", "Mislabeled-Big", "Mislabeled-Both-1.1", "Mislabeled-Both-1.2",
             "Mislabeled-Both-2.1", "Mislabeled-Both-2.2", "Mislabeled-Both-3.1", "Mislabeled-HtoS-1.1",
@@ -13,10 +13,10 @@ set_dirs = ["DictionarySets-1.1", "DictionarySets-1.2", "DictionarySets-2.1", "D
 
 def seterize(main_dir, sub_dir, is_spam, n):
     if is_spam:
-        parent_dir = main_dir + "\\" + sub_dir + "\\" + "Spam" + "\\" + "Set%d"
+        parent_dir = main_dir + "/" + sub_dir + "/" + "Spam" + "/" + "Set%d"
 
     else:
-        parent_dir = main_dir + "\\" + sub_dir + "\\" + "Ham" + "\\" + "Set%d"
+        parent_dir = main_dir + "/" + sub_dir + "/" + "Ham" + "/" + "Set%d"
 
     return [parent_dir % i for i in range(1, n + 1)]
 

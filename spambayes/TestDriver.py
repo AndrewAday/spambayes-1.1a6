@@ -223,7 +223,7 @@ class Driver:
                 print "    saving %s histogram pickle to %s" % (f, fname)
                 pickle_write(fname, h, 1)
 
-    def test(self, ham, spam, init_ground=False):
+    def test(self, ham, spam, init_ground=False, update=False, all_opt=False):
         c = self.classifier
         t = self.tester
         local_ham_hist = Hist()
@@ -236,7 +236,7 @@ class Driver:
             if lo <= prob <= hi:
                 print
                 print "Ham with prob =", prob
-                prob, clues = c.spamprob(msg, True)
+                prob, clues = c.spamprob(msg, True, update, all_opt)
                 printmsg(msg, prob, clues)
 
         def new_spam(msg, prob, lo=options["TestDriver", "show_spam_lo"],
@@ -246,7 +246,7 @@ class Driver:
             if lo <= prob <= hi:
                 print
                 print "Spam with prob =", prob
-                prob, clues = c.spamprob(msg, True)
+                prob, clues = c.spamprob(msg, True, update, all_opt)
                 printmsg(msg, prob, clues)
 
         t.reset_test_results()
@@ -324,7 +324,7 @@ class Driver:
         self.trained_ham_hist += local_ham_hist
         self.trained_spam_hist += local_spam_hist
 
-    def train_test(self, ham, spam):
+    def train_test(self, ham, spam, update=False, all_opt=False):
         c = self.classifier
         t = self.tester
         local_ham_hist = Hist()
@@ -332,11 +332,10 @@ class Driver:
 
         t.reset_test_results()
         print "-> Predicting", ham, "&", spam, "..."
-        t.train_predict(spam, 0)
-        t.train_predict(ham, 1)
+        t.train_predict(spam, 0, update, all_opt)
+        t.train_predict(ham, 1, update, all_opt)
 
-
-    def dict_test(self, ham, spam):
+    def pol_test(self, ham, spam, update=False, all_opt=False):
         c = self.classifier
         t = self.tester
         local_ham_hist = Hist()
@@ -344,5 +343,5 @@ class Driver:
 
         t.reset_test_results()
         print "-> Predicting", ham, "&", spam, "..."
-        t.train_predict(ham, 3)
-        t.train_predict(spam, 2)
+        t.train_predict(ham, 3, update, all_opt)
+        t.train_predict(spam, 2, update, all_opt)
