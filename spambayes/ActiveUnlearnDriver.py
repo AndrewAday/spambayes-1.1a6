@@ -3,6 +3,7 @@ from spambayes import TestDriver, quickselect
 from Distance import distance
 from itertools import chain
 import sys
+import gc
 import copy
 import os
 from math import sqrt
@@ -905,6 +906,7 @@ class ActiveUnlearner:
                 cluster_list = []
                 cluster_list = cluster_au(self, gold)
                 attempt_count += 1
+                gc.collect()
 
         return cluster_count, attempt_count
 

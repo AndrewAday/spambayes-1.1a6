@@ -236,7 +236,7 @@ class Driver:
             if lo <= prob <= hi:
                 print
                 print "Ham with prob =", prob
-                prob, clues = c.spamprob(msg, True, update, all_opt)
+                prob, clues = c.spamprob(msg, True, update=update, all_opt=all_opt)
                 printmsg(msg, prob, clues)
 
         def new_spam(msg, prob, lo=options["TestDriver", "show_spam_lo"],
@@ -246,7 +246,7 @@ class Driver:
             if lo <= prob <= hi:
                 print
                 print "Spam with prob =", prob
-                prob, clues = c.spamprob(msg, True, update, all_opt)
+                prob, clues = c.spamprob(msg, True, update=update, all_opt=all_opt)
                 printmsg(msg, prob, clues)
 
         t.reset_test_results()
@@ -332,8 +332,8 @@ class Driver:
 
         t.reset_test_results()
         print "-> Predicting", ham, "&", spam, "..."
-        t.train_predict(spam, 0, update, all_opt)
-        t.train_predict(ham, 1, update, all_opt)
+        t.train_predict(spam, 0, update=update, all_opt=all_opt)
+        t.train_predict(ham, 1, update=update, all_opt=all_opt)
 
     def pol_test(self, ham, spam, update=False, all_opt=False):
         c = self.classifier
@@ -343,5 +343,5 @@ class Driver:
 
         t.reset_test_results()
         print "-> Predicting", ham, "&", spam, "..."
-        t.train_predict(ham, 3, update, all_opt)
-        t.train_predict(spam, 2, update, all_opt)
+        t.train_predict(ham, 3, update=update, all_opt=all_opt)
+        t.train_predict(spam, 2, update=update, all_opt=all_opt)

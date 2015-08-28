@@ -33,7 +33,7 @@ def distance(msg1, msg2, opt=None, is_eu=True):
         j = 0
         counter = 0
 
-        while i < len(words_1) or j < len(words_2):
+        while i < len(words_1) and j < len(words_2):
             clue_1 = words_1[i]
             clue_2 = words_2[j]
             if clue_1[0] < clue_2[0]:
@@ -49,7 +49,7 @@ def distance(msg1, msg2, opt=None, is_eu=True):
 
         if opt == "inv-match":
             if counter == 0:
-                return sys.maxint
+                return 2
 
             else:
                 return float(1) / float(counter)

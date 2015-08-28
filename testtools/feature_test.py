@@ -35,12 +35,12 @@ def au_sig_words(au, words):
             r_features.append((word, prob))
     assert(len(features) > 0), c.wordinfo
     features.sort()
-    return features, dict(r_features)
+    return [features, dict(r_features)]
 
 
 def feature_combine(feature_dict_list, n=None):
     most_sigs = []
-    sig_words = []
+    all_sig_words = set()
     for pair in feature_dict_list:
         pair[0] = [(feature[0], feature_trunc(feature[1])) for feature in pair[0]]
 
@@ -52,9 +52,9 @@ def feature_combine(feature_dict_list, n=None):
             p_most_sig = pair[0]
             most_sigs.append(p_most_sig)
 
-        sig_words.append(set(feature[1] for feature in p_most_sig))
+        for feature in p_most_sig:
+            all_sig_words.add(feature[1])
 
-    all_sig_words = set().union(sig_words)
     features = []
 
     for word in all_sig_words:
@@ -86,7 +86,7 @@ def feature_trunc(feature):
 
 def feature_print(most_sig, i):
     try:
-        return str(most_sig[i][0] + ": " + str(most_sig[i][1]))
+        return str(most_sig[i][0]) + ": " + str(most_sig[i][1])
 
     except IndexError:
         return "N/A"
@@ -94,13 +94,13 @@ def feature_print(most_sig, i):
 
 def feature_lists(most_sigs, unlearned_num):
     length = max(len(most_sig) for most_sig in most_sigs)
-    header = [["", "Unpolluted", "Polluted"] + ["Unlearned %d" % d for d in range(unlearned_num)]]
-    data = [[str(i + 1)] + [feature_print(most_sig, i)] for i in range(length) for most_sig in most_sigs]
+    header = [["", "Unpolluted", "Polluted"] + ["Unlearned %d" % d for d in range(1, unlearned_num + 1)]]
+    data = [[str(i + 1)] + [feature_print(most_sig, i) for most_sig in most_sigs] for i in range(length)]
     return header + data
 
 
 def main():
-    sets = [0]
+    sets = [6]
 
     for i in sets:
         ham = hams[i]
@@ -140,7 +140,7 @@ def main():
                                                    msgs.SpamStream(spam_p, [spam_p])],     # Training Spam
                                                    msgs.HamStream(ham_test, [ham_test]),          # Testing Ham
                                                    msgs.SpamStream(spam_test, [spam_test]),       # Testing Spam
-                                                   )
+                                                   distance_opt="inv-match", all_opt=True)
         time_2 = time.time()
         train_time = seconds_to_english(time_2 - time_1)
         print "Train time:", train_time, "\n"
@@ -154,28 +154,29 @@ def main():
 
         p_c = p_au.driver.tester.classifier
         v_c = p_au.driver.tester.classifier
-        words = set().union(p_c.wordinfo.keys(), v_c.wordinfo.keys())
+        words = set().union(set(p_c.wordinfo.keys()), set(v_c.wordinfo.keys()))
         p_pair = au_sig_words(p_au, words)
         v_pair = au_sig_words(v_au, words)
 
-        with open("C:/Users/bzpru/Dropbox/unpollute_stats/Yang_Data_Sets (feature compare)/" + data_set +
-                  "(unlearn_stats).txt", 'w') as outfile:
-            stats(p_au, outfile, data_set, [train_ham, train_spam], [test_ham, test_spam], [ham_p, spam_p],
-                  total_polluted, total_unpolluted, train_time)
-        words = words.union(p_c.wordinfo.keys())
+        with open("C:/Users/bzpru/Dropbox/unpollute_stats/Yang_Data_Sets (inverse)/" + data_set +
+                  " (unlearn_stats).txt", 'w') as outfile:
+            stats(p_au, outfile, data_set, [train_ham, train_spam], [test_ham, test_spam],
+                  [ham_polluted, spam_polluted], total_polluted, total_unpolluted, train_time)
+
+        words = words.union(set(p_c.wordinfo.keys()))
         u_pair = au_sig_words(p_au, words)
 
         features, most_sigs = feature_combine([p_pair, v_pair, u_pair])
         feature_matrix = feature_lists(most_sigs, 1)
 
-        combined_matrix = [["", "Unpolluted", "Polluted"]] + [[str(feature[0]), str(feature[1]), str(feature[2])]
+        combined_matrix = [["", "Unpolluted", "Polluted", "Unlearned 1"]] + [[str(column) for column in feature]
                                                               for feature in features]
 
         feature_col_width = max(len(row[1]) for row in feature_matrix) + 2
         combined_col_width = max(len(item) for row in combined_matrix for item in row) + 2
         feature_num_col_width = max(len(row[0]) for row in feature_matrix) + 2
 
-        with open("C:/Users/bzpru/Dropbox/unpollute_stats/Yang_Data_Sets (feature compare)/" + data_set +
+        with open("C:/Users/bzpru/Dropbox/unpollute_stats/Yang_Data_Sets (inverse)/" + data_set +
                   " (Separate Features).txt", 'w') as outfile:
             outfile.write("---------------------------\n")
             outfile.write("Data Set: " + data_set + "\n")
@@ -188,10 +189,12 @@ def main():
             outfile.write("Unpolluted and Polluted Most Significant Features:\n")
             outfile.write("---------------------------\n")
             for row in feature_matrix:
-                outfile.write("".join([row[0].ljust(feature_num_col_width), row[1].strip().ljust(feature_col_width),
-                                       row[2].strip().ljust(feature_col_width)]) + "\n")
+                justify = [row[0].ljust(feature_num_col_width)]
+                for j in range(1, len(row)):
+                    justify.append(row[j].strip().ljust(feature_col_width))
+                outfile.write("".join(justify) + "\n")
 
-        with open("C:/Users/bzpru/Dropbox/unpollute_stats/Yang_Data_Sets (feature compare)/" + data_set +
+        with open("C:/Users/bzpru/Dropbox/unpollute_stats/Yang_Data_Sets (inverse)/" + data_set +
                   " (Combined Features).txt", 'w') as outfile:
             outfile.write("---------------------------\n")
             outfile.write("Data Set: " + data_set + "\n")

@@ -98,7 +98,7 @@ class Test:
             if example.prob is not None:
                 old_prob = example.prob
 
-            prob = guess(example, update, all_opt)
+            prob = guess(example, update=update, all_opt=all_opt)
             example.probdiff = prob - old_prob
 
             if callback:
@@ -144,7 +144,7 @@ class Test:
             if example.prob is not None:
                 old_prob = example.prob
 
-            prob = guess(example, update, all_opt)
+            prob = guess(example, update=update, all_opt=all_opt)
             example.probdiff = prob - old_prob
 
             if callback:
