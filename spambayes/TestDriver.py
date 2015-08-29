@@ -223,7 +223,7 @@ class Driver:
                 print "    saving %s histogram pickle to %s" % (f, fname)
                 pickle_write(fname, h, 1)
 
-    def test(self, ham, spam, init_ground=False, update=False, all_opt=False):
+    def test(self, ham, spam, init_ground=False, update=True, all_opt=False):
         c = self.classifier
         t = self.tester
         local_ham_hist = Hist()
@@ -256,8 +256,8 @@ class Driver:
         except TypeError:
             print "-> Predicting", ham, "&", spam, "..."
 
-        t.predict(spam, True, init_ground, new_spam)
-        t.predict(ham, False, init_ground, new_ham)
+        t.predict(spam, True, init_ground, new_spam, update=update)
+        t.predict(ham, False, init_ground, new_ham, update=update)
         print "-> <stat> tested", t.nham_tested, "hams &", t.nspam_tested, \
               "spams against", c.nham, "hams &", c.nspam, "spams"
 

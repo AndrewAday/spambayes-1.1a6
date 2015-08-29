@@ -13,6 +13,9 @@ from spambayes.Options import options
 from spambayes import msgs
 from testtools import data_sets as ds
 from testtools import data_sets_impact_test as d_test
+from testtools import update_test as dut
+ProxyCluster = dut.ProxyCluster
+
 
 options["TestDriver", "show_histograms"] = False
 
@@ -100,7 +103,8 @@ def feature_lists(most_sigs, unlearned_num):
 
 
 def main():
-    sets = [6]
+    sets = [0]
+    dest = "C:/Users/bzpru/Desktop/spambayes-1.1a6/unpollute_stats/Yang_Data_Sets (hybrid update)/"
 
     for i in sets:
         ham = hams[i]
@@ -158,15 +162,14 @@ def main():
         p_pair = au_sig_words(p_au, words)
         v_pair = au_sig_words(v_au, words)
 
-        with open("C:/Users/bzpru/Dropbox/unpollute_stats/Yang_Data_Sets (inverse)/" + data_set +
-                  " (unlearn_stats).txt", 'w') as outfile:
-            stats(p_au, outfile, data_set, [train_ham, train_spam], [test_ham, test_spam],
-                  [ham_polluted, spam_polluted], total_polluted, total_unpolluted, train_time)
+        with open(dest + data_set + " (unlearn_stats).txt", 'w') as outfile:
+            stats(p_au, outfile, data_set, [ham_train, spam_train], [ham_test, spam_test], [ham_p, spam_p],
+                  total_polluted, total_unpolluted, train_time)
 
         words = words.union(set(p_c.wordinfo.keys()))
         u_pair = au_sig_words(p_au, words)
 
-        features, most_sigs = feature_combine([p_pair, v_pair, u_pair])
+        features, most_sigs = feature_combine([v_pair, p_pair, u_pair])
         feature_matrix = feature_lists(most_sigs, 1)
 
         combined_matrix = [["", "Unpolluted", "Polluted", "Unlearned 1"]] + [[str(column) for column in feature]
@@ -176,8 +179,7 @@ def main():
         combined_col_width = max(len(item) for row in combined_matrix for item in row) + 2
         feature_num_col_width = max(len(row[0]) for row in feature_matrix) + 2
 
-        with open("C:/Users/bzpru/Dropbox/unpollute_stats/Yang_Data_Sets (inverse)/" + data_set +
-                  " (Separate Features).txt", 'w') as outfile:
+        with open(dest + data_set + " (Separate Features).txt", 'w') as outfile:
             outfile.write("---------------------------\n")
             outfile.write("Data Set: " + data_set + "\n")
             outfile.write("Vanilla Training: " + str(train_ham) + " ham and " + str(train_spam) + " spam.\n")
@@ -194,8 +196,7 @@ def main():
                     justify.append(row[j].strip().ljust(feature_col_width))
                 outfile.write("".join(justify) + "\n")
 
-        with open("C:/Users/bzpru/Dropbox/unpollute_stats/Yang_Data_Sets (inverse)/" + data_set +
-                  " (Combined Features).txt", 'w') as outfile:
+        with open(dest + data_set + " (Combined Features).txt", 'w') as outfile:
             outfile.write("---------------------------\n")
             outfile.write("Data Set: " + data_set + "\n")
             outfile.write("Vanilla Training: " + str(train_ham) + " ham and " + str(train_spam) + " spam.\n")

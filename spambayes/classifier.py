@@ -471,12 +471,15 @@ class Classifier:
             clues.reverse()
 
         else:
+
             if len(wordstream.clues) != 0 and not update:
-                clues = map(self._tupledistanceget, wordstream.clues) 
+                clues = map(self._tupledistanceget, wordstream.clues)
+                clues.sort()
                 wordstream.clues = clues
                 return clues
 
             else:
+
                 # The all-unigram scheme just scores the tokens as-is.  A set()
                 # is used to weed out duplicates at high speed.
                 clues = []

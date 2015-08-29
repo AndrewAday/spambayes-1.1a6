@@ -335,7 +335,7 @@ class ActiveUnlearner:
         for hamstream, spamstream in self.hamspams:
             self.driver.train(hamstream, spamstream)
 
-    def init_ground(self, first_test=False):
+    def init_ground(self, first_test=False, update=False):
         """Runs on the testing data to check the detection rate. If it's not the first test, it tests based on cached
         test msgs."""
         if first_test:
@@ -343,7 +343,7 @@ class ActiveUnlearner:
 
         else:
             self.driver.test(self.driver.tester.truth_examples[1], self.driver.tester.truth_examples[0], first_test,
-                             all_opt=self.all)
+                             update=update, all_opt=self.all)
 
     def set_training_nums(self):
         """Tests on initial vanilla training msgs to determine prob scores."""
@@ -879,14 +879,18 @@ class ActiveUnlearner:
         while detection_rate <= self.threshold and cluster_list[len(cluster_list) - 1][0] > 0:
             list_length = len(cluster_list)
             counter = 1
-            for i in range(len(cluster_list)):
+            j = 0
+            while cluster_list[j][0] <= 0:
+                j += 1
+
+            for i in range(j, len(cluster_list)):
                 cluster = cluster_list[i]
                 print "\n-----------------------------------------------------\n"
                 print "\nChecking cluster " + str(counter) + " of " + str(list_length) + "...\n"
                 counter += 1
                 old_detection_rate = detection_rate
                 self.unlearn(cluster[1])
-                self.init_ground()
+                self.init_ground(update=True)
                 detection_rate = self.driver.tester.correct_classification_rate()
                 if detection_rate > old_detection_rate:
                     cluster_count += 1
