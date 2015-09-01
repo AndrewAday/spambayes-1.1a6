@@ -41,20 +41,34 @@ def au_sig_words(au, words):
     return [features, dict(r_features)]
 
 
-def feature_combine(feature_dict_list, n=None):
-    most_sigs = []
-    all_sig_words = set()
+def extract_features(feature_dict_list, n=None, sep_sigs_only=False):
+    if sep_sigs_only:
+        return most_sigs(feature_dict_list, n)
+
+    else:
+        sigs = most_sigs(feature_dict_list, n)
+        return feature_combine(sigs, feature_dict_list), sigs
+
+
+def most_sigs(feature_dict_list, n=None):
+    sigs = []
     for pair in feature_dict_list:
         pair[0] = [(feature[0], feature_trunc(feature[1])) for feature in pair[0]]
 
         if n is not None:
             p_most_sig = pair[0][:n] + pair[0][-n:]
-            assert(len(p_most_sig) == 2 * n), len(p_most_sig)
-            most_sigs.append(p_most_sig)
+
         else:
             p_most_sig = pair[0]
-            most_sigs.append(p_most_sig)
 
+        sigs.append(p_most_sig)
+
+    return sigs
+
+
+def feature_combine(sigs, feature_dict_list):
+    all_sig_words = set()
+    for p_most_sig in sigs:
         for feature in p_most_sig:
             all_sig_words.add(feature[1])
 
@@ -76,7 +90,7 @@ def feature_combine(feature_dict_list, n=None):
 
     data = np.array(features)
     features = data[np.argsort(data[:, 1])]
-    return features, most_sigs
+    return features
 
 
 def feature_trunc(feature):
@@ -95,16 +109,17 @@ def feature_print(most_sig, i):
         return "N/A"
 
 
-def feature_lists(most_sigs, unlearned_num):
-    length = max(len(most_sig) for most_sig in most_sigs)
-    header = [["", "Unpolluted", "Polluted"] + ["Unlearned %d" % d for d in range(1, unlearned_num + 1)]]
-    data = [[str(i + 1)] + [feature_print(most_sig, i) for most_sig in most_sigs] for i in range(length)]
+def feature_lists(sigs, column_num, label="Unlearned"):
+    header_label = label + " %d"
+    length = max(len(most_sig) for most_sig in sigs)
+    header = [["", "Unpolluted", "Polluted"] + [header_label % d for d in range(1, column_num + 1)]]
+    data = [[str(i + 1)] + [feature_print(most_sig, i) for most_sig in sigs] for i in range(length)]
     return header + data
 
 
 def main():
-    sets = [0]
-    dest = "C:/Users/bzpru/Desktop/spambayes-1.1a6/unpollute_stats/Yang_Data_Sets (hybrid update)/"
+    sets = [1, 2, 3, 4]
+    dest = "C:/Users/bzpru/Desktop/spambayes-1.1a6/unpollute_stats/Yang_Data_Sets (inverse)/Hybrid Update - Nongreedy/"
 
     for i in sets:
         ham = hams[i]
@@ -144,7 +159,8 @@ def main():
                                                    msgs.SpamStream(spam_p, [spam_p])],     # Training Spam
                                                    msgs.HamStream(ham_test, [ham_test]),          # Testing Ham
                                                    msgs.SpamStream(spam_test, [spam_test]),       # Testing Spam
-                                                   distance_opt="inv-match", all_opt=True)
+                                                   distance_opt="inv-match", all_opt=True,
+                                                   update_opt="hybrid", greedy_opt=False)
         time_2 = time.time()
         train_time = seconds_to_english(time_2 - time_1)
         print "Train time:", train_time, "\n"
@@ -163,17 +179,17 @@ def main():
         v_pair = au_sig_words(v_au, words)
 
         with open(dest + data_set + " (unlearn_stats).txt", 'w') as outfile:
-            stats(p_au, outfile, data_set, [ham_train, spam_train], [ham_test, spam_test], [ham_p, spam_p],
-                  total_polluted, total_unpolluted, train_time)
+            stats(p_au, outfile, data_set, [train_ham, train_spam], [test_ham, test_spam],
+                  [ham_polluted, spam_polluted], total_polluted, total_unpolluted, train_time)
 
         words = words.union(set(p_c.wordinfo.keys()))
         u_pair = au_sig_words(p_au, words)
 
-        features, most_sigs = feature_combine([v_pair, p_pair, u_pair])
-        feature_matrix = feature_lists(most_sigs, 1)
+        features, sigs = extract_features([v_pair, p_pair, u_pair])
+        feature_matrix = feature_lists(sigs, 1)
 
         combined_matrix = [["", "Unpolluted", "Polluted", "Unlearned 1"]] + [[str(column) for column in feature]
-                                                              for feature in features]
+                                                                             for feature in features]
 
         feature_col_width = max(len(row[1]) for row in feature_matrix) + 2
         combined_col_width = max(len(item) for row in combined_matrix for item in row) + 2
