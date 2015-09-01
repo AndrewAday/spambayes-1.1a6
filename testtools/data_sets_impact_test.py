@@ -22,7 +22,7 @@ set_dirs = ds.set_dirs
 
 
 def unlearn_stats(au, outfile, data_set, train, test, polluted, total_polluted, total_unpolluted,
-                  train_time):
+                  train_time, clusters=False):
         outfile.write("---------------------------\n")
         outfile.write("Data Set: " + data_set + "\n")
         outfile.write("Vanilla Training: " + str(train[0]) + " ham and " + str(train[1]) + " spam.\n")
@@ -39,8 +39,7 @@ def unlearn_stats(au, outfile, data_set, train, test, polluted, total_polluted, 
         outfile.write("0: " + str(original_detection_rate) + "\n")
 
         time_start = time.time()
-        cluster_list = au.impact_active_unlearn(outfile, test=True, pollution_set3=True, gold=True,
-                                                unlearn_method="lazy")
+        cluster_list = au.impact_active_unlearn(outfile, test=True, pollution_set3=True, gold=True)
         time_end = time.time()
         unlearn_time = seconds_to_english(time_end - time_start)
         total_polluted_unlearned = 0
@@ -73,6 +72,9 @@ def unlearn_stats(au, outfile, data_set, train, test, polluted, total_polluted, 
         outfile.write(train_time + "\n")
         outfile.write("Time for unlearning:\n")
         outfile.write(unlearn_time)
+
+        if clusters:
+            return cluster_list
 
 
 def main():
