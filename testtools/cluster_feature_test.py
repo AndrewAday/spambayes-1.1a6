@@ -125,7 +125,7 @@ def main():
 
         with open(dest + data_set + " (unlearn_stats).txt", 'w') as outfile:
             cluster_list = stats(p_au, outfile, data_set, [train_ham, train_spam], [test_ham, test_spam],
-                                 [ham_polluted, spam_polluted], total_polluted, total_unpolluted, train_time)
+                                 [ham_polluted, spam_polluted], total_polluted, total_unpolluted, train_time, True)
 
         snipped_cluster_list = [cluster[1] for cluster in cluster_list if cluster[0] < 0]
         feature_matrix = cluster_feature_matrix(v_au, p_au, snipped_cluster_list)

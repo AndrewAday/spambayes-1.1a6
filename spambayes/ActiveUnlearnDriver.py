@@ -21,7 +21,7 @@ def chosen_sum(chosen, x, opt=None):
     return s
 
 
-def cluster_au(au, gold=False, test=False, pos_cluster_opt=0):
+def cluster_au(au, gold=False, pos_cluster_opt=0):
     """Clusters the training space of an ActiveUnlearner and returns the list of clusters."""
     print "\n-----------------------------------------------------\n"
     cluster_list = []
@@ -67,7 +67,7 @@ def cluster_methods(au, method, working_set, mislabeled):
         return working_set[len(working_set) - 1]
 
     if method == "mislabeled":
-        return au.select_initial(au.distance_opt, mislabeled, option="mislabeled", working_set=working_set)
+        return au.select_initial(mislabeled, "mislabeled", working_set)
 
     else:
         raise AssertionError("Please specify clustering method.")
@@ -596,7 +596,7 @@ class ActiveUnlearner:
                 assert(middle_1 < middle_2)
 
             except AssertionError:
-                self.switch_middles(middle_1, middle_2, cluster)
+                middle_1, middle_2, pointer = self.switch_middles(middle_1, middle_2, cluster)
 
             print "Middles are " + str(middle_1) + " and " + str(middle_2) + ".\n"
 
@@ -604,14 +604,14 @@ class ActiveUnlearner:
                 rate_1 = f[middle_1]
 
             except KeyError:
-                rate_1 = self.evaluate_left_middle(pointer, middle_1, cluster, f)
+                rate_1, middle_1, pointer = self.evaluate_left_middle(pointer, middle_1, cluster, f)
                 iterations += 1
 
             try:
                 rate_2 = f[middle_2]
 
             except KeyError:
-                rate_2 = self.evaluate_right_middle(pointer, middle_1, cluster, f)
+                rate_2, middle_2, pointer = self.evaluate_right_middle(pointer, middle_2, cluster, f)
                 iterations += 1
 
             if rate_1 > rate_2:
@@ -661,6 +661,8 @@ class ActiveUnlearner:
             new_unlearns = cluster.cluster_more(pointer - cluster.size)
             self.divide_new_elements(new_unlearns, True)
 
+        return middle_1, middle_2, pointer
+
     def evaluate_left_middle(self, pointer, middle_1, cluster, f):
         """Evaluates the detection rate at the left middle during golden section search."""
         if pointer > middle_1:
@@ -686,7 +688,7 @@ class ActiveUnlearner:
             else:
                 f[middle_1] = rate_1
 
-        return rate_1
+        return rate_1, middle_1, pointer
 
     def evaluate_right_middle(self, pointer, middle_2, cluster, f):
         """Evaluates the detection rate at the right middle during the golden section search."""
@@ -706,7 +708,7 @@ class ActiveUnlearner:
         else:
             raise AssertionError("Pointer is at the same location as middle_2.")
 
-        return rate_2
+        return rate_2, middle_2, pointer
 
     # -----------------------------------------------------------------------------------
 
