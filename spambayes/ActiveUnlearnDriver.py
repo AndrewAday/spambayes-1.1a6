@@ -36,14 +36,14 @@ def cluster_au(au, gold=False, pos_cluster_opt=0):
         print "\n" + str(len(training)) + " emails out of " + str(original_training_size) + \
               " still unclustered.\n"
 
-        current = cluster_methods(au, "mislabeled", training, mislabeled)
+        current_seed = cluster_methods(au, "mislabeled", training, mislabeled)
         pre_cluster_rate = au.current_detection_rate
 
-        cluster_result = determine_cluster(current, au, working_set=training, gold=gold, impact=True,
+        cluster_result = determine_cluster(current_seed, au, working_set=training, gold=gold, impact=True,
                                            pos_cluster_opt=pos_cluster_opt)
         while cluster_result is None:
-            current = cluster_methods(au, "mislabeled", training, mislabeled)
-            cluster_result = determine_cluster(current, au, working_set=training, gold=gold, impact=True,
+            current_seed = cluster_methods(au, "mislabeled", training, mislabeled)
+            cluster_result = determine_cluster(current_seed, au, working_set=training, gold=gold, impact=True,
                                                pos_cluster_opt=pos_cluster_opt)
         net_rate_change, cluster = cluster_result
 
@@ -153,6 +153,7 @@ def cluster_print_stats(outfile, pollution_set3, detection_rate, cluster, cluste
 
 
 def neg_cluster_decrementer(au, first_state_rate, cluster):
+    """Shrinks negative rate cluster until a positive rate impact is achieved."""
     new_relearns = cluster.cluster_less(dec)
     au.divide_new_elements(new_relearns, False)
     au.init_ground()
@@ -333,6 +334,10 @@ class Cluster:
 
 
 class ActiveUnlearner:
+    """
+    Core component of the unlearning algorithm. Container class for most relevant methods, driver/classifier,
+    and data.
+    """
     def __init__(self, training_ham, training_spam, testing_ham, testing_spam, threshold=95, increment=100,
                  distance_opt="extreme", all_opt=False, update_opt="hybrid", greedy_opt=False):
         self.distance_opt = distance_opt
@@ -373,6 +378,10 @@ class ActiveUnlearner:
         else:
             if self.update == "pure":
                 update = True
+
+            elif self.update != "hybrid":
+                raise AssertionError("You should really pick an updating method. It gets better results.")
+
             self.driver.test(self.driver.tester.truth_examples[1], self.driver.tester.truth_examples[0], first_test,
                              update=update, all_opt=self.all)
 
@@ -865,9 +874,7 @@ class ActiveUnlearner:
                 break
 
             else:
-                # Below actually deletes the contents of the list, and removes all of the clusters from the namespace
-                # del cluster_list simply removes the label from the namespace
-                del cluster_list[:]
+                del cluster_list
                 cluster_list = cluster_au(self, gold, pos_cluster_opt=pos_cluster_opt)
                 attempt_count += 1
                 gc.collect()

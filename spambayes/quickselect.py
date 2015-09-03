@@ -1,6 +1,6 @@
 __author__ = 'Alex'
 
-# Directly copied from rosettacode.org -- too lazy to write up own implementation of Quickselect.
+# Bulk of code taken from http://rosettacode.org/wiki/Sorting_algorithms/Quicksort -- no need to reinvent the wheel.
 
 import random
 

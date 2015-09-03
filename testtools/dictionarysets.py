@@ -3,18 +3,19 @@ from os import listdir, remove
 from random import choice, sample
 from spambayes.Options import get_pathname_option
 
+default_dest = get_pathname_option("TestDriver", "spam_directories") % 3
 
-def write_dictionary_sets(number_clusters=26, x=0.5, y=200):
 
-    destination = get_pathname_option("TestDriver", "spam_directories") % 3 + "/"
+def write_dictionary_sets(number_clusters=26, x=0.5, y=200, destination=default_dest):
+    destination += "/"
 
     letterset = {}  # A dictionary of words: Key = Letter, Value = Words beginning with that letter
 
     for letter in ascii_lowercase:
         letterset[letter] = []
 
-    with open("dictionary.txt", 'r') as dict:
-        for line in dict:
+    with open("dictionary.txt", 'r') as dictionary:
+        for line in dictionary:
             letter = line[0]
             letterset[letter].append(line.strip())
 
@@ -40,14 +41,15 @@ def write_dictionary_sets(number_clusters=26, x=0.5, y=200):
                 for word in output:
                     outfile.write(word + "\n")
 
-def reset():
 
+def reset(destination=default_dest):
     print "Removing all dictionary sets..."
-    dir = get_pathname_option("TestDriver", "spam_directories") % 3 + "/"
+    dir = destination + "/"
 
     for dictionary in listdir(dir):
         print "Removing " + dir + dictionary
         remove(dir + dictionary)
+
 
 def main():
     write_dictionary_sets(26, x=0.5, y=1000)

@@ -126,7 +126,7 @@ def main():
         spam = spams[i]
         data_set = set_dirs[i]
 
-        if i > 5:
+        if i > 10:
             ham_test = ham[1]
             spam_test = spam[1]
 

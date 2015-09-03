@@ -4,7 +4,7 @@ import sys
 
 l_distance = Levenshtein.distance
 
-match = {"inv-match", "sub-match"}
+match = {"inv-match", "sub-match", "sub-match-norm"}
 
 def e_s(x, is_eu):
     if is_eu:
@@ -56,6 +56,18 @@ def distance(msg1, msg2, opt=None, is_eu=True):
 
         elif opt == "sub-match":
             return max(len(msg1.clues), len(msg2.clues)) - counter
+
+        elif opt == "sub-match-norm":
+            denominator = max(len(msg1.clues), len(msg2.clues))
+            try:
+                return float(denominator - counter) / denominator
+
+            except ZeroDivisionError:
+                if len(msg1.clues) == 0 & len(msg2.clues) == 0:
+                    return 0
+
+                else:
+                    raise AssertionError
 
     if opt is None:
         s = 0

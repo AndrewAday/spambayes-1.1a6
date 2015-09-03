@@ -46,12 +46,12 @@ def cluster_sig_words(au, cluster):
     return [features, dict(r_features)]
 
 
-def cluster_feature_matrix(v_au, p_au, cluster_list):
+def cluster_feature_matrix(v_au, p_au, cluster_list, n=None):
     machines = [v_au, p_au]
-    words = set().union(machine.driver.tester.classifier.wordinfo.keys() for machine in machines)
+    words = set().union(set(machine.driver.tester.classifier.wordinfo.keys()) for machine in machines)
     au_features = [au_sig_words(machine, words) for machine in machines]
     cluster_features = [cluster_sig_words(v_au, cluster) for cluster in cluster_list]
-    sigs = extract_features(au_features + cluster_features, sep_sigs_only=True)
+    sigs = extract_features(au_features + cluster_features, n=n, sep_sigs_only=True)
     feature_matrix = feature_lists(sigs, len(cluster_list), label="Cluster")
     return feature_matrix
 
@@ -68,7 +68,7 @@ def label_inject(feature_matrix, cluster_list, pollution_set3=True):
 
 
 def main():
-    sets = [6]
+    sets = [5]
     dest = "C:/Users/bzpru/Desktop/spambayes-1.1a6/unpollute_stats/Yang_Data_Sets (cluster features)/"
 
     for i in sets:
@@ -128,7 +128,7 @@ def main():
                                  [ham_polluted, spam_polluted], total_polluted, total_unpolluted, train_time, True)
 
         snipped_cluster_list = [cluster[1] for cluster in cluster_list if cluster[0] < 0]
-        feature_matrix = cluster_feature_matrix(v_au, p_au, snipped_cluster_list)
+        feature_matrix = cluster_feature_matrix(v_au, p_au, snipped_cluster_list, n=100)
         label_inject(feature_matrix, snipped_cluster_list)
 
         feature_col_width = max(len(row[1]) for row in feature_matrix) + 2
