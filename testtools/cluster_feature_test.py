@@ -128,8 +128,15 @@ def print_cluster_pollution(outfile, cluster_list):
     header = [""] + ["Cluster %d" for d in range(len(cluster_list))]
     cluster_targets = [cluster_pollution(cluster[1]) for cluster in cluster_list]
     length = max(len(targets) for targets in cluster_targets)
-    [[str(inc * i)] + [cluster_target_print(cluster_target, i) for cluster_target in cluster_targets]
-     for i in range(length)]
+    feature_matrix = header + [[str(inc * i)] + [cluster_target_print(cluster_target, i) for cluster_target in cluster_targets]
+                      for i in range(length)]
+    feature_col_width = max(len(item) for row in feature_matrix for item in row) + 2
+    feature_num_col_width = max(len(row[0]) for row in feature_matrix) + 2
+    for row in feature_matrix:
+        justify = [row[0].ljust(feature_num_col_width)]
+        for j in range(1, len(row)):
+            justify.append(row[j].strip().ljust(feature_col_width))
+        outfile.write("".join(justify) + "\n")
 
 
 def cluster_target_print(cluster_target, i):
@@ -151,7 +158,7 @@ def cluster_pollution(cluster):
             end = sizes[len(sizes) - 1]
             targets.append(targets[len(targets) - 1] + cluster_interval_pollution(cluster, start, end))
 
-    for i in range(len(targets)):
+    for i in range(1, len(targets)):
         targets[i] = float(targets[i]) / float(sizes[i])
 
     return targets
