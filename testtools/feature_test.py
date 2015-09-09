@@ -1,21 +1,22 @@
-__author__ = 'Alex'
-
 import os
 import sys
-import numpy as np
 import time
+
+import numpy as np
 
 sys.path.insert(-1, os.getcwd())
 sys.path.insert(-1, os.path.dirname(os.getcwd()))
 
-from spambayes import ActiveUnlearnDriver
-from spambayes.Options import options
-from spambayes import msgs
-from testtools import data_sets as ds
-from testtools import data_sets_impact_test as d_test
-from testtools import update_test as dut
-ProxyCluster = dut.ProxyCluster
+import spambayes.ActiveUnlearnDriver as ActiveUnlearnDriver
+import spambayes.Options
+import spambayes.msgs as msgs
+import testtools.data_sets as ds
+import testtools.data_sets_impact_test as d_test
+import testtools.update_test as dut
 
+
+ProxyCluster = dut.ProxyCluster
+options = spambayes.Options.options
 
 options["TestDriver", "show_histograms"] = False
 
@@ -106,13 +107,14 @@ def feature_print(most_sig, i):
         return str(most_sig[i][0]) + ": " + str(most_sig[i][1])
 
     except IndexError:
-        return "N/A"
+        return ""
 
 
-def feature_lists(sigs, column_num, label="Unlearned"):
-    header_label = label + " %d"
+def feature_lists(sigs, column_num, labels=("Unlearned")):
+    header_labels = tuple(label + " %d" for label in labels)
     length = max(len(most_sig) for most_sig in sigs)
-    header = [["", "Unpolluted", "Polluted"] + [header_label % d for d in range(1, column_num + 1)]]
+    header = [["", "Unpolluted", "Polluted"] + [header_label % d for d in range(1, column_num + 1) 
+                                                for header_label in header_labels]]
     data = [[str(i + 1)] + [feature_print(most_sig, i) for most_sig in sigs] for i in range(length)]
     return header + data
 

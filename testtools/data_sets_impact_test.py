@@ -122,7 +122,7 @@ def noisy_data_check(pure_clusters, v_au):
 
 
 def main():
-    sets = [0]
+    sets = [11, 12, 13, 14, 15]
 
     for i in sets:
         ham = hams[i]
@@ -163,7 +163,7 @@ def main():
                                                       msgs.SpamStream(spam_p, [spam_p])],     # Training Spam
                                                      msgs.HamStream(ham_test, [ham_test]),          # Testing Ham
                                                      msgs.SpamStream(spam_test, [spam_test]),       # Testing Spam
-                                                     distance_opt="sub-match-norm", all_opt=True,
+                                                     distance_opt="inverse", all_opt=True,
                                                      update_opt="hybrid", greedy_opt=False)
 
             v_au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham_train, [ham_train]), []],
@@ -177,7 +177,8 @@ def main():
             train_time = seconds_to_english(time_2 - time_1)
             print "Train time:", train_time, "\n"
 
-            dest = "C:/Users/bzpru/Desktop/spambayes-1.1a6/unpollute_stats/Yang_Data_Sets (subtract-norm)/"
+            dest = "C:/Users/bzpru/Desktop/spambayes-1.1a6/unpollute_stats/Yang_Data_Sets (inverse)/" \
+                   "Hybrid Update - Nongreedy/Noisy/"
 
             with open(dest + data_set + " (unlearn_stats).txt", 'w') as outfile:
                 try:
@@ -191,6 +192,7 @@ def main():
 
             # In the hopes of keeping RAM down between iterations
             del au
+            del v_au
 
         except KeyboardInterrupt:
             sys.exit()

@@ -1,0 +1,10 @@
+---------------------------
+Data Set: Mislabeled-Big
+Vanilla Training: 8133 ham and 8584 spam.
+Testing: 6000 ham and 6000 spam.
+Pollution Training: 2400 ham and 2400 spam.
+---------------------------
+
+
+Cluster Pollution Rates:
+---------------------------

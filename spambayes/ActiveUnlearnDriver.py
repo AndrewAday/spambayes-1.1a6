@@ -529,8 +529,8 @@ class ActiveUnlearner:
 
         if test_waters:
             """First tries several incremental increases before trying golden section search."""
-            while (new_detection_rate > old_detection_rate and cluster.size < self.increment * 3) and len(new_unlearns) \
-                    > 0:
+            while (new_detection_rate > old_detection_rate and cluster.size < self.increment * 3) \
+                    and len(new_unlearns) > 0:
                 counter += 1
                 old_detection_rate = new_detection_rate
                 print "\nExploring cluster of size", cluster.size + self.increment, "...\n"
@@ -738,8 +738,8 @@ class ActiveUnlearner:
 
             while len(training) > 0:
                 print "\n-----------------------------------------------------\n"
-                print "\nStarting new round of untraining;", len(training), "out of", original_training_size, "training left" \
-                                                                                                              ".\n"
+                print "\nStarting new round of untraining;", len(training), "out of", original_training_size, \
+                    "training left.\n"
 
                 current = training[len(training) - 1]
                 cluster = determine_cluster(current, self, working_set=training, gold=gold,

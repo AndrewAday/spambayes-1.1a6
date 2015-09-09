@@ -3,6 +3,7 @@ __author__ = 'Alex'
 import os
 import sys
 import time
+import itertools
 
 sys.path.insert(-1, os.getcwd())
 sys.path.insert(-1, os.path.dirname(os.getcwd()))
@@ -14,7 +15,7 @@ from testtools import data_sets as ds
 from testtools import data_sets_impact_test as d_test
 from testtools import feature_test as f_t
 
-
+inc = 50
 options["TestDriver", "show_histograms"] = False
 
 hams, spams = ds.hams, ds.spams
@@ -34,25 +35,35 @@ def cluster_sig_words(au, cluster):
     r_features = []
     words = set(word for msg in cluster.cluster_set for word in msg)
 
-    assert(len(words) > 0)
     for word in words:
         record = c.wordinfo.get(word)
         if record is not None:
             prob = c.probability(record)
             features.append((prob, word))
             r_features.append((word, prob))
-    assert(len(features) > 0), c.wordinfo
     features.sort()
     return [features, dict(r_features)]
 
 
-def cluster_feature_matrix(v_au, p_au, cluster_list, n=None):
+def cluster_feature_matrix(v_au, p_au, cluster_list, n=None, sep=False):
     machines = [v_au, p_au]
-    words = set().union(set(machine.driver.tester.classifier.wordinfo.keys()) for machine in machines)
+    if sep:
+        cluster_list = [item for item in itertools.chain.from_iterable([cluster_separate(cluster)
+                                                                        for cluster in cluster_list])]
+
+    keys = [machine.driver.tester.classifier.wordinfo.keys() for machine in machines]
+    words = set(itertools.chain.from_iterable(keys))
     au_features = [au_sig_words(machine, words) for machine in machines]
     cluster_features = [cluster_sig_words(v_au, cluster) for cluster in cluster_list]
     sigs = extract_features(au_features + cluster_features, n=n, sep_sigs_only=True)
-    feature_matrix = feature_lists(sigs, len(cluster_list), label="Cluster")
+    if sep:
+        feature_matrix = feature_lists(sigs, len(cluster_list) / 2,
+                                       labels=("Cluster (Unpolluted)", "Cluster (Polluted)"))
+    else:
+        feature_matrix = feature_lists(sigs, len(cluster_list), labels="Cluster")
+
+    label_inject(feature_matrix, cluster_list)
+
     return feature_matrix
 
 
@@ -61,14 +72,124 @@ def cluster_print(cluster, pollution_set3):
     return "(" + str(cluster.size) + ", " + target + ")"
 
 
+def cluster_pollution_rate(cluster, pollution_set3):
+    target = str(float(cluster.target_set3()) / float(cluster.size) if pollution_set3
+                 else float(cluster.target_set4()) / float(cluster.size))
+    return "(" + str(cluster.size) + ", " + target + ")"
+
+
 def label_inject(feature_matrix, cluster_list, pollution_set3=True):
     header = feature_matrix[0]
     for i in range(3, len(header)):
-        header[i] += " " + cluster_print(cluster_list[i - 3], pollution_set3)
+        try:
+            header[i] += " " + cluster_print(cluster_list[i - 3], pollution_set3)
+
+        except IndexError:
+            print str(i) + " " + str(len(cluster_list)) + " " + str(len(header))
+            raise AssertionError
+
+
+def cluster_separate(cluster):
+    unpolluted = []
+    polluted = []
+    for msg in cluster.cluster_set:
+        if msg.train == 0 or msg.train == 1:
+            unpolluted.append(msg)
+
+        elif msg.train == 2 or msg.train == 3:
+            polluted.append(msg)
+
+        else:
+            raise AssertionError
+
+    assert(len(polluted) == cluster.target_set3()), str(len(polluted)) + ", " + str(cluster.target_set3())
+
+    return ProxyCluster(unpolluted), ProxyCluster(polluted)
+
+
+def print_cluster_features(outfile, cluster_list, v_au, p_au):
+    outfile.write("Unpolluted and Polluted Most Significant Features:\n")
+    outfile.write("---------------------------\n")
+    snipped_cluster_list = [cluster[1] for cluster in cluster_list]
+    feature_matrix = cluster_feature_matrix(v_au, p_au, snipped_cluster_list, n=100, sep=True)
+
+    feature_col_width = max(len(row[1]) for row in feature_matrix) + 2
+    feature_num_col_width = max(len(row[0]) for row in feature_matrix) + 2
+    for row in feature_matrix:
+        justify = [row[0].ljust(feature_num_col_width)]
+        for j in range(1, len(row)):
+            justify.append(row[j].strip().ljust(feature_col_width))
+        outfile.write("".join(justify) + "\n")
+
+
+def print_cluster_pollution(outfile, cluster_list):
+    outfile.write("Cluster Pollution Rates:\n")
+    outfile.write("---------------------------\n")
+    header = [""] + ["Cluster %d" for d in range(len(cluster_list))]
+    cluster_targets = [cluster_pollution(cluster[1]) for cluster in cluster_list]
+    length = max(len(targets) for targets in cluster_targets)
+    [[str(inc * i)] + [cluster_target_print(cluster_target, i) for cluster_target in cluster_targets]
+     for i in range(length)]
+
+
+def cluster_target_print(cluster_target, i):
+    try:
+        return str(cluster_target[i])
+
+    except IndexError:
+        return ""
+
+
+def cluster_pollution(cluster):
+    end = cluster.size / inc
+    targets = [0]
+    sizes = [0]
+    if end > 0:
+        for i in range(end):
+            start = sizes[len(sizes) - 1]
+            sizes.append(sizes[len(sizes) - 1] + inc)
+            end = sizes[len(sizes) - 1]
+            targets.append(targets[len(targets) - 1] + cluster_interval_pollution(cluster, start, end))
+
+    for i in range(len(targets)):
+        targets[i] = float(targets[i]) / float(sizes[i])
+
+    return targets
+
+
+def cluster_interval_pollution(cluster, start, end):
+    counter = 0
+    for email in cluster.dist_list[start:end]:
+        if email[1].train == 2 or email[1].train == 3:
+            counter += 1
+
+    return counter
+
+
+class ProxyCluster:
+    def __init__(self, emails):
+        self.size = len(emails)
+        self.cluster_set = emails
+
+    def target_set3(self):
+        counter = 0
+        for msg in self.cluster_set:
+            if "Set3" in msg.tag:
+                counter += 1
+
+        return counter
+
+    def target_set4(self):
+        counter = 0
+        for msg in self.cluster_set:
+            if "Set4" in msg.tag:
+                counter += 1
+
+        return counter
 
 
 def main():
-    sets = [5]
+    sets = [10]
     dest = "C:/Users/bzpru/Desktop/spambayes-1.1a6/unpollute_stats/Yang_Data_Sets (cluster features)/"
 
     for i in sets:
@@ -76,7 +197,7 @@ def main():
         spam = spams[i]
         data_set = set_dirs[i]
 
-        if i > 5:
+        if i > 10:
             ham_test = ham[1]
             spam_test = spam[1]
 
@@ -112,27 +233,20 @@ def main():
                                                    distance_opt="inv-match", all_opt=True,
                                                    update_opt="hybrid", greedy_opt=False)
 
-        v_au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham_train, [ham_train]),
-                                                    []],
-                                                   [msgs.SpamStream(spam_train, [spam_train]),
-                                                    []],
+        v_au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham_train, [ham_train]), []],
+                                                   [msgs.SpamStream(spam_train, [spam_train]), []],
                                                    msgs.HamStream(ham_test, [ham_test]),
                                                    msgs.SpamStream(spam_test, [spam_test]))
 
+        vanilla_detection_rate = v_au.current_detection_rate
         time_2 = time.time()
         train_time = seconds_to_english(time_2 - time_1)
         print "Train time:", train_time, "\n"
 
         with open(dest + data_set + " (unlearn_stats).txt", 'w') as outfile:
             cluster_list = stats(p_au, outfile, data_set, [train_ham, train_spam], [test_ham, test_spam],
-                                 [ham_polluted, spam_polluted], total_polluted, total_unpolluted, train_time, True)
-
-        snipped_cluster_list = [cluster[1] for cluster in cluster_list if cluster[0] < 0]
-        feature_matrix = cluster_feature_matrix(v_au, p_au, snipped_cluster_list, n=100)
-        label_inject(feature_matrix, snipped_cluster_list)
-
-        feature_col_width = max(len(row[1]) for row in feature_matrix) + 2
-        feature_num_col_width = max(len(row[0]) for row in feature_matrix) + 2
+                                 [ham_polluted, spam_polluted], total_polluted, total_unpolluted, train_time,
+                                 vanilla=[vanilla_detection_rate, v_au], clusters=True)
 
         with open(dest + data_set + " (Separate Features).txt", 'w') as outfile:
             outfile.write("---------------------------\n")
@@ -143,13 +257,11 @@ def main():
                           " spam.\n")
             outfile.write("---------------------------\n")
             outfile.write("\n\n")
-            outfile.write("Unpolluted and Polluted Most Significant Features:\n")
-            outfile.write("---------------------------\n")
-            for row in feature_matrix:
-                justify = [row[0].ljust(feature_num_col_width)]
-                for j in range(1, len(row)):
-                    justify.append(row[j].strip().ljust(feature_col_width))
-                outfile.write("".join(justify) + "\n")
+            print_cluster_pollution(outfile, cluster_list)
+
+        # In the hopes of keeping RAM down between iterations
+        del p_au
+        del v_au
 
 
 if __name__ == "__main__":
