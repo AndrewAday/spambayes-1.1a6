@@ -108,6 +108,7 @@ def cluster_separate(cluster):
 
 
 def print_cluster_features(outfile, cluster_list, v_au, p_au):
+    """Prints the most significant features of the unpoluted and polluted portions of the clusters unlearned."""
     outfile.write("Unpolluted and Polluted Most Significant Features:\n")
     outfile.write("---------------------------\n")
     snipped_cluster_list = [cluster[1] for cluster in cluster_list]
@@ -123,6 +124,7 @@ def print_cluster_features(outfile, cluster_list, v_au, p_au):
 
 
 def print_cluster_pollution(outfile, cluster_list):
+    """Prints the pollution rates of the clusters unlearned."""
     outfile.write("Cluster Pollution Rates:\n")
     outfile.write("---------------------------\n")
     header = [[""] + ["Cluster %d" % d for d in range(1, len(cluster_list) + 1)]]

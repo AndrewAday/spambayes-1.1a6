@@ -24,6 +24,7 @@ pollution_set3 = True
 
 def unlearn_stats(au, outfile, data_set, train, test, polluted, total_polluted, total_unpolluted,
                   train_time, clusters=False, vanilla=None, noisy_clusters=False):
+        """Runs an unlearn algorithm on an ActiveUnlearner and prints out the resultant stats."""
         outfile.write("---------------------------\n")
         outfile.write("Data Set: " + data_set + "\n")
         outfile.write("Vanilla Training: " + str(train[0]) + " ham and " + str(train[1]) + " spam.\n")
