@@ -125,7 +125,7 @@ def print_cluster_features(outfile, cluster_list, v_au, p_au):
 def print_cluster_pollution(outfile, cluster_list):
     outfile.write("Cluster Pollution Rates:\n")
     outfile.write("---------------------------\n")
-    header = [""] + ["Cluster %d" for d in range(len(cluster_list))]
+    header = [[""] + ["Cluster %d" % d for d in range(1, len(cluster_list) + 1)]]
     cluster_targets = [cluster_pollution(cluster[1]) for cluster in cluster_list]
     length = max(len(targets) for targets in cluster_targets)
     feature_matrix = header + [[str(inc * i)] + [cluster_target_print(cluster_target, i) for cluster_target in cluster_targets]
