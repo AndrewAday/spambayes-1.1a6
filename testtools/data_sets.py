@@ -2,7 +2,7 @@ __author__ = 'Alex'
 
 import os
 
-data_sets_dir = "C:/Users/bzpru/Downloads/Data Sets"
+data_sets_dir = "/Users/andrewaday/Downloads/Data Sets"
 set_dirs = ["DictionarySets-1.1", "DictionarySets-1.2", "DictionarySets-2.1", "DictionarySets-2.2",
             "DictionarySets-3.1", "DictionarySets-4.1", "DictionarySets-5.1", "DictionarySets-6.1", 
             "DictionarySets-7.1", "DictionarySets-8.1", "Mislabeled-Big", "Mislabeled-Both-1.1", 
