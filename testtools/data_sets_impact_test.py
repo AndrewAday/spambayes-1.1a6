@@ -8,18 +8,34 @@ sys.path.insert(-1, os.getcwd())
 sys.path.insert(-1, os.path.dirname(os.getcwd()))
 
 from spambayes import ActiveUnlearnDriver
-from spambayes.Options import options
+from spambayes.Options import options # Imports global options variable from spambayes/Options.py
 from spambayes import msgs
-from testtools import data_sets as ds
+from testtools import data_sets as ds # File manager for test/training data
+from testtools.io_locations import dest
 
+# Set options global for spambayes
 options["TestDriver", "show_histograms"] = False
+
+# Reassign the functions in ds
 dir_enumerate = ds.dir_enumerate
 seterize = ds.seterize
 seconds_to_english = ds.seconds_to_english
+
+# variables contain all ham data and all spam data
 hams = ds.hams
 spams = ds.spams
-set_dirs = ds.set_dirs
-pollution_set3 = True
+# Schema:
+#[
+    # [
+    #   '/Users/andrewaday/Downloads/Data Sets/DictionarySets-1.1/Ham/Set1', 
+    #   '/Users/andrewaday/Downloads/Data Sets/DictionarySets-1.1/Ham/Set2', 
+    #   '/Users/andrewaday/Downloads/Data Sets/DictionarySets-1.1/Ham/Set3'
+    # ], ...
+#]
+
+set_dirs = ds.set_dirs # Array containing names of all parent data directories
+
+pollution_set3 = True #True if Set3 file contains polluted data
 
 
 def unlearn_stats(au, outfile, data_set, train, test, polluted, total_polluted, total_unpolluted,
@@ -178,8 +194,7 @@ def main():
             train_time = seconds_to_english(time_2 - time_1)
             print "Train time:", train_time, "\n"
 
-            dest = "C:/Users/bzpru/Desktop/spambayes-1.1a6/unpollute_stats/Yang_Data_Sets (inverse)/" \
-                   "Hybrid Update - Nongreedy/Noisy/"
+            
 
             with open(dest + data_set + " (unlearn_stats).txt", 'w') as outfile:
                 try:
@@ -199,4 +214,5 @@ def main():
             sys.exit()
 
 if __name__ == "__main__":
-    main()
+    # main()
+    print dest
