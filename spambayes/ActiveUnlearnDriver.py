@@ -102,7 +102,7 @@ def determine_cluster(center, au, pos_cluster_opt, working_set=None, gold=False,
     new_detection_rate = au.driver.tester.correct_classification_rate()
 
     if new_detection_rate <= old_detection_rate:    # Detection rate worsens - Reject
-        print "\nCenter is inviable. " + new_detection_rate + " < " + old_detection_rate + "\n" 
+        print "\nCenter is inviable. " + str(new_detection_rate) + " < " + str(old_detection_rate) + "\n" 
         if pos_cluster_opt != 2:
             au.learn(cluster)
         second_state_rate = new_detection_rate
