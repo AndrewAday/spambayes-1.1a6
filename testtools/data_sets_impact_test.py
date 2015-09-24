@@ -58,10 +58,6 @@ def unlearn_stats(au, outfile, data_set, train, test, polluted, total_polluted, 
 
         outfile.write("0: " + str(original_detection_rate) + "\n")
 
-
-        return
-
-
         time_start = time.time()
         
         # get the unlearned cluster list

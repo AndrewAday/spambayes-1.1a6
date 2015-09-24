@@ -851,10 +851,14 @@ class ActiveUnlearner:
         """
         # returns list of tuples contained (net_rate_change, cluster)
         cluster_list = cluster_au(self, gold=gold, pos_cluster_opt=pos_cluster_opt) 
-        print ">> Lazy Unlearn Attempt " + attempt_count + " cluster length: " + len(cluster_list)
-        print cluster_list
+        
 
         attempt_count += 1
+
+        print ">> Lazy Unlearn Attempt " + attempt_count + " cluster length: " + len(cluster_list)
+        print "----------The Cluster List------------"
+        print cluster_list
+        print "----------/The Cluster List------------"
 
         # ANDREW CHANGED: while detection_rate <= self.threshold and cluster_list[len(cluster_list) - 1][0] > 0:
         while detection_rate <= self.threshold and cluster_list[-1][0] > 0:
