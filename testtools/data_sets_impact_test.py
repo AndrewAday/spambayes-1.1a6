@@ -81,7 +81,7 @@ def unlearn_stats(au, outfile, data_set, train, test, polluted, total_polluted, 
             # get list of clusters with 0 polluted emails, but unlearning still improves classification accuracy
             noise = noisy_data_check(find_pure_clusters(cluster_list, ps_3=pollution_set3), # list of all unlearned clusters that had 
                                                                                             # no polluted emails
-                                     vanilla[1] #vanilla[1] is the v_au instance)
+                                     vanilla[1]) #vanilla[1] is the v_au instance
 
         print "\nTallying up final counts...\n"
         for cluster in cluster_list:
