@@ -478,7 +478,7 @@ class Classifier:
                 wordstream.clues = clues
                 return clues
 
-            else:
+            else: # update=True
 
                 # The all-unigram scheme just scores the tokens as-is.  A set()
                 # is used to weed out duplicates at high speed.
@@ -513,7 +513,7 @@ class Classifier:
         if all_opt:
             wordstream.clues = [t[1:] for t in clues]
         if len(clues) > options["Classifier", "max_discriminators"]:
-            del clues[0 : -options["Classifier", "max_discriminators"]]
+            del clues[0 : -options["Classifier", "max_discriminators"]] # chop off words excess of 150
         # Return (prob, word, record).
         trunc_clues = [t[1:] for t in clues]
         if not all_opt:

@@ -23,42 +23,53 @@ def chosen_sum(chosen, x, opt=None):
 
 def cluster_au(au, gold=False, pos_cluster_opt=0):
     """Clusters the training space of an ActiveUnlearner and returns the list of clusters."""
-    print "\n-----------------------------------------------------\n"
-    cluster_list = []
-    training = au.shuffle_training()
+    print "\n-----------------------------------------------\n"
+    cluster_list = [] # list of tuples (net_rate_change, cluster)
+    training = au.shuffle_training() # returns a shuffled array containing all training emails
     print "\nResetting mislabeled...\n"
-    mislabeled = au.get_mislabeled(update=True)
-    au.mislabeled_chosen = set()
-    print "\nClustering...\n"
+    mislabeled = au.get_mislabeled(update=True) # gets an array of all false positives, false negatives, and unsure emails
+    # ^ also runs init_ground, which will update accuracy of classifier on test emails
+    
+    au.mislabeled_chosen = set() # reset set of clustered mislabeled emails in this instance of au
+
+    print "\ncluster_au(ActiveUnelearnDriver:32): Clustering...\n"
     original_training_size = len(training)
-    while len(training) > 0:
+    while len(training) > 0: # loop until all emails in phantom training space have been assigned
         print "\n-----------------------------------------------------\n"
         print "\n" + str(len(training)) + " emails out of " + str(original_training_size) + \
               " still unclustered.\n"
 
-        current_seed = cluster_methods(au, "mislabeled", training, mislabeled)
+        # Choose an arbitrary email from the mislabeled emails and returns the training email closest to it.
+        # Final call and source of current_seed is mislabeled_initial() function
+        current_seed = cluster_methods(au, "mislabeled", training, mislabeled) 
+        
         pre_cluster_rate = au.current_detection_rate
 
-        cluster_result = determine_cluster(current_seed, au, working_set=training, gold=gold, impact=True,
+        cluster_result = determine_cluster(current_seed, au, working_set=training, gold=gold, impact=True, # if true, relearn clusters after returning them
                                            pos_cluster_opt=pos_cluster_opt)
         while cluster_result is None:
             current_seed = cluster_methods(au, "mislabeled", training, mislabeled)
             cluster_result = determine_cluster(current_seed, au, working_set=training, gold=gold, impact=True,
                                                pos_cluster_opt=pos_cluster_opt)
-        net_rate_change, cluster = cluster_result
+        
+        net_rate_change, cluster = cluster_result 
+        # After getting the cluster and net_rate_change, you relearn the cluster in original dataset if impact=True
 
         post_cluster_rate = au.current_detection_rate
 
+        # make sure the cluster was properly relearned
         assert(post_cluster_rate == pre_cluster_rate), str(pre_cluster_rate) + " " + str(post_cluster_rate)
 
+
         cluster_list.append([net_rate_change, cluster])
+
         print "\nRemoving cluster from shuffled training set...\n"
-        for email in cluster.cluster_set:
+        for email in cluster.cluster_set: # remove emails from phantom training set so they are not assigned to other clusters
             training.remove(email)
 
-    cluster_list.sort()
+    cluster_list.sort() # sorts by net_rate_change
     print "\nClustering process done and sorted.\n"
-    return cluster_list
+    return cluster_list 
 
 
 def cluster_methods(au, method, working_set, mislabeled):
@@ -83,7 +94,7 @@ def determine_cluster(center, au, pos_cluster_opt, working_set=None, gold=False,
     old_detection_rate = au.current_detection_rate
     first_state_rate = au.current_detection_rate
     counter = 0
-    cluster = Cluster(center, au.increment, au, working_set=working_set, distance_opt=au.distance_opt)
+    cluster = Cluster(center, au.increment, au, working_set=working_set, distance_opt=au.distance_opt) # Distance opt currently inverse
 
     # Test detection rate after unlearning cluster
     au.unlearn(cluster)
@@ -91,7 +102,7 @@ def determine_cluster(center, au, pos_cluster_opt, working_set=None, gold=False,
     new_detection_rate = au.driver.tester.correct_classification_rate()
 
     if new_detection_rate <= old_detection_rate:    # Detection rate worsens - Reject
-        print "\nCenter is inviable.\n"
+        print "\nCenter is inviable. " + new_detection_rate + " < " + old_detection_rate + "\n" 
         if pos_cluster_opt != 2:
             au.learn(cluster)
         second_state_rate = new_detection_rate
@@ -117,15 +128,15 @@ def determine_cluster(center, au, pos_cluster_opt, working_set=None, gold=False,
         else:
             return cluster
 
-    else:                                           # Detection rate improves - Grow cluster
+    else:   # Detection rate improves - Grow cluster
         if gold:
             cluster = au.cluster_by_gold(cluster, old_detection_rate, new_detection_rate, counter, test_waters)
 
         else:
             cluster = au.cluster_by_increment(cluster, old_detection_rate, new_detection_rate, counter)
 
-        if impact:
-            au.learn(cluster)
+        if impact: #include net_rate_change in return
+            au.learn(cluster) # relearn cluster in real training space so deltas of future cluster are not influenced
             second_state_rate = au.current_detection_rate
             net_rate_change = second_state_rate - first_state_rate
             au.current_detection_rate = first_state_rate
@@ -173,22 +184,22 @@ def neg_cluster_decrementer(au, first_state_rate, cluster):
 
 class Cluster:
     def __init__(self, msg, size, active_unlearner, distance_opt, working_set=None, sort_first=True, separate=True):
-        self.clustroid = msg
-        if msg.train == 1 or msg.train == 3:
+        self.clustroid = msg # seed of the cluster
+        if msg.train == 1 or msg.train == 3: # if spam set1 or spam set3
             self.train = [1, 3]
 
-        elif msg.train == 0 or msg.train == 2:
+        elif msg.train == 0 or msg.train == 2: # if ham set1 or ham set3
             self.train = [0, 2]
-        self.size = size
-        self.active_unlearner = active_unlearner
+        self.size = size # arbitrarily set to 100
+        self.active_unlearner = active_unlearner # point to calling au instance
         self.sort_first = sort_first
         self.working_set = working_set
         self.ham = set()
         self.spam = set()
-        self.opt = distance_opt
-        self.dist_list = self.distance_array(separate)
-        self.cluster_set = self.make_cluster()
-        self.divide()
+        self.opt = distance_opt # currently inverse
+        self.dist_list = self.distance_array(separate) # returns list containing dist from all emails in phantom space to center clustroid
+        self.cluster_set = self.make_cluster() # adds closest emails to cluster
+        self.divide() # adds cluster emails to ham and spam
 
     def __repr__(self):
         return "(" + self.clustroid.tag + ", " + str(self.size) + ")"
@@ -197,7 +208,7 @@ class Cluster:
         """Returns a list containing the distances from each email to the center."""
         train_examples = self.active_unlearner.driver.tester.train_examples
 
-        if separate:
+        if separate: # if true, all emails must be same type (spam or ham) as centroid
             if self.working_set is None:
                 dist_list = [(distance(self.clustroid, train, self.opt), train) for train in chain(train_examples[0],
                                                                                                    train_examples[1],
@@ -220,7 +231,7 @@ class Cluster:
                 dist_list = [(distance(self.clustroid, train, self.opt), train) for train in self.working_set]
 
         if self.sort_first:
-            dist_list.sort()
+            dist_list.sort() # sorts tuples by first element default
 
         return dist_list
 
@@ -349,14 +360,20 @@ class ActiveUnlearner:
         self.driver = TestDriver.Driver()
         self.set_driver()
         self.hamspams = zip(training_ham, training_spam)
-        self.set_data()
+        self.set_data() # train classified on hamspams
         self.testing_spam = testing_spam
         self.testing_ham = testing_ham
+        
+        # testi on the polluted and unpolluted training emails to get the initial probabilities
         self.set_training_nums()
         self.set_pol_nums()
-        self.init_ground(True)
+        
+        # Train algorithm normally
+        self.init_ground(True) # for caching in tester.py variable 
         self.mislabeled_chosen = set()
         self.training_chosen = set()
+
+        # Determine initial detection rate on testing set
         self.current_detection_rate = self.driver.tester.correct_classification_rate()
         print "Initial detection rate:", self.current_detection_rate
 
@@ -372,10 +389,10 @@ class ActiveUnlearner:
     def init_ground(self, first_test=False, update=False):
         """Runs on the testing data to check the detection rate. If it's not the first test, it tests based on cached
         test msgs."""
-        if first_test:
+        if first_test: # No cache, gotta run on empty
             self.driver.test(self.testing_ham, self.testing_spam, first_test, all_opt=self.all)
 
-        else:
+        else: # Use cached data
             if self.update == "pure":
                 update = True
 
@@ -819,30 +836,36 @@ class ActiveUnlearner:
         except KeyboardInterrupt:
             return unlearned_cluster_list
 
-    # -----------------------------------------------------------------------------------
+    # ------------------------------FUNCTION LAZY_UNLEARN----------------------------------------------------
 
     def lazy_unlearn(self, detection_rate, unlearned_cluster_list, cluster_count, attempt_count, outfile,
                      pollution_set3, gold, pos_cluster_opt):
         """
         After clustering, unlearns all clusters with positive impact in the cluster list, in reverse order. This is
         due to the fact that going in the regular order usually first unlearns a large cluster that is actually not
-        polluted.
+        polluted. TODO: is there anyway to determine if this set is actually polluted?
 
         This is because in the polluted state of the machine, this first big cluster is perceived as a high
         impact cluster, but after unlearning several (large) polluted clusters first (with slightly smaller impact but
         still significant), this preserves the large (and unpolluted) cluster.
         """
-        cluster_list = cluster_au(self, gold=gold, pos_cluster_opt=pos_cluster_opt)
+        # returns list of tuples contained (net_rate_change, cluster)
+        cluster_list = cluster_au(self, gold=gold, pos_cluster_opt=pos_cluster_opt) 
+        print ">> Lazy Unlearn Attempt " + attempt_count + " cluster length: " + len(cluster_list)
+        print cluster_list
+
         attempt_count += 1
 
-        while detection_rate <= self.threshold and cluster_list[len(cluster_list) - 1][0] > 0:
+        # ANDREW CHANGED: while detection_rate <= self.threshold and cluster_list[len(cluster_list) - 1][0] > 0:
+        while detection_rate <= self.threshold and cluster_list[-1][0] > 0:
             list_length = len(cluster_list)
             j = 0
-            if not self.greedy:
+            if not self.greedy: # unlearn the smallest positive delta clusters first
                 while cluster_list[j][0] <= 0:
-                    j += 1
+                    j += 1 # move j pointer until lands on smallest positive delta cluster
 
-                indices = range(j, len(cluster_list))
+                # ANDREW CHANGED: indices = range(j, len(cluster_list))
+                indices = range(j, list_length)
 
             else:
                 indices = list(reversed(range(j, len(cluster_list))))
@@ -853,27 +876,29 @@ class ActiveUnlearner:
                 print "\nChecking cluster " + str(j + 1) + " of " + str(list_length) + "...\n"
                 j += 1
                 old_detection_rate = detection_rate
+                
                 if pos_cluster_opt == 3 and self.greedy:
                     if cluster[0] <= 0:
                         continue
-                self.unlearn(cluster[1])
-                self.init_ground(update=True)
+
+                self.unlearn(cluster[1]) # unlearn the cluster
+                self.init_ground(update=True) # find new accuracy, update the cached training space
                 detection_rate = self.driver.tester.correct_classification_rate()
-                if detection_rate > old_detection_rate:
-                    cluster_count += 1
+                if detection_rate > old_detection_rate: # if improved, record stats
+                    cluster_count += 1 # number of unlearned clusters
                     unlearned_cluster_list.append(cluster)
                     self.current_detection_rate = detection_rate
                     cluster_print_stats(outfile, pollution_set3, detection_rate, cluster, cluster_count, attempt_count)
                     print "\nCurrent detection rate achieved is " + str(detection_rate) + ".\n"
 
                 else:
-                    self.learn(cluster[1])
+                    self.learn(cluster[1]) # else relearn cluster and move to the next one
                     detection_rate = old_detection_rate
 
             if detection_rate > self.threshold:
                 break
 
-            else:
+            else: # do the whole process again, this time with the training space - unlearned clusters
                 del cluster_list
                 cluster_list = cluster_au(self, gold, pos_cluster_opt=pos_cluster_opt)
                 attempt_count += 1
@@ -888,11 +913,11 @@ class ActiveUnlearner:
         iterating through the training space, without the complication of actually modifying the training space itself
         while doing so.
         """
-        train_examples = self.driver.tester.train_examples
+        train_examples = self.driver.tester.train_examples # copy all training data to train_examples variable
         training = [train for train in chain(train_examples[0], train_examples[1], train_examples[2],
-                                             train_examples[3])]
+                                             train_examples[3])] # chain all training emails together
         shuffle(training)
-        return training
+        return training 
 
     def get_mislabeled(self, update=False):
         """
@@ -906,10 +931,10 @@ class ActiveUnlearner:
 
         mislabeled = set()
         tester = self.driver.tester
-        for wrong_ham in tester.ham_wrong_examples:
+        for wrong_ham in tester.ham_wrong_examples: # ham called spam
             mislabeled.add(wrong_ham)
 
-        for wrong_spam in tester.spam_wrong_examples:
+        for wrong_spam in tester.spam_wrong_examples: # spam called ham
             mislabeled.add(wrong_spam)
 
         for unsure in tester.unsure_examples:
@@ -951,7 +976,7 @@ class ActiveUnlearner:
         return init_email
 
     def mislabeled_initial(self, working_set, mislabeled):
-        """Chooses an arbitrary point from the mislabeled emails and returns the training email closest to it."""
+        """Chooses an arbitrary email from the mislabeled emails and returns the training email closest to it."""
         if mislabeled is None:
             mislabeled = self.get_mislabeled()
         t_e = self.driver.tester.train_examples
@@ -969,7 +994,7 @@ class ActiveUnlearner:
 
         training = chain(t_e[0], t_e[1], t_e[2], t_e[3]) if working_set is None else working_set
 
-        for email in training:
+        for email in training: # select closest email
             current_distance = distance(email, mislabeled_point, self.distance_opt)
             if current_distance < min_distance:
                 init_email = email

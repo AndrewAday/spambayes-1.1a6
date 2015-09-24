@@ -58,10 +58,18 @@ def unlearn_stats(au, outfile, data_set, train, test, polluted, total_polluted, 
 
         outfile.write("0: " + str(original_detection_rate) + "\n")
 
+
+        return
+
+
         time_start = time.time()
+        
+        # get the unlearned cluster list
         cluster_list = au.impact_active_unlearn(outfile, test=True, pollution_set3=pollution_set3, gold=True)
+        
         time_end = time.time()
         unlearn_time = seconds_to_english(time_end - time_start)
+        
         total_polluted_unlearned = 0
         total_unlearned = 0
         total_unpolluted_unlearned = 0
@@ -70,17 +78,19 @@ def unlearn_stats(au, outfile, data_set, train, test, polluted, total_polluted, 
         noise = []
 
         if vanilla is not None:
-            noise = noisy_data_check(find_pure_clusters(cluster_list, ps_3=pollution_set3),
-                                     vanilla[1])
+            # get list of clusters with 0 polluted emails, but unlearning still improves classification accuracy
+            noise = noisy_data_check(find_pure_clusters(cluster_list, ps_3=pollution_set3), # list of all unlearned clusters that had 
+                                                                                            # no polluted emails
+                                     vanilla[1] #vanilla[1] is the v_au instance)
 
         print "\nTallying up final counts...\n"
         for cluster in cluster_list:
             cluster = cluster[1]
-            total_unlearned += cluster.size
+            total_unlearned += cluster.size # total no. emails unlearned
             total_polluted_unlearned += cluster.target_set3()
             total_unpolluted_unlearned += (cluster.size - cluster.target_set3())
             if cluster in noise:
-                total_noisy_unlearned += cluster.size
+                total_noisy_unlearned += cluster.size 
 
         outfile.write("\nSTATS\n")
         outfile.write("---------------------------\n")
@@ -89,16 +99,16 @@ def unlearn_stats(au, outfile, data_set, train, test, polluted, total_polluted, 
         outfile.write("Total Unlearned:\n")
         outfile.write(str(total_unlearned) + "\n")
         outfile.write("Polluted Percentage of Unlearned:\n")
-        outfile.write(str(float(total_polluted_unlearned) / float(total_unlearned)) + "\n")
+        outfile.write(str(total_polluted_unlearned) + "/" + str(total_unlearned) + " = " + str(float(total_polluted_unlearned) / float(total_unlearned)) + "\n")
         outfile.write("Unpolluted Percentage of Unlearned:\n")
-        outfile.write(str(float(total_unpolluted_unlearned) / float(total_unlearned)) + "\n")
+        outfile.write(str(total_unpolluted_unlearned) + "/" + str(total_unlearned) + " = " + str(float(total_unpolluted_unlearned) / float(total_unlearned)) + "\n")
         outfile.write("Percentage of Polluted Unlearned:\n")
-        outfile.write(str(float(total_polluted_unlearned) / float(total_polluted)) + "\n")
+        outfile.write(str(total_polluted_unlearned) + "/" + str(total_polluted) + " = " +  str(float(total_polluted_unlearned) / float(total_polluted)) + "\n")
         outfile.write("Percentage of Unpolluted Unlearned:\n")
-        outfile.write(str(float(total_unpolluted_unlearned) / float(total_unpolluted)) + "\n")
+        outfile.write(str(total_unpolluted_unlearned) + "/" + str(total_unpolluted) + " = " + str(float(total_unpolluted_unlearned) / float(total_unpolluted)) + "\n")
         if noisy_clusters:
             outfile.write("Percentage of Noisy Data in Unpolluted Unlearned:\n")
-            outfile.write(str(float(total_noisy_unlearned) / float(total_unpolluted_unlearned)) + "\n")
+            outfile.write(str(total_noisy_unlearned) + "/" + str(total_unpolluted_unlearned) + " = " +  str(float(total_noisy_unlearned) / float(total_unpolluted_unlearned)) + "\n")
         outfile.write("Time for training:\n")
         outfile.write(train_time + "\n")
         outfile.write("Time for unlearning:\n")
@@ -124,6 +134,10 @@ def find_pure_clusters(cluster_list, ps_3):
 
 
 def noisy_data_check(pure_clusters, v_au):
+    """
+    Returns a list of all clusters which had no polluted emails, 
+    but unlearning them improves classification accuracy 
+    """
     noisy_clusters = []
     original_detection_rate = v_au.current_detection_rate
     for cluster in pure_clusters:
@@ -139,30 +153,32 @@ def noisy_data_check(pure_clusters, v_au):
 
 
 def main():
-    sets = [11, 12, 13, 14, 15]
+    sets = [11] # select which data sets you want to run algorithm on
 
     for i in sets:
         ham = hams[i]
         spam = spams[i]
         data_set = set_dirs[i]
 
-        if i > 10:
-            ham_test = ham[1]
+        if i > 10: #Set2 is test and Set1 is training for all mislabeled datasets
+            ham_test = ham[1] # approx 20,000 test and 12,000 train
             spam_test = spam[1]
 
             ham_train = ham[0]
             spam_train = spam[0]
 
         else:
-            ham_test = ham[0]
+            ham_test = ham[0] # approx 12,000 test and 20,000 train
             spam_test = spam[0]
 
             ham_train = ham[1]
             spam_train = spam[1]
 
-        ham_p = ham[2]
+        # the polluted data sets
+        ham_p = ham[2] 
         spam_p = spam[2]
 
+        # Calculate the number of emails for polluted, train, test, and total data sets
         ham_polluted = dir_enumerate(ham_p)
         spam_polluted = dir_enumerate(spam_p)
         train_ham = dir_enumerate(ham_train)
@@ -173,9 +189,10 @@ def main():
         total_unpolluted = train_ham + train_spam
 
         try:
-            time_1 = time.time()
+            time_1 = time.time() # begin timer
+            # Instantiate ActiveUnlearner object
             au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham_train, [ham_train]),
-                                                      msgs.HamStream(ham_p, [ham_p])],        # Training Ham
+                                                      msgs.HamStream(ham_p, [ham_p])],        # Training Ham 
                                                      [msgs.SpamStream(spam_train, [spam_train]),
                                                       msgs.SpamStream(spam_p, [spam_p])],     # Training Spam
                                                      msgs.HamStream(ham_test, [ham_test]),          # Testing Ham
@@ -183,6 +200,7 @@ def main():
                                                      distance_opt="inverse", all_opt=True,
                                                      update_opt="hybrid", greedy_opt=False)
 
+            # vanilla active unlearner
             v_au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham_train, [ham_train]), []],
                                                        [msgs.SpamStream(spam_train, [spam_train]), []],
                                                        msgs.HamStream(ham_test, [ham_test]),
@@ -214,5 +232,4 @@ def main():
             sys.exit()
 
 if __name__ == "__main__":
-    # main()
-    print dest
+    main()

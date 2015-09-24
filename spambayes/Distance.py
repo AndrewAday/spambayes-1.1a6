@@ -24,7 +24,7 @@ def e_f(x, is_eu):
 
 def distance(msg1, msg2, opt=None, is_eu=True):
     if opt in match:
-        msg1.clues.sort()
+        msg1.clues.sort() # contains (supposedly) all words in email
         msg2.clues.sort()
         words_1 = msg1.clues
         words_2 = msg2.clues

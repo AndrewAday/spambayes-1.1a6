@@ -107,7 +107,7 @@ class Test:
             is_spam_guessed = prob >= options["Categorization", "spam_cutoff"]
             if is_spam:
                 if init_ground:
-                    self.truth_examples[0].append(example)
+                    self.truth_examples[0].append(example) # ground truth spam
                 self.nspam_tested += 1
                 if is_spam_guessed:
                     self.nspam_right += 1
@@ -119,7 +119,7 @@ class Test:
                     self.unsure_examples.append(example)
             else:
                 if init_ground:
-                    self.truth_examples[1].append(example)
+                    self.truth_examples[1].append(example) # gound truth ham
                 self.nham_tested += 1
                 if is_ham_guessed:
                     self.nham_right += 1
