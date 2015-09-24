@@ -2,7 +2,7 @@
 from math import sqrt
 import sys
 
-l_distance = Levenshtein.distance
+# l_distance = Levenshtein.distance
 
 match = {"inv-match", "sub-match", "sub-match-norm"}
 

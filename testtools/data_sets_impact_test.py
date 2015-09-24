@@ -197,7 +197,7 @@ def main():
                                                       msgs.SpamStream(spam_p, [spam_p])],     # Training Spam
                                                      msgs.HamStream(ham_test, [ham_test]),          # Testing Ham
                                                      msgs.SpamStream(spam_test, [spam_test]),       # Testing Spam
-                                                     distance_opt="inverse", all_opt=True,
+                                                     distance_opt="inv-match", all_opt=True,
                                                      update_opt="hybrid", greedy_opt=False)
 
             # vanilla active unlearner
