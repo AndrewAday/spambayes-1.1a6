@@ -855,7 +855,7 @@ class ActiveUnlearner:
 
         attempt_count += 1
 
-        print ">> Lazy Unlearn Attempt " + str(attempt_count) + " cluster length: " + len(cluster_list)
+        print ">> Lazy Unlearn Attempt " + str(attempt_count) + " cluster length: ", len(cluster_list)
         print "----------The Cluster List------------"
         print cluster_list
         print "----------/The Cluster List------------"
