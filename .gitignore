@@ -5,3 +5,4 @@
 testtools/Data/*.txt
 testtools/Data Sets.zip
 testtools/io_locations.py
+*.pyc
