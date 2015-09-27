@@ -358,16 +358,16 @@ class Classifier:
         for word in wordstream:
             record = self._wordinfoget(word)
             if record is None:
-                record = self.WordInfoClass()
+                record = self.WordInfoClass() # start a counter of nham and nspam the word appears in
 
             if is_spam:
-                record.spamcount += 1
+                record.spamcount += 1 #inc no. spam emails with this word
                 if record.spamcount > self.nspam:
                     print wordstream.guts
                     print "Word: " + word
                     raise AssertionError(str(record.spamcount) + " " + str(self.nspam))
             else:
-                record.hamcount += 1
+                record.hamcount += 1 # inc no. ham emails with this word
 
             self._wordinfoset(word, record)
 
@@ -511,13 +511,16 @@ class Classifier:
 
                 clues.sort()
         if all_opt:
-            wordstream.clues = [t[1:] for t in clues]
+            wordstream.clues = [t[1:] for t in clues] # [(prob, word, record)]
+            # record is an object that contains record.spamcount and record.hamcount (no ham/spam emails word appears in)
+            # spamcount, hamcount = record.__getstate__
         if len(clues) > options["Classifier", "max_discriminators"]:
             del clues[0 : -options["Classifier", "max_discriminators"]] # chop off words excess of 150
         # Return (prob, word, record).
         trunc_clues = [t[1:] for t in clues]
         if not all_opt:
             wordstream.clues = trunc_clues
+        # print "!!!!!!!!!WORDSTREAM.CLUES = ", trunc_clues[0:5]
         return trunc_clues
 
     def update_clue_prob(self, record):

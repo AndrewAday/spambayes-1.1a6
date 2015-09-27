@@ -123,6 +123,7 @@ def determine_cluster(center, au, pos_cluster_opt, working_set=None, gold=False,
             second_state_rate = new_detection_rate
             net_rate_change = second_state_rate - first_state_rate
             au.current_detection_rate = first_state_rate
+            print "no more emails to cluster, returning cluster of size ", cluster.size
             return net_rate_change, cluster
 
         else:
@@ -187,16 +188,18 @@ class Cluster:
         self.clustroid = msg # seed of the cluster
         if msg.train == 1 or msg.train == 3: # if spam set1 or spam set3
             self.train = [1, 3]
-
         elif msg.train == 0 or msg.train == 2: # if ham set1 or ham set3
             self.train = [0, 2]
+        self.common_features = []
+        self.msg_index = {}
+        self.separate = separate
         self.size = size # arbitrarily set to 100
         self.active_unlearner = active_unlearner # point to calling au instance
         self.sort_first = sort_first
         self.working_set = working_set
         self.ham = set()
         self.spam = set()
-        self.opt = distance_opt # currently inverse
+        self.opt = distance_opt # currently intersection
         self.dist_list = self.distance_array(separate) # returns list containing dist from all emails in phantom space to center clustroid
         self.cluster_set = self.make_cluster() # adds closest emails to cluster
         self.divide() # adds cluster emails to ham and spam
@@ -233,16 +236,112 @@ class Cluster:
         if self.sort_first:
             dist_list.sort() # sorts tuples by first element default
 
+        if self.opt == "intersection":
+            dist_list = dist_list[::-1]
+            # counter = 0
+            # for distance, email in dist_list:
+            #     self.msg_index[email.tag] = counter # positional index for unlearning
+            #     counter += 1
+            # print "-> Intersection distance list: ", dist_list[0:10]
+            return dist_list # reverse the distance list so that closest element is at start
+
         return dist_list
+
+    # def unset(self, tag):
+    #     self.dist_list[self.msg_index[tag]] = None
+
+    # def updateset(self,tag,update):
+    #     self.dist_list[self.msg_index[tag]] = update
 
     def make_cluster(self):
         """Constructs the initial cluster of emails."""
+        # self.dist_list = [t for t in self.dist_list if t is not None]
         if self.size > len(self.dist_list):
             print "\nTruncating cluster size...\n"
             self.size = len(self.dist_list)
 
         if self.sort_first:
-            return set(item[1] for item in self.dist_list[:self.size])
+            if self.opt == "intersection":
+
+                # if self.size >= len(self.dist_list): # if remaining emails is < size, no need to iterate through
+                #     new_email = self.dist_list[0][1]
+                #     self.common_features = set(t[1] for t in new_email.clues)
+                #     for distance, email in self.dist_list:
+                #         self.common_features = self.common_features & set([t[1] for t in email.clues])
+
+                #     self.dist_list = [] # all emails added, dist_list now empty
+                #     return set(item[1] for item in self.dist_list)
+                
+                S_current = [self.clustroid]
+                self.common_features = set([t[1] for t in self.clustroid.clues]) # set common feature vector
+                for d,e in self.dist_list:
+                    if e.tag == self.clustroid.tag:
+                        self.dist_list.remove((d,e))
+                        print "-> removed duplicate clustroid ", e.tag
+
+
+                # TODO remove clustroid, otherwise will be added twice
+                # if (self.dist_list[0][1].tag == self.clustroid.tag):
+                #     # self.unset(self.clustroid.tag)
+                #     del self.dist_list[0] # it's the same message, don't add it twice
+                # else:
+                #     print "what is going on..."
+                #     sys.exit()
+                
+                # new_email = self.dist_list.pop(0)[1] # pop next closest email
+                # self.common_features = self.common_features & set([t[1] for t in new_email.clues]) # update common features
+                # S_current.add(new_email) # add closest email
+
+                current_size = 1
+
+                while current_size < self.size: # recursively add elements by greatest intersection
+                    if len(self.dist_list) == 1:
+                        new_email = self.dist_list[0][1]
+                        self.common_features = self.common_features & set([t[1] for t in new_email.clues])
+                        # self.unset(new_email.tag)
+                        del self.dist_list[0] # email added, remove from dist_list
+                        S_current.append(new_email)
+                    else:
+                        for index in range(0, len(self.dist_list)):
+                            if index == len(self.dist_list) - 1:
+                                new_email = self.dist_list[index][1]
+                                self.common_features = self.common_features & set([t[1] for t in new_email.clues])
+                                S_current.append(new_email)
+                                # self.unset(new_email.tag)
+                                del self.dist_list[index]
+                            else:
+                                new_email = self.dist_list[index][1]
+                                new_email_2 = self.dist_list[index+1][1]
+                                assert(new_email is not None)
+                                assert(new_email_2 is not None)
+                                S_explore = self.common_features & set([t[1] for t in new_email.clues])
+                                if len(S_explore) >= self.dist_list[index+1][0]: # |S2&e2| >= |S1&e3|, add to list
+                                    self.common_features = S_explore # update common feature list
+                                    S_current.append(new_email)
+                                    # self.unset(new_email.tag)
+                                    del self.dist_list[index]
+                                    break # break out of for loop
+                                else:
+                                    S_explore_new = self.common_features & set([t[1] for t in new_email_2.clues]) # calculate |S2&e3|
+                                    if len(S_explore) >= len(S_explore_new): # |S2&e2| >= |S2&e3|, add to list
+                                        self.common_features = S_explore # update common feature list
+                                        S_current.append(new_email)
+                                        self.dist_list[index+1] = (len(S_explore_new), new_email_2)
+                                        # self.updateset(new_email_2.tag,(len(S_explore_new), new_email_2))
+                                        # self.unset(new_email.tag)
+                                        del self.dist_list[index]
+                                        break
+                                    else:
+                                        # self.updateset(new_email.tag,(len(S_explore_new), new_email))
+                                        self.dist_list[index] = (len(S_explore), new_email)
+                    
+                    current_size += 1
+                    # print "appending to cluster: size ", current_size, "/100"
+                    # sys.stdout.write("\033[F")
+                print "-> cluster created"
+                return set(S_current)
+            else:
+                return set(item[1] for item in self.dist_list[:self.size])
 
         else:
             k_smallest = quickselect.k_smallest
@@ -289,6 +388,80 @@ class Cluster:
         """Expands the cluster to include n more emails and returns these additional emails.
            If n more is not available, cluster size is simply truncated to include all remaining
            emails."""
+        if self.opt == "intersection":
+            if n >= len(self.dist_list):
+                n = len(self.dist_list)
+            print "adding ", n, " more emails to cluster of size ", self.size, " via intersection method"
+            self.size += n
+
+            if self.sort_first:
+                new_elements = []
+                # if n >= len(self.dist_list): # if remaining emails is <= # to be added, no need to iterate through
+                #     for distance, email in self.dist_list:
+                #         self.common_features = self.common_features & set([t[1] for t in email.clues])
+                #         new_elements.add(email)
+                #     self.dist_list = [] # dist_list is now empty
+                #     return new_elements
+
+                current_size = 0
+
+                while current_size < n: # recursively add elements by greatest intersection
+                    if len(self.dist_list) == 1:
+                        new_email = self.dist_list[0][1]
+                        self.common_features = self.common_features & set([t[1] for t in new_email.clues])
+                        # self.cluster_set.add(new_email)
+                        new_elements.append(new_email)
+                        # self.unset(new_email.tag)
+                        del self.dist_list[0]
+                    else:
+                        for index in range(0, len(self.dist_list)):
+                            if index == len(self.dist_list) - 1:
+                                new_email = self.dist_list[index][1]
+                                self.common_features = self.common_features & set([t[1] for t in new_email.clues])
+                                # self.cluster_set.add(new_email)
+                                new_elements.append(new_email)
+                                del self.dist_list[index]
+                            else:
+                                new_email = self.dist_list[index][1]
+                                new_email_2 = self.dist_list[index+1][1]
+                                S_explore = self.common_features & set([t[1] for t in new_email.clues])
+                                if len(S_explore) >= self.dist_list[index+1][0]: # |S2&e2| >= |S1&e3|, add to list
+                                    self.common_features = S_explore # update common feature list
+                                    # self.cluster_set.add(new_email)
+                                    new_elements.append(new_email)
+                                    del self.dist_list[index]
+                                    break # break out of for loop
+                                else:
+                                    S_explore_new = self.common_features & set([t[1] for t in new_email_2.clues]) # calculate |S2&e3|
+                                    if len(S_explore) >= len(S_explore_new): # |S2&e2| >= |S2&e3|, add to list
+                                        self.common_features = S_explore # update common feature list
+                                        # self.cluster_set.add(new_email)
+                                        new_elements.append(new_email)
+                                        self.dist_list[index+1] = (len(S_explore_new), new_email_2)
+                                        del self.dist_list[index]
+                                        break
+                                    else:
+                                        print "we are here"
+                                        self.dist_list[index] = (len(S_explore), new_email)
+                    
+                    current_size += 1
+                self.cluster_set = self.cluster_set | set(new_elements)
+                if len(self.cluster_set) != self.size:
+                    print "size of cluster: ", len(self.cluster_set)
+                    print "supposed size: ", self.size
+                    print new_elements[-10:]
+                    print self.clustroid
+                    sys.exit()
+                assert(len(self.cluster_set) == self.size), len(self.cluster_set)
+
+                for msg in new_elements:
+                    if msg.train == 1 or msg.train == 3:
+                        self.ham.add(msg)
+                    elif msg.train == 0 or msg.train == 2:
+                        self.spam.add(msg)
+
+                return new_elements
+
         old_cluster_set = self.cluster_set
         if self.size + n <= len(self.dist_list):
             self.size += n
@@ -317,13 +490,34 @@ class Cluster:
 
         return new_elements
 
+    def learn(self, n): # relearn only set.size elements. unlearning is too convoluted
+        print "-> relearning a cluster of size ", self.size, " via intersection method"
+        old_cluster_set = self.cluster_set
+        self.ham = set()
+        self.spam = set()
+        self.cluster_set = set()
+        self.dist_list = self.distance_array(self.separate)
+        self.cluster_set = self.make_cluster()
+        self.divide()
+        new_cluster_set = self.cluster_set
+        new_elements = list(item for item in old_cluster_set if item not in new_cluster_set)
+        assert(len(self.cluster_set) == self.size), str(len(self.cluster_set)) + " " + str(self.size)
+        assert(len(new_elements) == n), len(new_elements)        
+        return new_elements
+
     def cluster_less(self, n):
         """Contracts the cluster to include n less emails and returns the now newly excluded emails."""
+
+
         old_cluster_set = self.cluster_set
         self.size -= n
         assert(self.size >= 0), "Cluster size would become negative!"
         if self.sort_first:
-            new_cluster_set = set(item[1] for item in self.dist_list[:self.size])
+            if self.opt == "intersection":
+                new_elements = self.learn(n)
+                return new_elements
+            else:
+                new_cluster_set = set(item[1] for item in self.dist_list[:self.size])
         else:
             k_smallest = quickselect.k_smallest
             new_cluster_set = set(item[1] for item in k_smallest(self.dist_list, self.size))
@@ -997,13 +1191,20 @@ class ActiveUnlearner:
         init_email = None
 
         training = chain(t_e[0], t_e[1], t_e[2], t_e[3]) if working_set is None else working_set
-
-        for email in training: # select closest email
-            current_distance = distance(email, mislabeled_point, self.distance_opt)
-            if current_distance < min_distance:
-                init_email = email
-                min_distance = current_distance
-
+        if self.distance_opt == "intersection":
+            min_distance = -1
+            for email in training: # select closest email to randomly selected mislabeled test email
+                current_distance = distance(email, mislabeled_point, self.distance_opt)
+                if current_distance > min_distance:
+                    init_email = email
+                    min_distance = current_distance
+        else:
+            for email in training: # select closest email to randomly selected mislabeled test email
+                current_distance = distance(email, mislabeled_point, self.distance_opt)
+                if current_distance < min_distance:
+                    init_email = email
+                    min_distance = current_distance
+        print "-> selected ", init_email, " as cluster centroid with distance of ", min_distance, " from mislabeled point"
         return init_email
 
     def max_sum_initial(self, working_set):

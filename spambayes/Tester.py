@@ -1,3 +1,4 @@
+import sys
 from spambayes.Options import options
 
 class Test:
@@ -54,19 +55,25 @@ class Test:
     def train(self, hamstream=None, spamstream=None):
         self.reset_test_results()
         learn = self.classifier.learn
-        spam_set3_counter = 0
+
+        ham_counter = 1
+        spam_counter = 1
+        
 
         if hamstream is not None:
             for example in hamstream:
                 learn(example, False)
+                print ham_counter, " hams trained"
+                ham_counter += 1
+                sys.stdout.write("\033[F")
+
 
         if spamstream is not None:
             for example in spamstream:
                 learn(example, True)
-                if "Set3" in example.tag:
-                    spam_set3_counter += 1
-                    if spam_set3_counter % 100 == 0:
-                        print "Trained", spam_set3_counter, "Set 3 spam"
+                print spam_counter, " spams trained"
+                spam_counter += 1
+                sys.stdout.write("\033[F")
 
     # Untrain the classifier on streams of ham and spam.  Updates
     # probabilities before returning, and resets test results.

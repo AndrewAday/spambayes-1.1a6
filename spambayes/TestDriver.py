@@ -151,13 +151,13 @@ class Driver:
     def train(self, ham, spam):
         try:
             print "-> Training on ham of size " + str(len(ham)) + " & spam of size " + str(len(spam)) +  " ..."
-
         except TypeError:
             print "-> Training on", ham, "&", spam, "..."
+
         c = self.classifier
         nham, nspam = c.nham, c.nspam
         self.tester.train(ham, spam)
-        print c.nham - nham, "hams &", c.nspam - nspam, "spams"
+        print c.nham - nham, "hams &", c.nspam - nspam, "spams" # c.nham - nham gives number of new emails trained on 
 
     def untrain(self, ham, spam):
         try:

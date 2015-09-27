@@ -193,8 +193,8 @@ def main():
                                                       msgs.SpamStream(spam_p, [spam_p])],     # Training Spam
                                                      msgs.HamStream(ham_test, [ham_test]),          # Testing Ham
                                                      msgs.SpamStream(spam_test, [spam_test]),       # Testing Spam
-                                                     distance_opt="inv-match", all_opt=True,
-                                                     update_opt="hybrid", greedy_opt=False)
+                                                     distance_opt="intersection", all_opt=True,       # Set all_opt to false for testing purposes
+                                                     update_opt="hybrid", greedy_opt=False)         # Changed inv-match to intersection
 
             # vanilla active unlearner
             v_au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham_train, [ham_train]), []],

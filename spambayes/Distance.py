@@ -4,7 +4,7 @@ import sys
 
 # l_distance = Levenshtein.distance
 
-match = {"inv-match", "sub-match", "sub-match-norm"}
+match = {"intersection","inv-match", "sub-match", "sub-match-norm"}
 
 def e_s(x, is_eu):
     if is_eu:
@@ -24,6 +24,16 @@ def e_f(x, is_eu):
 
 def distance(msg1, msg2, opt=None, is_eu=True):
     if opt in match:
+        if opt=="intersection":
+            msg1_word_vector = [t[1] for t in msg1.clues] # 1x150 vector containing most potent words
+            msg2_word_vector = [t[1] for t in msg2.clues]
+
+            # print "msg1_word_vector: ", msg1_word_vector
+            # print "msg2_word_vector: ", msg2_word_vector
+
+            # now return the cardinality of their intersection
+            return len(set(msg1_word_vector) & set(msg2_word_vector)) # NOTE: can convert lists to sets because all words are unqiue
+
         msg1.clues.sort() # contains (supposedly) all words in email
         msg2.clues.sort()
         words_1 = msg1.clues
@@ -32,6 +42,10 @@ def distance(msg1, msg2, opt=None, is_eu=True):
         i = 0
         j = 0
         counter = 0
+
+        
+
+
 
         while i < len(words_1) and j < len(words_2):
             clue_1 = words_1[i]
@@ -46,6 +60,8 @@ def distance(msg1, msg2, opt=None, is_eu=True):
                 counter += 1
                 i += 1
                 j += 1
+        
+
 
         if opt == "inv-match":
             if counter == 0:
