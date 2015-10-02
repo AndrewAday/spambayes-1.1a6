@@ -796,7 +796,7 @@ class ActiveUnlearner:
         """
         if shrink_rejects:
             shrink_cluster = cluster.size - int(cluster.size/phi)
-            while new_detection_rate > old_detection_rate:
+            while counter == 0 or new_detection_rate > old_detection_rate:
                 counter += 1
                 sizes.append(cluster.size)
                 detection_rates.append(new_detection_rate)
