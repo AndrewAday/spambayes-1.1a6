@@ -9,7 +9,8 @@ import os
 from math import sqrt
 
 phi = (1 + sqrt(5)) / 2
-tol = 50
+grow_tol = 50 # window tolerance for gold_section_search to maximize positive delta
+shrink_tol = 10 # window tolerance for golden_section_search to minize negative delta
 dec = 20
 
 
@@ -21,7 +22,7 @@ def chosen_sum(chosen, x, opt=None):
     return s
 
 
-def cluster_au(au, gold=False, pos_cluster_opt=0):
+def cluster_au(au, gold=False, pos_cluster_opt=0, shrink_rejects=False):
     """Clusters the training space of an ActiveUnlearner and returns the list of clusters."""
     print "\n-----------------------------------------------\n"
     cluster_list = [] # list of tuples (net_rate_change, cluster)
@@ -46,11 +47,11 @@ def cluster_au(au, gold=False, pos_cluster_opt=0):
         pre_cluster_rate = au.current_detection_rate
 
         cluster_result = determine_cluster(current_seed, au, working_set=training, gold=gold, impact=True, # if true, relearn clusters after returning them
-                                           pos_cluster_opt=pos_cluster_opt)
+                                           pos_cluster_opt=pos_cluster_opt,shrink_rejects=shrink_rejects)
         while cluster_result is None:
             current_seed = cluster_methods(au, "mislabeled", training, mislabeled)
             cluster_result = determine_cluster(current_seed, au, working_set=training, gold=gold, impact=True,
-                                               pos_cluster_opt=pos_cluster_opt)
+                                               pos_cluster_opt=pos_cluster_opt,shrink_rejects=shrink_rejects)
         
         net_rate_change, cluster = cluster_result 
         # After getting the cluster and net_rate_change, you relearn the cluster in original dataset if impact=True
@@ -84,7 +85,7 @@ def cluster_methods(au, method, working_set, mislabeled):
         raise AssertionError("Please specify clustering method.")
 
 
-def determine_cluster(center, au, pos_cluster_opt, working_set=None, gold=False, impact=False, test_waters=False):
+def determine_cluster(center, au, pos_cluster_opt, working_set=None, gold=False, impact=False, test_waters=False, shrink_rejects=False):
     """Given a chosen starting center and a given increment of cluster size, it continues to grow and cluster more
     until the detection rate hits a maximum peak (i.e. optimal cluster); if first try is a decrease, reject this
     center and return False.
@@ -102,20 +103,37 @@ def determine_cluster(center, au, pos_cluster_opt, working_set=None, gold=False,
     new_detection_rate = au.driver.tester.correct_classification_rate()
 
     if new_detection_rate <= old_detection_rate:    # Detection rate worsens - Reject
-        print "\nCenter is inviable. " + str(new_detection_rate) + " < " + str(old_detection_rate) + "\n" 
-        if pos_cluster_opt != 2:
-            au.learn(cluster)
-        second_state_rate = new_detection_rate
-        net_rate_change = second_state_rate - first_state_rate
-        au.current_detection_rate = first_state_rate
-        if pos_cluster_opt == 1:
-            return None
+        if shrink_rejects and new_detection_rate < old_detection_rate -.5: # TODO TEST: arbitrary threshold of -.5% accuracy
+            print "Attempting to shrink the cluster ", cluster
+            if gold: #golden_section_search
+                pass
+                cluster = au.cluster_by_gold(cluster, old_detection_rate, new_detection_rate, counter, test_waters)
+            else: #incremental search
+                sys.exit("Let's use gold for now") # incremental shrink_rejects is not implemented
+            if impact: #include net_rate_change in return
+                au.learn(cluster) # relearn cluster in real training space so deltas of future cluster are not influenced
+                second_state_rate = au.current_detection_rate
+                net_rate_change = second_state_rate - first_state_rate
+                au.current_detection_rate = first_state_rate
+                return net_rate_change, cluster
+            else:
+                return cluster
 
-        elif pos_cluster_opt == 2:
-            print "\nDecrementing until cluster is positive...\n"
-            return neg_cluster_decrementer(au, first_state_rate, cluster)
+        else:
+            print "\nCenter is inviable. " + str(new_detection_rate) + " < " + str(old_detection_rate) + "\n" 
+            if pos_cluster_opt != 2:
+                au.learn(cluster)
+            second_state_rate = new_detection_rate
+            net_rate_change = second_state_rate - first_state_rate
+            au.current_detection_rate = first_state_rate
+            if pos_cluster_opt == 1:
+                return None
 
-        return net_rate_change, cluster
+            elif pos_cluster_opt == 2:
+                print "\nDecrementing until cluster is positive...\n"
+                return neg_cluster_decrementer(au, first_state_rate, cluster)
+
+            return net_rate_change, cluster
 
     elif cluster.size < au.increment:
         if impact:
@@ -274,7 +292,7 @@ class Cluster:
                 
                 S_current = [self.clustroid]
                 self.common_features = set([t[1] for t in self.clustroid.clues]) # set common feature vector
-                for d,e in self.dist_list:
+                for d,e in self.dist_list: #Remove the duplicate clustroid in self.dist_list 
                     if e.tag == self.clustroid.tag:
                         self.dist_list.remove((d,e))
                         print "-> removed duplicate clustroid ", e.tag
@@ -738,55 +756,79 @@ class ActiveUnlearner:
 
         new_unlearns = ['a', 'b', 'c']
 
-        if test_waters:
-            """First tries several incremental increases before trying golden section search."""
-            while (new_detection_rate > old_detection_rate and cluster.size < self.increment * 3) \
-                    and len(new_unlearns) > 0:
+        if new_detection_rate < old_detection_rate: # Shrinking rejected cluster to minimize unlearning of unpolluted emails
+            if test_waters:
+                sys.exit("test_waters not implemented to shrink_rejects, exiting")
+            return self.try_gold(cluster,sizes,detection_rates, old_detection_rate, new_detection_rate, counter,shrink_rejects=True)
+
+        else:
+            if test_waters:
+                """First tries several incremental increases before trying golden section search."""
+                while (new_detection_rate > old_detection_rate and cluster.size < self.increment * 3) \
+                        and len(new_unlearns) > 0:
+                    counter += 1
+                    old_detection_rate = new_detection_rate
+                    print "\nExploring cluster of size", cluster.size + self.increment, "...\n"
+
+                    new_unlearns = cluster.cluster_more(self.increment)
+
+                    self.divide_new_elements(new_unlearns, True)
+                    self.init_ground()
+                    new_detection_rate = self.driver.tester.correct_classification_rate()
+
+            if len(new_unlearns) > 0:
+                if new_detection_rate > old_detection_rate:
+                    return self.try_gold(cluster, sizes, detection_rates, old_detection_rate, new_detection_rate, counter)
+
+                else:
+                    new_learns = cluster.cluster_less(self.increment)
+                    self.divide_new_elements(new_learns, False)
+                    return cluster
+
+            else:
+                return cluster
+
+    def try_gold(self, cluster, sizes, detection_rates, old_detection_rate, new_detection_rate, counter,shrink_rejects=False):
+        
+        """
+        Performs golden section search on the size of a cluster; grows/shrinks exponentially at a rate of phi to ensure that
+        window ratios will be same at all levels (except edge cases), and uses this to determine the initial window.
+        """
+        if shrink_rejects:
+            shrink_cluster = cluster.size - int(cluster.size/phi)
+            while new_detection_rate > old_detection_rate:
                 counter += 1
+                sizes.append(cluster.size)
+                detection_rates.append(new_detection_rate)
                 old_detection_rate = new_detection_rate
-                print "\nExploring cluster of size", cluster.size + self.increment, "...\n"
+                print "\n Exploring a shrunk cluster of size", cluster.size - shrink_cluster, "...\n"
+                
+                new_learns = cluster.cluster_less(shrink_cluster)
+                shrink_cluster = cluster.size - int(cluster.size/phi)
 
-                new_unlearns = cluster.cluster_more(self.increment)
-
-                self.divide_new_elements(new_unlearns, True)
+                self.divide_new_elements(new_learns, False)
                 self.init_ground()
                 new_detection_rate = self.driver.tester.correct_classification_rate()
 
-        if len(new_unlearns) > 0:
-            if new_detection_rate > old_detection_rate:
-                return self.try_gold(cluster, sizes, detection_rates, old_detection_rate, new_detection_rate, counter)
-
-            else:
-                new_learns = cluster.cluster_less(self.increment)
-                self.divide_new_elements(new_learns, False)
-                return cluster
-
         else:
-            return cluster
+            extra_cluster = int(phi * cluster.size)
+            while new_detection_rate > old_detection_rate:
+                counter += 1
 
-    def try_gold(self, cluster, sizes, detection_rates, old_detection_rate, new_detection_rate, counter):
-        extra_cluster = int(phi * cluster.size)
-        """
-        Performs golden section search on the size of a cluster; grows exponentially at a rate of phi to ensure that
-        window ratios will be same at all levels (except edge cases), and uses this to determine the initial window.
-        """
-        while new_detection_rate > old_detection_rate:
-            counter += 1
+                sizes.append(cluster.size)
+                detection_rates.append(new_detection_rate)
+                old_detection_rate = new_detection_rate
+                print "\nExploring cluster of size", cluster.size + int(round(extra_cluster)), "...\n"
 
-            sizes.append(cluster.size)
-            detection_rates.append(new_detection_rate)
-            old_detection_rate = new_detection_rate
-            print "\nExploring cluster of size", cluster.size + int(round(extra_cluster)), "...\n"
+                new_unlearns = cluster.cluster_more(int(round(extra_cluster))) # new_unlearns is array of newly added emails
+                extra_cluster *= phi
 
-            new_unlearns = cluster.cluster_more(int(round(extra_cluster)))
-            extra_cluster *= phi
+                self.divide_new_elements(new_unlearns, True) # unlearns the newly added elements
+                self.init_ground() # rerun test to find new classification accuracy
+                new_detection_rate = self.driver.tester.correct_classification_rate()
 
-            self.divide_new_elements(new_unlearns, True)
-            self.init_ground()
-            new_detection_rate = self.driver.tester.correct_classification_rate()
-
-        sizes.append(cluster.size)
-        detection_rates.append(new_detection_rate)
+        sizes.append(cluster.size) # array of all cluster sizes
+        detection_rates.append(new_detection_rate) # array of all classification rates
 
         cluster, detection_rate, iterations = self.golden_section_search(cluster, sizes, detection_rates)
         print "\nAppropriate cluster found, with size " + str(cluster.size) + " after " + \
@@ -799,7 +841,8 @@ class ActiveUnlearner:
         """Performs golden section search on a cluster given a provided initial window."""
         print "\nPerforming golden section search...\n"
 
-        left, middle_1, right = sizes[len(sizes) - 3], sizes[len(sizes) - 2], sizes[len(sizes) - 1]
+        # left, middle_1, right = sizes[len(sizes) - 3], sizes[len(sizes) - 2], sizes[len(sizes) - 1]
+        left, middle_1, right = sizes[-3],sizes[-2],sizes[-1]
         pointer = middle_1
         iterations = 0
         new_relearns = cluster.cluster_less(right - middle_1)
@@ -810,7 +853,7 @@ class ActiveUnlearner:
 
         middle_2 = right - (middle_1 - left)
 
-        while abs(right - left) > tol:
+        while abs(right - left) > grow_tol:
             print "\nWindow is between " + str(left) + " and " + str(right) + ".\n"
             try:
                 assert(middle_1 < middle_2)
@@ -1001,7 +1044,7 @@ class ActiveUnlearner:
         except KeyboardInterrupt:
             return cluster_list
 
-    def impact_active_unlearn(self, outfile, test=False, pollution_set3=True, gold=False, pos_cluster_opt=0):
+    def impact_active_unlearn(self, outfile, test=False, pollution_set3=True, gold=False, pos_cluster_opt=0, shrink_rejects=False):
         """
         Attempts to improve the machine by first clustering the training space and then unlearning clusters based off
         of perceived impact to the machine.
@@ -1018,7 +1061,7 @@ class ActiveUnlearner:
 
             cluster_count, attempt_count = self.lazy_unlearn(detection_rate, unlearned_cluster_list,
                                                              cluster_count, attempt_count,
-                                                             outfile, pollution_set3, gold, pos_cluster_opt)
+                                                             outfile, pollution_set3, gold, pos_cluster_opt,shrink_rejects)
 
             print "\nThreshold achieved or all clusters consumed after", cluster_count, "clusters unlearned and", \
                 attempt_count, "clustering attempts.\n"
@@ -1033,7 +1076,7 @@ class ActiveUnlearner:
     # ------------------------------FUNCTION LAZY_UNLEARN----------------------------------------------------
 
     def lazy_unlearn(self, detection_rate, unlearned_cluster_list, cluster_count, attempt_count, outfile,
-                     pollution_set3, gold, pos_cluster_opt):
+                     pollution_set3, gold, pos_cluster_opt, shrink_rejects):
         """
         After clustering, unlearns all clusters with positive impact in the cluster list, in reverse order. This is
         due to the fact that going in the regular order usually first unlearns a large cluster that is actually not
@@ -1044,7 +1087,7 @@ class ActiveUnlearner:
         still significant), this preserves the large (and unpolluted) cluster.
         """
         # returns list of tuples contained (net_rate_change, cluster)
-        cluster_list = cluster_au(self, gold=gold, pos_cluster_opt=pos_cluster_opt) 
+        cluster_list = cluster_au(self, gold=gold, pos_cluster_opt=pos_cluster_opt,shrink_rejects=shrink_rejects) 
         
 
         attempt_count += 1
@@ -1059,6 +1102,7 @@ class ActiveUnlearner:
             list_length = len(cluster_list)
             j = 0
             if not self.greedy: # unlearn the smallest positive delta clusters first
+                
                 while cluster_list[j][0] <= 0:
                     j += 1 # move j pointer until lands on smallest positive delta cluster
 
@@ -1066,6 +1110,8 @@ class ActiveUnlearner:
                 indices = range(j, list_length)
 
             else:
+                while cluster_list[j][0] <= 0:
+                    j += 1
                 indices = list(reversed(range(j, len(cluster_list))))
 
             for i in indices:

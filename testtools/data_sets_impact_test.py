@@ -61,7 +61,9 @@ def unlearn_stats(au, outfile, data_set, train, test, polluted, total_polluted, 
         time_start = time.time()
         
         # get the unlearned cluster list
-        cluster_list = au.impact_active_unlearn(outfile, test=True, pollution_set3=pollution_set3, gold=True)
+        # Testing shrinking the rejected clusters
+        # cluster_list = au.impact_active_unlearn(outfile, test=True, pollution_set3=pollution_set3, gold=True, shrink_rejects=True) 
+        cluster_list = au.impact_active_unlearn(outfile, test=True, pollution_set3=pollution_set3, gold=True, shrink_rejects=False) 
         
         time_end = time.time()
         unlearn_time = seconds_to_english(time_end - time_start)
@@ -194,7 +196,8 @@ def main():
                                                      msgs.HamStream(ham_test, [ham_test]),          # Testing Ham
                                                      msgs.SpamStream(spam_test, [spam_test]),       # Testing Spam
                                                      distance_opt="intersection", all_opt=True,       # Set all_opt to false for testing purposes
-                                                     update_opt="hybrid", greedy_opt=False)         # Changed inv-match to intersection
+                                                     update_opt="hybrid", greedy_opt=True)         # Changed inv-match to intersection
+                                                        #CURRENTLY TESTING: GREEDY = TRUE
 
             # vanilla active unlearner
             v_au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham_train, [ham_train]), []],
