@@ -1112,7 +1112,7 @@ class ActiveUnlearner:
             else:
                 while cluster_list[j][0] <= 0:
                     j += 1
-                indices = list(reversed(range(j, len(cluster_list))))
+                indices = list(reversed(range(j, list_length)))
 
             for i in indices:
                 cluster = cluster_list[i]
