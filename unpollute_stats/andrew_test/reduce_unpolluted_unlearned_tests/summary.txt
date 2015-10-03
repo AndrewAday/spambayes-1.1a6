@@ -1,0 +1,1 @@
+tests run with interesection, greedy, skip_rejects, all-opt=True
