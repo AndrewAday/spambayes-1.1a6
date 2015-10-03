@@ -1,3 +1,7 @@
+greedy=false
+all_opt=true
+update_opt=hybrid
+distance_opt=inv-match
 ---------------------------
 Data Set: Mislabeled-Both-2.1
 Vanilla Training: 3600 ham and 3600 spam.
