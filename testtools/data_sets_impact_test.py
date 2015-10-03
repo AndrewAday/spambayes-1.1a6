@@ -151,7 +151,7 @@ def noisy_data_check(pure_clusters, v_au):
 
 
 def main():
-    sets = [12,13,14,15] # select which data sets you want to run algorithm on
+    sets = [11,12,13,14,15] # select which data sets you want to run algorithm on
 
     for i in sets:
         ham = hams[i]
@@ -195,7 +195,7 @@ def main():
                                                       msgs.SpamStream(spam_p, [spam_p])],     # Training Spam
                                                      msgs.HamStream(ham_test, [ham_test]),          # Testing Ham
                                                      msgs.SpamStream(spam_test, [spam_test]),       # Testing Spam
-                                                     distance_opt="inv-match", all_opt=True,       # Set all_opt to false for testing purposes
+                                                     distance_opt="intersection", all_opt=True,       # Set all_opt to false for testing purposes
                                                      update_opt="hybrid", greedy_opt=False)         # Changed inv-match to intersection
                                                         #CURRENTLY TESTING: GREEDY = TRUE
 
