@@ -2,6 +2,7 @@ greedy=true
 all_opt=true
 update_opt=hybrid
 distance_opt=intersection
+skip_rejects=True
 modification: Greedy method now skips over all negative-delta clusters
 ---------------------------
 Data Set: Mislabeled-Both-1.1
