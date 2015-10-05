@@ -392,6 +392,14 @@ class Cluster:
                 counter += 1
 
         return counter
+    def target_set3_get_unpolluted(self):
+        for msg in self.cluster_set:
+            if "Set3" in msg.tag: #msg is polluted, remove from cluster
+                self.cluster_set.remove(msg)
+                self.ham.remove(msg)
+                self.spam.remove(msg)
+                self.size -= 1
+        return self # return the cluster
 
     def target_set4(self):
         """Returns a count of the number of Set4 emails in the cluster."""
@@ -1086,10 +1094,12 @@ class ActiveUnlearner:
         impact cluster, but after unlearning several (large) polluted clusters first (with slightly smaller impact but
         still significant), this preserves the large (and unpolluted) cluster.
         """
+
+        possible_noise = [] # list of all unlearned unpolluted emails
         # returns list of tuples contained (net_rate_change, cluster)
         cluster_list = cluster_au(self, gold=gold, pos_cluster_opt=pos_cluster_opt,shrink_rejects=shrink_rejects) 
         
-
+        rejection_rate = .1 # Reject all clusters <= this threshold delta value
         attempt_count += 1
 
         print ">> Lazy Unlearn Attempt " + str(attempt_count) + " cluster length: ", len(cluster_list)
@@ -1098,20 +1108,15 @@ class ActiveUnlearner:
         print "----------/The Cluster List------------"
 
         # ANDREW CHANGED: while detection_rate <= self.threshold and cluster_list[len(cluster_list) - 1][0] > 0:
-        while detection_rate <= self.threshold and cluster_list[-1][0] > 0:
+        while detection_rate <= self.threshold and cluster_list[-1][0] > rejection_rate:
             list_length = len(cluster_list)
             j = 0
+            while cluster_list[j][0] <= rejection_rate:
+                j += 1 # move j pointer until lands on smallest positive delta cluster
+
             if not self.greedy: # unlearn the smallest positive delta clusters first
-                
-                while cluster_list[j][0] <= 0:
-                    j += 1 # move j pointer until lands on smallest positive delta cluster
-
-                # ANDREW CHANGED: indices = range(j, len(cluster_list))
                 indices = range(j, list_length)
-
             else:
-                while cluster_list[j][0] <= 0:
-                    j += 1
                 indices = list(reversed(range(j, list_length)))
 
             for i in indices:
@@ -1121,9 +1126,9 @@ class ActiveUnlearner:
                 j += 1
                 old_detection_rate = detection_rate
                 
-                if pos_cluster_opt == 3 and self.greedy:
-                    if cluster[0] <= 0:
-                        continue
+                # if pos_cluster_opt == 3 and self.greedy:
+                #     if cluster[0] <= 0:
+                #         continue
 
                 self.unlearn(cluster[1]) # unlearn the cluster
                 self.init_ground(update=True) # find new accuracy, update the cached training space
@@ -1148,7 +1153,7 @@ class ActiveUnlearner:
                 attempt_count += 1
                 gc.collect()
 
-        return cluster_count, attempt_count
+        return cluster_count, attempt_count, possible_noise
 
     # -----------------------------------------------------------------------------------
 

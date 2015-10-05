@@ -121,8 +121,9 @@ def find_pure_clusters(cluster_list, ps_3):
     for cluster in cluster_list:
         cluster = cluster[1]
         if ps_3:
-            if cluster.target_set3() == 0:
-                pure_clusters.append(cluster)
+            pure_clusters.append(cluster.target_set3_get_unpolluted())
+            # if cluster.target_set3() == 0:
+            #     pure_clusters.append(cluster)
 
         else:
             if cluster.target_set4() == 0:
