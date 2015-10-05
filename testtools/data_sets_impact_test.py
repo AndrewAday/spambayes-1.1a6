@@ -152,7 +152,7 @@ def noisy_data_check(pure_clusters, v_au):
 
 
 def main():
-    sets = [11,12,13,14,15] # select which data sets you want to run algorithm on
+    sets = [15] # select which data sets you want to run algorithm on
 
     for i in sets:
         ham = hams[i]
