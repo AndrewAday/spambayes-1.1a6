@@ -393,12 +393,21 @@ class Cluster:
 
         return counter
     def target_set3_get_unpolluted(self):
-        for msg in self.cluster_set:
+        cluster_set_new = []
+	spam_new = set()
+	ham_new = set()
+	for msg in self.cluster_set:
             if "Set3" in msg.tag: #msg is polluted, remove from cluster
-                self.cluster_set.remove(msg)
-                self.ham.remove(msg)
-                self.spam.remove(msg)
                 self.size -= 1
+	    else:
+		cluster_set_new.append(msg)
+		if "ham.txt" in msg.tag:
+			ham_new.add(msg)
+		else:
+			spam_new.add(msg)
+	self.cluster_set = cluster_set_new
+	self.spam = spam_new
+	self.ham = ham_new
         return self # return the cluster
 
     def target_set4(self):
@@ -1095,7 +1104,6 @@ class ActiveUnlearner:
         still significant), this preserves the large (and unpolluted) cluster.
         """
 
-        possible_noise = [] # list of all unlearned unpolluted emails
         # returns list of tuples contained (net_rate_change, cluster)
         cluster_list = cluster_au(self, gold=gold, pos_cluster_opt=pos_cluster_opt,shrink_rejects=shrink_rejects) 
         
@@ -1153,7 +1161,7 @@ class ActiveUnlearner:
                 attempt_count += 1
                 gc.collect()
 
-        return cluster_count, attempt_count, possible_noise
+        return cluster_count, attempt_count
 
     # -----------------------------------------------------------------------------------
 
