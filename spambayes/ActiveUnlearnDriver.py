@@ -546,7 +546,7 @@ class Cluster:
 
         old_cluster_set = self.cluster_set
         self.size -= n
-        assert(self.size >= 0), "Cluster size would become negative!"
+        assert(self.size > 0), "Cluster size would become negative!"
         if self.sort_first:
             if self.opt == "intersection":
                 new_elements = self.learn(n)
