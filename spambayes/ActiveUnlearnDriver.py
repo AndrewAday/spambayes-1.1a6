@@ -1244,13 +1244,6 @@ class ActiveUnlearner:
         if self.include_unsures: # otherwise don't include the unsures
             for unsure in tester.unsure_examples:
                 mislabeled.add(unsure)
-        else: # sort the emails by prob - SPAM/HAM_CUTOFF
-	    mislabeled_list = list(mislabeled)
-	    mislabeled_list.sort(key=lambda x: fabs(.50-x.prob), reverse=True)
-            for email in list(mislabeled_list):
-                print email, "prob: ", email.prob
-	    mislabeled = set(mislabeled_list)
-
 
         return mislabeled
 
@@ -1277,10 +1270,15 @@ class ActiveUnlearner:
         print "Total Cluster Centroids Chosen: ", len(self.mislabeled_chosen)
 
         possible_centroids = list(mislabeled - self.mislabeled_chosen)
+
         print len(possible_centroids), " mislabeled emails remaining as possible cluster centroids" 
         if len(possible_centroids) == 0: #No more centers to select
             return NO_CENTROIDS
         else:
+            possible_centroids.sort(key=lambda x: fabs(.50-x.prob), reverse=True)
+            for email in possible_centroids:
+                print email, "prob: ", email.prob
+
             mislabeled_point = possible_centroids[0] # Choose most potent mislabeled email
             self.mislabeled_chosen.add(mislabeled_point)
 
