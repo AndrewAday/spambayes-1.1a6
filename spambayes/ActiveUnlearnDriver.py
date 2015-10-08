@@ -2,7 +2,6 @@ from random import choice, shuffle
 from spambayes import TestDriver, quickselect
 from Distance import distance
 from itertools import chain
-from enum import Enum
 import sys
 import gc
 import copy
@@ -14,9 +13,10 @@ grow_tol = 50 # window tolerance for gold_section_search to maximize positive de
 shrink_tol = 10 # window tolerance for golden_section_search to minize negative delta
 dec = 20
 
-class Alerts(Enum):
-    NO_CENTROIDS = 1
-    SENTINAL = 2
+NO_CENTROIDS = '1234567890'
+# class Alerts(Enum):
+#     NO_CENTROIDS = 1
+#     SENTINAL = 2
 
 
 def chosen_sum(chosen, x, opt=None):
@@ -52,7 +52,7 @@ def cluster_au(au, gold=False, pos_cluster_opt=0, shrink_rejects=False):
         current_seed = cluster_methods(au, "weighted", training, mislabeled) # weighted function selects most confident falsely labeled email
         
 
-        if current_seed == Alerts.NO_CENTROIDS:
+        if current_seed == NO_CENTROIDS:
             current_seed = choice(training) # choose random remail from remaining emails as seed
             cluster_result = cluster_remaining(current_seed, au, training, impact=True)
         else:
@@ -102,7 +102,7 @@ def cluster_methods(au, method, working_set, mislabeled):
         raise AssertionError("Please specify clustering method.")
 
 def cluster_remaining(center, au, working_set, impact=True):
-    """ This function is called if weighted_initial returns Alerts.NO_CENTROIDS, meaning there are no more misabeled emails to use as centers.
+    """ This function is called if weighted_initial returns NO_CENTROIDS, meaning there are no more misabeled emails to use as centers.
     The remaining emails in the working set are then returned as one cluster.
     """
 
@@ -1275,7 +1275,7 @@ class ActiveUnlearner:
         possible_centroids = list(mislabeled - self.mislabeled_chosen)
         print len(possible_centroids), " mislabeled emails remaining as possible cluster centroids" 
         if len(possible_centroids) == 0: #No more centers to select
-            return Alerts.NO_CENTROIDS
+            return NO_CENTROIDS
         else:
             mislabeled_point = possible_centroids[0] # Choose most potent mislabeled email
             self.mislabeled_chosen.add(mislabeled_point)
