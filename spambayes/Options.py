@@ -357,7 +357,7 @@ defaults = {
      and should be smaller than the Spam Cutoff."""),
      REAL, RESTORE),
 
-    ("spam_cutoff", _("Spam cutoff"), 0.90,
+    ("spam_cutoff", _("Spam cutoff"), 0.80,
      _("""Emails with a spam probability above the Spam Cutoff are
      classified as Spam - just like the Ham Cutoff but at the other
      end of the scale.  Messages that fall between the two values

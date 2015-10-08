@@ -2,16 +2,21 @@ from random import choice, shuffle
 from spambayes import TestDriver, quickselect
 from Distance import distance
 from itertools import chain
+from enum import Enum
 import sys
 import gc
 import copy
 import os
-from math import sqrt
+from math import sqrt, fabs
 
 phi = (1 + sqrt(5)) / 2
 grow_tol = 50 # window tolerance for gold_section_search to maximize positive delta
 shrink_tol = 10 # window tolerance for golden_section_search to minize negative delta
 dec = 20
+
+class Alerts(Enum):
+    NO_CENTROIDS = 1
+    SENTINAL = 2
 
 
 def chosen_sum(chosen, x, opt=None):
@@ -28,13 +33,14 @@ def cluster_au(au, gold=False, pos_cluster_opt=0, shrink_rejects=False):
     cluster_list = [] # list of tuples (net_rate_change, cluster)
     training = au.shuffle_training() # returns a shuffled array containing all training emails
     print "\nResetting mislabeled...\n"
-    mislabeled = au.get_mislabeled(update=True) # gets an array of all false positives, false negatives, and unsure emails
+    mislabeled = au.get_mislabeled(update=True) # gets an array of all false positives, false negatives
     # ^ also runs init_ground, which will update accuracy of classifier on test emails
     
     au.mislabeled_chosen = set() # reset set of clustered mislabeled emails in this instance of au
 
     print "\ncluster_au(ActiveUnelearnDriver:32): Clustering...\n"
     original_training_size = len(training)
+    pre_cluster_rate = au.current_detection_rate
     while len(training) > 0: # loop until all emails in phantom training space have been assigned
         print "\n-----------------------------------------------------\n"
         print "\n" + str(len(training)) + " emails out of " + str(original_training_size) + \
@@ -42,25 +48,33 @@ def cluster_au(au, gold=False, pos_cluster_opt=0, shrink_rejects=False):
 
         # Choose an arbitrary email from the mislabeled emails and returns the training email closest to it.
         # Final call and source of current_seed is mislabeled_initial() function
-        current_seed = cluster_methods(au, "mislabeled", training, mislabeled) 
+        # current_seed = cluster_methods(au, "mislabeled", training, mislabeled) 
+        current_seed = cluster_methods(au, "weighted", training, mislabeled) # weighted function selects most confident falsely labeled email
         
-        pre_cluster_rate = au.current_detection_rate
 
-        cluster_result = determine_cluster(current_seed, au, working_set=training, gold=gold, impact=True, # if true, relearn clusters after returning them
-                                           pos_cluster_opt=pos_cluster_opt,shrink_rejects=shrink_rejects)
-        while cluster_result is None:
-            current_seed = cluster_methods(au, "mislabeled", training, mislabeled)
-            cluster_result = determine_cluster(current_seed, au, working_set=training, gold=gold, impact=True,
+        if current_seed == Alerts.NO_CENTROIDS:
+            current_seed = choice(training) # choose random remail from remaining emails as seed
+            cluster_result = cluster_remaining(current_seed, au, training, impact=True)
+        else:
+            cluster_result = determine_cluster(current_seed, au, working_set=training, gold=gold, impact=True, # if true, relearn clusters after returning them
                                                pos_cluster_opt=pos_cluster_opt,shrink_rejects=shrink_rejects)
-        
-        net_rate_change, cluster = cluster_result 
+        if cluster_result is None:
+            print "!!!How did this happen?????"
+            sys.exit(cluster_result)
+            # while cluster_result is None:
+            #     # current_seed = cluster_methods(au, "mislabeled", training, mislabeled)
+            #     current_seed = cluster_methods(au, "weighted", training, mislabeled)
+            #     cluster_result = determine_cluster(current_seed, au, working_set=training, gold=gold, impact=True,
+            #                                        pos_cluster_opt=pos_cluster_opt,shrink_rejects=shrink_rejects)
+
+        net_rate_change, cluster = cluster_result
         # After getting the cluster and net_rate_change, you relearn the cluster in original dataset if impact=True
 
         post_cluster_rate = au.current_detection_rate
 
         # make sure the cluster was properly relearned
         assert(post_cluster_rate == pre_cluster_rate), str(pre_cluster_rate) + " " + str(post_cluster_rate)
-
+        print "cluster relearned successfully: au detection rate back to ", post_cluster_rate
 
         cluster_list.append([net_rate_change, cluster])
 
@@ -81,8 +95,37 @@ def cluster_methods(au, method, working_set, mislabeled):
     if method == "mislabeled":
         return au.select_initial(mislabeled, "mislabeled", working_set)
 
+    if method == "weighted":
+        return au.select_initial(mislabeled, "weighted", working_set)
+
     else:
         raise AssertionError("Please specify clustering method.")
+
+def cluster_remaining(center, au, working_set, impact=True):
+    """ This function is called if weighted_initial returns Alerts.NO_CENTROIDS, meaning there are no more misabeled emails to use as centers.
+    The remaining emails in the working set are then returned as one cluster.
+    """
+
+    print "No more cluster centroids, grouping all remaining emails into one cluster"
+
+    first_state_rate = au.current_detection_rate
+    cluster = Cluster(center, len(working_set), au, working_set=working_set, distance_opt=au.distance_opt)
+
+    au.unlearn(cluster)
+    au.init_ground()
+    new_detection_rate = au.driver.tester.correct_classification_rate()
+
+    if impact: #include net_rate_change in return
+        au.learn(cluster) # relearn cluster in real training space so deltas of future cluster are not influenced
+        second_state_rate = au.current_detection_rate
+        assert(second_state_rate == new_detection_rate), str(second_state_rate) + " " + str(new_detection_rate)
+        net_rate_change = second_state_rate - first_state_rate
+        print "clustered remaining with a net rate change of ", second_state_rate, " - ", first_state_rate, " = ", net_rate_change
+        au.current_detection_rate = first_state_rate
+        return net_rate_change, cluster
+    else:
+        return cluster
+    
 
 
 def determine_cluster(center, au, pos_cluster_opt, working_set=None, gold=False, impact=False, test_waters=False, shrink_rejects=False):
@@ -96,7 +139,6 @@ def determine_cluster(center, au, pos_cluster_opt, working_set=None, gold=False,
     first_state_rate = au.current_detection_rate
     counter = 0
     cluster = Cluster(center, au.increment, au, working_set=working_set, distance_opt=au.distance_opt) # Distance opt currently inverse
-
     # Test detection rate after unlearning cluster
     au.unlearn(cluster)
     au.init_ground()
@@ -113,6 +155,7 @@ def determine_cluster(center, au, pos_cluster_opt, working_set=None, gold=False,
             if impact: #include net_rate_change in return
                 au.learn(cluster) # relearn cluster in real training space so deltas of future cluster are not influenced
                 second_state_rate = au.current_detection_rate
+                assert(second_state_rate == new_detection_rate), str(second_state_rate) + " " + str(new_detection_rate)
                 net_rate_change = second_state_rate - first_state_rate
                 au.current_detection_rate = first_state_rate
                 return net_rate_change, cluster
@@ -122,9 +165,12 @@ def determine_cluster(center, au, pos_cluster_opt, working_set=None, gold=False,
         else:
             print "\nCenter is inviable. " + str(new_detection_rate) + " < " + str(old_detection_rate) + "\n" 
             if pos_cluster_opt != 2:
+                print "relearning cluster... "
                 au.learn(cluster)
+
             second_state_rate = new_detection_rate
             net_rate_change = second_state_rate - first_state_rate
+            print "cluster rejected with a net rate change of ", second_state_rate, " - ", first_state_rate, " = ", net_rate_change
             au.current_detection_rate = first_state_rate
             if pos_cluster_opt == 1:
                 return None
@@ -158,6 +204,7 @@ def determine_cluster(center, au, pos_cluster_opt, working_set=None, gold=False,
             au.learn(cluster) # relearn cluster in real training space so deltas of future cluster are not influenced
             second_state_rate = au.current_detection_rate
             net_rate_change = second_state_rate - first_state_rate
+            print "cluster found with a net rate change of ", second_state_rate, " - ", first_state_rate, " = ", net_rate_change
             au.current_detection_rate = first_state_rate
             return net_rate_change, cluster
 
@@ -579,13 +626,14 @@ class ActiveUnlearner:
     and data.
     """
     def __init__(self, training_ham, training_spam, testing_ham, testing_spam, threshold=95, increment=100,
-                 distance_opt="extreme", all_opt=False, update_opt="hybrid", greedy_opt=False):
+                 distance_opt="extreme", all_opt=False, update_opt="hybrid", greedy_opt=False, include_unsures=True):
         self.distance_opt = distance_opt
         self.all = all_opt
         self.greedy = greedy_opt
         self.update = update_opt
         self.increment = increment
         self.threshold = threshold
+        self.include_unsures = include_unsures
         self.driver = TestDriver.Driver()
         self.set_driver()
         self.hamspams = zip(training_ham, training_spam)
@@ -1090,8 +1138,6 @@ class ActiveUnlearner:
         except KeyboardInterrupt:
             return unlearned_cluster_list
 
-    # ------------------------------FUNCTION LAZY_UNLEARN----------------------------------------------------
-
     def lazy_unlearn(self, detection_rate, unlearned_cluster_list, cluster_count, attempt_count, outfile,
                      pollution_set3, gold, pos_cluster_opt, shrink_rejects):
         """
@@ -1187,6 +1233,7 @@ class ActiveUnlearner:
             self.init_ground()
 
         mislabeled = set()
+        # CURRENTLY USING HAM_CUTOFF OF .20 AND SPAM_CUTOFF OF .80
         tester = self.driver.tester
         for wrong_ham in tester.ham_wrong_examples: # ham called spam
             mislabeled.add(wrong_ham)
@@ -1194,14 +1241,21 @@ class ActiveUnlearner:
         for wrong_spam in tester.spam_wrong_examples: # spam called ham
             mislabeled.add(wrong_spam)
 
-        for unsure in tester.unsure_examples:
-            mislabeled.add(unsure)
+        if self.include_unsures: # otherwise don't include the unsures
+            for unsure in tester.unsure_examples:
+                mislabeled.add(unsure)
+        else: # sort the emails by prob - SPAM/HAM_CUTOFF
+            mislabeled.sort(key=lambda x: fabs(.50-x.prob), reverse=True)
+
 
         return mislabeled
 
     def select_initial(self, mislabeled=None, option="mislabeled", working_set=None):
         """Returns an email to be used as the next seed for a cluster."""
 
+        if option == "weighted":
+            return self.weighted_initial(working_set,mislabeled)
+        
         if option == "row_sum":
             return self.row_sum_initial(working_set, mislabeled)
 
@@ -1210,6 +1264,45 @@ class ActiveUnlearner:
 
         if option == "max_sum":
             return self.max_sum_initial(working_set)
+
+    def weighted_initial(self, working_set, mislabeled):
+        if mislabeled is None: # Note that mislabeled is sorted in descending order by fabs(.50-email.prob)
+            mislabeled = self.get_mislabeled()
+        t_e = self.driver.tester.train_examples
+
+        print "Total Cluster Centroids Chosen: ", len(self.mislabeled_chosen)
+
+        possible_centroids = list(mislabeled - self.mislabeled_chosen)
+        print len(possible_centroids), " mislabeled emails remaining as possible cluster centroids" 
+        if len(possible_centroids) == 0: #No more centers to select
+            return Alerts.NO_CENTROIDS
+        else:
+            mislabeled_point = possible_centroids[0] # Choose most potent mislabeled email
+            self.mislabeled_chosen.add(mislabeled_point)
+
+            print "Chose the mislabeled point: ", mislabeled_point
+
+            init_email = None
+
+            training = chain(t_e[0], t_e[1], t_e[2], t_e[3]) if working_set is None else working_set
+            
+            if self.distance_opt == "intersection":
+                min_distance = -1
+                for email in training: # select closest email to randomly selected mislabeled test email
+                    current_distance = distance(email, mislabeled_point, self.distance_opt)
+                    if current_distance > min_distance:
+                        init_email = email
+                        min_distance = current_distance
+            else:
+                min_distance = sys.maxint
+                for email in training: # select closest email to randomly selected mislabeled test email
+                    current_distance = distance(email, mislabeled_point, self.distance_opt)
+                    if current_distance < min_distance:
+                        init_email = email
+                        min_distance = current_distance
+            print "-> selected ", init_email, " as cluster centroid with distance of ", min_distance, " from mislabeled point"
+            return init_email
+
 
     def row_sum_initial(self, working_set, mislabeled):
         """Returns the email with the smallest row sum from the set of mislabeled emails."""
@@ -1246,25 +1339,7 @@ class ActiveUnlearner:
         except:
             raise AssertionError(str(mislabeled))
 
-        min_distance = sys.maxint
-        init_email = None
-
-        training = chain(t_e[0], t_e[1], t_e[2], t_e[3]) if working_set is None else working_set
-        if self.distance_opt == "intersection":
-            min_distance = -1
-            for email in training: # select closest email to randomly selected mislabeled test email
-                current_distance = distance(email, mislabeled_point, self.distance_opt)
-                if current_distance > min_distance:
-                    init_email = email
-                    min_distance = current_distance
-        else:
-            for email in training: # select closest email to randomly selected mislabeled test email
-                current_distance = distance(email, mislabeled_point, self.distance_opt)
-                if current_distance < min_distance:
-                    init_email = email
-                    min_distance = current_distance
-        print "-> selected ", init_email, " as cluster centroid with distance of ", min_distance, " from mislabeled point"
-        return init_email
+        
 
     def max_sum_initial(self, working_set):
         """
