@@ -1245,7 +1245,7 @@ class ActiveUnlearner:
             for unsure in tester.unsure_examples:
                 mislabeled.add(unsure)
         else: # sort the emails by prob - SPAM/HAM_CUTOFF
-            mislabeled = set(list(mislabeled.sort(key=lambda x: fabs(.50-x.prob), reverse=True))
+            mislabeled = set(list(mislabeled.sort(key=lambda x: fabs(.50-x.prob), reverse=True)))
             for email in list(mislabeled):
                 print email, "prob: ", email.prob
             
