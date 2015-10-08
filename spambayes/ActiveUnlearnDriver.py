@@ -394,20 +394,20 @@ class Cluster:
         return counter
     def target_set3_get_unpolluted(self):
         cluster_set_new = []
-	spam_new = set()
-	ham_new = set()
-	for msg in self.cluster_set:
+    	spam_new = set()
+    	ham_new = set()
+    	for msg in self.cluster_set:
             if "Set3" in msg.tag: #msg is polluted, remove from cluster
                 self.size -= 1
-	    else:
-		cluster_set_new.append(msg)
-		if "ham.txt" in msg.tag:
-			ham_new.add(msg)
-		else:
-			spam_new.add(msg)
-	self.cluster_set = cluster_set_new
-	self.spam = spam_new
-	self.ham = ham_new
+    	    else:
+        		cluster_set_new.append(msg)
+        		if "ham.txt" in msg.tag:
+        			ham_new.add(msg)
+        		else:
+        			spam_new.add(msg)
+    	self.cluster_set = cluster_set_new
+    	self.spam = spam_new
+    	self.ham = ham_new
         return self # return the cluster
 
     def target_set4(self):

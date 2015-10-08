@@ -39,13 +39,13 @@ STATS
 Initial Detection Rate: 49.5143375006
 Final Detection Rate: 93.4005669935
 Total Unlearned:
-2315
+5735
 Polluted Percentage of Unlearned:
-0/2315 = 0.0
+3420/5735 = .5963382738
 Unpolluted Percentage of Unlearned:
-2315/2315 = 1.0
+2315/5735 = .4036617262
 Percentage of Polluted Unlearned:
-0/3600 = 0.0
+3420/3600 = .95
 Percentage of Unpolluted Unlearned:
 2315/8400 = 0.275595238095
 Percentage of Noisy Data in Unpolluted Unlearned:

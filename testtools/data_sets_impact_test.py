@@ -75,20 +75,12 @@ def unlearn_stats(au, outfile, data_set, train, test, polluted, total_polluted, 
         final_detection_rate = au.current_detection_rate
         noise = []
 
-        if vanilla is not None:
-            # get list of clusters with 0 polluted emails, but unlearning still improves classification accuracy
-            noise = noisy_data_check(find_pure_clusters(cluster_list, ps_3=pollution_set3), # list of all unlearned clusters that had 
-                                                                                            # no polluted emails
-                                     vanilla[1]) #vanilla[1] is the v_au instance
-
         print "\nTallying up final counts...\n"
         for cluster in cluster_list:
             cluster = cluster[1]
             total_unlearned += cluster.size # total no. emails unlearned
             total_polluted_unlearned += cluster.target_set3()
             total_unpolluted_unlearned += (cluster.size - cluster.target_set3())
-            if cluster in noise:
-                total_noisy_unlearned += cluster.size 
 
         outfile.write("\nSTATS\n")
         outfile.write("---------------------------\n")
@@ -105,8 +97,13 @@ def unlearn_stats(au, outfile, data_set, train, test, polluted, total_polluted, 
         outfile.write("Percentage of Unpolluted Unlearned:\n")
         outfile.write(str(total_unpolluted_unlearned) + "/" + str(total_unpolluted) + " = " + str(float(total_unpolluted_unlearned) / float(total_unpolluted)) + "\n")
         if noisy_clusters:
-            outfile.write("Percentage of Noisy Data in Unpolluted Unlearned:\n")
-            outfile.write(str(total_noisy_unlearned) + "/" + str(total_unpolluted_unlearned) + " = " +  str(float(total_noisy_unlearned) / float(total_unpolluted_unlearned)) + "\n")
+            if vanilla is not None:
+                # get list of clusters with 0 polluted emails, but unlearning still improves classification accuracy
+                noise = noisy_data_check(find_pure_clusters(cluster_list, ps_3=pollution_set3), vanilla[1]) #vanilla[1] is the v_au instance
+                for cluster in noise:
+                    total_noisy_unlearned += cluster.size
+                outfile.write("Percentage of Noisy Data in Unpolluted Unlearned:\n")
+                outfile.write(str(total_noisy_unlearned) + "/" + str(total_unpolluted_unlearned) + " = " +  str(float(total_noisy_unlearned) / float(total_unpolluted_unlearned)) + "\n")
         outfile.write("Time for training:\n")
         outfile.write(train_time + "\n")
         outfile.write("Time for unlearning:\n")
