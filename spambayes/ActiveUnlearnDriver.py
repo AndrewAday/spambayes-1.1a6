@@ -52,7 +52,7 @@ def cluster_au(au, gold=False, pos_cluster_opt=0, shrink_rejects=False):
         current_seed = cluster_methods(au, "weighted", training, mislabeled) # weighted function selects most confident falsely labeled email
         
 
-        if current_seed == NO_CENTROIDS:
+        if str(current_seed) == NO_CENTROIDS:
             current_seed = choice(training) # choose random remail from remaining emails as seed
             cluster_result = cluster_remaining(current_seed, au, training, impact=True)
         else:
@@ -1276,8 +1276,6 @@ class ActiveUnlearner:
             return NO_CENTROIDS
         else:
             possible_centroids.sort(key=lambda x: fabs(.50-x.prob), reverse=True)
-            for email in possible_centroids:
-                print email, "prob: ", email.prob
 
             mislabeled_point = possible_centroids[0] # Choose most potent mislabeled email
             self.mislabeled_chosen.add(mislabeled_point)
@@ -1303,6 +1301,7 @@ class ActiveUnlearner:
                         init_email = email
                         min_distance = current_distance
             print "-> selected ", init_email, " as cluster centroid with distance of ", min_distance, " from mislabeled point"
+            print type(init_email)
             return init_email
 
 
