@@ -1281,6 +1281,7 @@ class ActiveUnlearner:
             self.mislabeled_chosen.add(mislabeled_point)
 
             print "Chose the mislabeled point: ", mislabeled_point
+            print "File path: ", mislabeled_point.tag
 
             init_email = None
 
@@ -1301,6 +1302,7 @@ class ActiveUnlearner:
                         init_email = email
                         min_distance = current_distance
             print "-> selected ", init_email, " as cluster centroid with distance of ", min_distance, " from mislabeled point"
+            print "-> selected ", init_email.tag, " as cluster centroid with distance of ", min_distance, " from mislabeled point"
             print type(init_email)
             return init_email
 
