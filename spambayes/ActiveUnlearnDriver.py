@@ -1282,6 +1282,7 @@ class ActiveUnlearner:
 
             print "Chose the mislabeled point: ", mislabeled_point
             print "File path: ", mislabeled_point.tag
+            print "Probability: ", mislabeled_point.prob
 
             init_email = None
 
