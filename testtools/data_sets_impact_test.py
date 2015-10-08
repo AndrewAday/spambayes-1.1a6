@@ -136,7 +136,7 @@ def noisy_data_check(pure_clusters, v_au):
     """
     noisy_clusters = []
     original_detection_rate = v_au.current_detection_rate
-    counter = 0
+    counter = 1
     for cluster in pure_clusters:
         print "testing for noise in cluster ", counter, "/", len(pure_clusters)
         v_au.unlearn(cluster)
@@ -146,6 +146,7 @@ def noisy_data_check(pure_clusters, v_au):
             noisy_clusters.append(cluster)
 
         v_au.learn(cluster)
+        counter += 1
 
     return noisy_clusters
 
@@ -197,7 +198,7 @@ def main():
                                                      msgs.SpamStream(spam_test, [spam_test]),       # Testing Spam
                                                      distance_opt="intersection", all_opt=True,      
                                                      update_opt="hybrid", greedy_opt=True,          
-                                                     include_unsures=False)         
+                                                     include_unsures=False) # Don't unclude unsure emails        
 
             # vanilla active unlearner
             v_au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham_train, [ham_train]), []],
