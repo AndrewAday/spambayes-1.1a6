@@ -136,7 +136,9 @@ def noisy_data_check(pure_clusters, v_au):
     """
     noisy_clusters = []
     original_detection_rate = v_au.current_detection_rate
+    counter = 0
     for cluster in pure_clusters:
+        print "testing for noise in cluster ", counter, "/", len(pure_clusters)
         v_au.unlearn(cluster)
         v_au.init_ground(True)
         new_detection_rate = v_au.driver.tester.correct_classification_rate()
