@@ -152,7 +152,7 @@ def noisy_data_check(pure_clusters, v_au):
 
 
 def main():
-    sets = [11,12,13,14,15] # select which data sets you want to run algorithm on
+    sets = [13,14,15] # select which data sets you want to run algorithm on
 
     for i in sets:
         ham = hams[i]
@@ -197,7 +197,7 @@ def main():
                                                      msgs.HamStream(ham_test, [ham_test]),          # Testing Ham
                                                      msgs.SpamStream(spam_test, [spam_test]),       # Testing Spam
                                                      distance_opt="intersection", all_opt=True,      
-                                                     update_opt="hybrid", greedy_opt=True,          
+                                                     update_opt="hybrid", greedy_opt=False,          
                                                      include_unsures=False) # Don't unclude unsure emails        
 
             # vanilla active unlearner
