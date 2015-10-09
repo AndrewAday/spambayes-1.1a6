@@ -118,10 +118,13 @@ def cluster_remaining(center, au, working_set, impact=True):
     if impact: #include net_rate_change in return
         au.learn(cluster) # relearn cluster in real training space so deltas of future cluster are not influenced
         second_state_rate = au.current_detection_rate
-        assert(second_state_rate == new_detection_rate), str(second_state_rate) + " " + str(new_detection_rate)
+        
         net_rate_change = second_state_rate - first_state_rate
-        print "clustered remaining with a net rate change of ", second_state_rate, " - ", first_state_rate, " = ", net_rate_change
         au.current_detection_rate = first_state_rate
+
+        assert(au.current_detection_rate == first_state_rate), str(au.current_detection_rate) + " " + str(first_state_rate)
+        print "clustered remaining with a net rate change of ", second_state_rate, " - ", first_state_rate, " = ", net_rate_change
+        
         return net_rate_change, cluster
     else:
         return cluster
