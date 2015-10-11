@@ -305,8 +305,9 @@ class Cluster:
                 else:
                     dist_list = [(distance(self.clustroid, train, self.opt), train) for train in self.working_set if
                                  train.train in self.train]
+                    assert(len(dist_list) > 0)
                 
-                assert(len(dist_list) > 0)
+                
         else:
             if self.working_set is None:
                 dist_list = [(distance(self.clustroid, train, self.opt), train) for train in chain(train_examples[0],
