@@ -264,7 +264,10 @@ class Cluster:
         self.size = size # arbitrarily set to 100
         self.active_unlearner = active_unlearner # point to calling au instance
         self.sort_first = sort_first
-        self.working_set = copy.deepcopy(working_set)
+        if 'frequency' in self.opt:
+            self.working_set = [train for train in working_set]
+        else
+            self.working_set = working_set
         self.ham = set()
         self.spam = set()
         self.opt = distance_opt # currently intersection
