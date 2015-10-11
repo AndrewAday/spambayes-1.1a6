@@ -264,14 +264,13 @@ class Cluster:
         self.size = size # arbitrarily set to 100
         self.active_unlearner = active_unlearner # point to calling au instance
         self.sort_first = sort_first
-        if 'frequency' in self.opt:
-            self.working_set = [train for train in working_set]
-        else
-            self.working_set = working_set
+        self.opt = distance_opt
+	# if 'frequency' in self.opt:
+        #    self.working_set = [train for train in working_set]
+        # else:
+        self.working_set = working_set
         self.ham = set()
         self.spam = set()
-        self.opt = distance_opt # currently intersection
-
         if 'frequency' in self.opt:
             self.cluster_word_frequency = helpers.get_word_frequencies(self.clustroid)
             self.added = [] # keeps track of order emails are added
