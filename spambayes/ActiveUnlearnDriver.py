@@ -303,7 +303,7 @@ class Cluster:
                     for train in self.working_set:
                         if train.train in self.train:
                             train_vector = helpers.get_word_frequencies(train)
-                            dist_list.append((distance(self.cluster_word_frequency, train_vector, self.opt)))
+                            dist_list.append((distance(self.cluster_word_frequency, train_vector, self.opt), train))
                     print "----------------------------------------THIS IS THE DIST_LIST--------------------------------------------------"
                     print dist_list[0:10]
                 else:
@@ -434,6 +434,7 @@ class Cluster:
                 for d,e in self.dist_list: # Remove the duplicate clustroid in self.dist_list 
                     if e.tag == self.clustroid.tag:
                         self.dist_list.remove((d,e))
+                        print "the msg object to remove ",  e
                         self.working_set.remove(e) # remove from working set so we no longer encounter
                         print "-> removed duplicate clustroid ", e.tag
                         break
