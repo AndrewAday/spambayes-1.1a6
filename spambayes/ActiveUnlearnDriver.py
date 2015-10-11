@@ -439,7 +439,7 @@ class Cluster:
                         break
                 current_size = 1
                 while current_size < self.size:
-                    nearest = self.dist_list[0] # get nearest email
+                    nearest = self.dist_list[0][1] # get nearest email
                     emails.append(nearest) # add to list
                     self.added.append(nearest)
                     print "THIS IS NEAREST", nearest
@@ -597,7 +597,7 @@ class Cluster:
             new_elements = []
             added = 0
             while added < n:
-                nearest = self.dist_list[0] # get nearest email
+                nearest = self.dist_list[0][1] # get nearest email
                 new_elements.append(nearest) # add to new emails list
                 self.added.append(nearest)
                 self.cluster_set.add(nearest) # add to original cluster set
