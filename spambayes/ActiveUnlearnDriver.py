@@ -303,8 +303,7 @@ class Cluster:
                     for train in self.working_set:
                         if train.train in self.train:
                             dist_list.append((distance(train, self.cluster_word_frequency, self.opt), train))
-                    print "----------------------------------------THIS IS THE DIST_LIST--------------------------------------------------"
-                    print dist_list[0:10]
+                    
                 else:
                     dist_list = [(distance(self.clustroid, train, self.opt), train) for train in self.working_set if
                                  train.train in self.train]
@@ -331,7 +330,8 @@ class Cluster:
             #     counter += 1
             # print "-> Intersection distance list: ", dist_list[0:10]
             return dist_list # reverse the distance list so that closest element is at start
-
+        print "----------------------------------------THIS IS THE DIST_LIST--------------------------------------------------"
+        print dist_list[0:10]
         return dist_list
 
     # def unset(self, tag):
@@ -442,6 +442,7 @@ class Cluster:
                     nearest = self.dist_list[0] # get nearest email
                     emails.append(nearest) # add to list
                     self.added.append(nearest)
+                    print "THIS IS NEAREST", nearest
                     self.working_set.remove(nearest) # remove from working set so email doesn't show up again when we recreate dist_list
                     self.cluster_word_frequency = helpers.update_word_frequencies(self.cluster_word_frequency, nearest) # update word frequencies
                     self.dist_list = self.distance_array(self.separate) # update distance list w/ new frequency list
