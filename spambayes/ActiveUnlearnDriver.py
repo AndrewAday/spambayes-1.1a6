@@ -285,6 +285,8 @@ class Cluster:
     def distance_array(self, separate):
         """Returns a list containing the distances from each email to the center."""
         train_examples = self.active_unlearner.driver.tester.train_examples
+        print "----------------------------------------THIS IS THE WORKING SET--------------------------------------------------"
+        print self.working_set[0:10]
 
         if separate: # if true, all emails must be same type (spam or ham) as centroid
             if self.working_set is None:
