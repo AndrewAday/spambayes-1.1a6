@@ -273,6 +273,7 @@ class Cluster:
         self.spam = set()
         if 'frequency' in self.opt:
             self.cluster_word_frequency = helpers.get_word_frequencies(self.clustroid)
+            print self.cluster_word_frequency
             self.added = [] # keeps track of order emails are added
 
         self.dist_list = self.distance_array(self.separate) # returns list containing dist from all emails in phantom space to center clustroid
@@ -297,8 +298,18 @@ class Cluster:
                              if train.train in self.train]
 
             else:
-                dist_list = [(distance(self.clustroid, train, self.opt), train) for train in self.working_set if
-                             train.train in self.train]
+                if "frequency" in self.opt:
+                    dist_list = []
+                    for train in self.working_set:
+                        if train.train in self.train:
+                            train_vector = helpers.get_word_frequencies(train)
+                            dist_list.append((distance(self.clustroid, train_vector, self.opt)))
+                    print "----------------------------------------THIS IS THE DIST_LIST--------------------------------------------------"
+                    print dist_list[0:10]
+                else:
+                    dist_list = [(distance(self.clustroid, train, self.opt), train) for train in self.working_set if
+                                 train.train in self.train]
+                
                 assert(len(dist_list) > 0)
         else:
             if self.working_set is None:
