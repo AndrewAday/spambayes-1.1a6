@@ -1353,6 +1353,7 @@ class ActiveUnlearner:
             if "frequency" in self.distance_opt:
                 min_distance = sys.maxint
                 mislabeled_point_frequencies = helpers.get_word_frequencies(mislabeled_point)
+                print mislabeled_point_frequencies
                 for email in training:
                     current_distance = distance(email, mislabeled_point_frequencies, self.distance_opt)
                     if current_distance < min_distance:

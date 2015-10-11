@@ -26,7 +26,7 @@ def e_f(x, is_eu):
 def distance(msg1, msg2, opt=None, is_eu=True):
     if opt in match:
         if opt=="frequency1": # msg2 is a dict, where keys are the words and values are the frequencies in the cluster
-            distance = 0
+            distance = 0.0
             msg1_word_vector = [t[1] for t in msg1.clues]
             for word in msg1_word_vector:
                 if word not in msg2:
@@ -36,7 +36,7 @@ def distance(msg1, msg2, opt=None, is_eu=True):
             return distance # 1/(N2+1)+1/(N3+1)+1/(N8+1)
 
         if opt=="frequency2": # msg2 is a dict here too
-            distance = 0
+            distance = 0.0
             msg1_word_vector = [t[1] for t in msg1.clues]
             for word in msg1_word_vector:
                 if word not in msg2:
