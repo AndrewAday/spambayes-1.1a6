@@ -303,7 +303,7 @@ class Cluster:
                     for train in self.working_set:
                         if train.train in self.train:
                             train_vector = helpers.get_word_frequencies(train)
-                            dist_list.append((distance(self.clustroid, train_vector, self.opt)))
+                            dist_list.append((distance(self.cluster_word_frequency, train_vector, self.opt)))
                     print "----------------------------------------THIS IS THE DIST_LIST--------------------------------------------------"
                     print dist_list[0:10]
                 else:
