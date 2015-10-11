@@ -108,6 +108,7 @@ def unlearn_stats(au, outfile, data_set, train, test, polluted, total_polluted, 
         outfile.write(train_time + "\n")
         outfile.write("Time for unlearning:\n")
         outfile.write(unlearn_time)
+        outfile.write("\n") #always end files w/ newline
 
         if clusters:
             return cluster_list
@@ -152,7 +153,7 @@ def noisy_data_check(pure_clusters, v_au):
 
 
 def main():
-    sets = [13,14,15] # select which data sets you want to run algorithm on
+    sets = [11,12,13,14,15] # select which data sets you want to run algorithm on
 
     for i in sets:
         ham = hams[i]
@@ -196,8 +197,8 @@ def main():
                                                       msgs.SpamStream(spam_p, [spam_p])],     # Training Spam
                                                      msgs.HamStream(ham_test, [ham_test]),          # Testing Ham
                                                      msgs.SpamStream(spam_test, [spam_test]),       # Testing Spam
-                                                     distance_opt="intersection", all_opt=True,      
-                                                     update_opt="hybrid", greedy_opt=False,          
+                                                     distance_opt="frequency1", all_opt=True,      
+                                                     update_opt="hybrid", greedy_opt=True,          
                                                      include_unsures=False) # Don't unclude unsure emails        
 
             # vanilla active unlearner

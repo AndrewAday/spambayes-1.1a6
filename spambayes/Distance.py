@@ -1,10 +1,11 @@
 # import Levenshtein
 from math import sqrt
 import sys
+import os
 
 # l_distance = Levenshtein.distance
 
-match = {"intersection","inv-match", "sub-match", "sub-match-norm"}
+match = {"frequency1", "frequency2", "intersection", "inv-match", "sub-match", "sub-match-norm"}
 
 def e_s(x, is_eu):
     if is_eu:
@@ -24,6 +25,26 @@ def e_f(x, is_eu):
 
 def distance(msg1, msg2, opt=None, is_eu=True):
     if opt in match:
+        if opt=="frequency1": # msg2 is a dict, where keys are the words and values are the frequencies in the cluster
+            distance = 0
+            msg1_word_vector = [t[1] for t in msg1.clues]
+            for word in msg1_word_vector:
+                if word not in msg2:
+                    distance += 1.0
+                else:
+                    distance += 1.0/(msg2[word] + 1.0)
+            return distance # 1/(N2+1)+1/(N3+1)+1/(N8+1)
+
+        if opt=="frequency2": # msg2 is a dict here too
+            distance = 0
+            msg1_word_vector = [t[1] for t in msg1.clues]
+            for word in msg1_word_vector:
+                if word not in msg2:
+                    distance += 1.0
+                else:
+                    distance += (msg2[word] + 1.0)
+            return 1.0/distance # 1/(N2+N3+N8+3)
+
         if opt=="intersection":
             msg1_word_vector = [t[1] for t in msg1.clues] # 1x150 vector containing most potent words
             msg2_word_vector = [t[1] for t in msg2.clues]

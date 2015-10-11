@@ -1,5 +1,5 @@
 from random import choice, shuffle
-from spambayes import TestDriver, quickselect
+from spambayes import TestDriver, quickselect, helpers
 from Distance import distance
 from itertools import chain
 import sys
@@ -264,11 +264,16 @@ class Cluster:
         self.size = size # arbitrarily set to 100
         self.active_unlearner = active_unlearner # point to calling au instance
         self.sort_first = sort_first
-        self.working_set = working_set
+        self.working_set = copy.deepcopy(working_set)
         self.ham = set()
         self.spam = set()
         self.opt = distance_opt # currently intersection
-        self.dist_list = self.distance_array(separate) # returns list containing dist from all emails in phantom space to center clustroid
+
+        if 'frequency' in self.opt:
+            self.cluster_word_frequency = helpers.get_word_frequencies(self.clustroid)
+            self.added = [] # keeps track of order emails are added
+
+        self.dist_list = self.distance_array(self.separate) # returns list containing dist from all emails in phantom space to center clustroid
         self.cluster_set = self.make_cluster() # adds closest emails to cluster
         self.divide() # adds cluster emails to ham and spam
 
@@ -346,6 +351,7 @@ class Cluster:
                     if e.tag == self.clustroid.tag:
                         self.dist_list.remove((d,e))
                         print "-> removed duplicate clustroid ", e.tag
+                        break
 
 
                 # TODO remove clustroid, otherwise will be added twice
@@ -408,6 +414,25 @@ class Cluster:
                     # sys.stdout.write("\033[F")
                 print "-> cluster created"
                 return set(S_current)
+            elif 'frequency' in self.opt:
+                emails = [self.clustroid]
+                for d,e in self.dist_list: # Remove the duplicate clustroid in self.dist_list 
+                    if e.tag == self.clustroid.tag:
+                        self.dist_list.remove((d,e))
+                        self.working_set.remove(e) # remove from working set so we no longer encounter
+                        print "-> removed duplicate clustroid ", e.tag
+                        break
+                current_size = 1
+                while current_size < self.size:
+                    nearest = self.dist_list[0] # get nearest email
+                    emails.append(nearest) # add to list
+                    self.added.append(nearest)
+                    self.working_set.remove(nearest) # remove from working set so email doesn't show up again when we recreate dist_list
+                    self.cluster_word_frequency = helpers.update_word_frequencies(self.cluster_word_frequency, nearest) # update word frequencies
+                    self.dist_list = self.distance_array(self.separate) # update distance list w/ new frequency list
+                    current_size += 1
+                print "-> cluster initialized with size", len(emails)
+                return set(emails)
             else:
                 return set(item[1] for item in self.dist_list[:self.size])
 
@@ -547,6 +572,26 @@ class Cluster:
 
                 return new_elements
 
+        if 'frequency' in self.opt:
+            if n >= len(self.dist_list):
+                n = len(self.dist_list)
+            print "Adding ", n, " more emails to cluster of size ", self.size, " via ", self.opt,  " method"
+            self.size += n
+
+            new_elements = []
+            added = 0
+            while added < n:
+                nearest = self.dist_list[0] # get nearest email
+                new_elements.append(nearest) # add to new emails list
+                self.added.append(nearest)
+                self.cluster_set.add(nearest) # add to original cluster set
+                self.working_set.remove(nearest)
+                self.cluster_word_frequency = helpers.update_word_frequencies(self.cluster_word_frequency, nearest) # update word frequencies
+                self.dist_list = self.distance_array(self.separate) # update distance list w/ new frequency list
+                added += 1
+            assert(len(self.cluster_set) == self.size), str(len(self.cluster_set)) + " " + str(len(self.size))
+            return new_elements 
+
         old_cluster_set = self.cluster_set
         if self.size + n <= len(self.dist_list):
             self.size += n
@@ -600,6 +645,19 @@ class Cluster:
         if self.sort_first:
             if self.opt == "intersection":
                 new_elements = self.learn(n)
+                return new_elements
+            elif "frequency" in self.opt:
+                unlearned = 0
+                new_elements = []
+                while unlearned < n:
+                    email = self.added.pop()
+                    new_elements.append(email) # add to new emails list
+                    self.cluster_set.remove(nearest)
+                    self.working_set.append(nearest)
+                    self.cluster_word_frequency = helpers.revert_word_frequencies(self.cluster_word_frequency, nearest) # update word frequencies
+                    unlearned += 1
+                self.dist_list = self.distance_array(self.separate) 
+                assert(len(new_elements) == n), str(len(new_elements)) + " " + str(n)
                 return new_elements
             else:
                 new_cluster_set = set(item[1] for item in self.dist_list[:self.size])
@@ -1206,7 +1264,7 @@ class ActiveUnlearner:
 
             else: # do the whole process again, this time with the training space - unlearned clusters
                 del cluster_list
-                cluster_list = cluster_au(self, gold, pos_cluster_opt=pos_cluster_opt)
+                cluster_list = cluster_au(self, gold, pos_cluster_opt=pos_cluster_opt,shrink_rejects=shrink_rejects)
                 attempt_count += 1
                 gc.collect()
 
@@ -1290,8 +1348,16 @@ class ActiveUnlearner:
             init_email = None
 
             training = chain(t_e[0], t_e[1], t_e[2], t_e[3]) if working_set is None else working_set
-            
-            if self.distance_opt == "intersection":
+            if "frequency" in self.distance_opt:
+                min_distance = sys.maxint
+                mislabeled_point_frequencies = helpers.get_word_frequencies(mislabeled_point)
+                for email in training:
+                    current_distance = distance(email, mislabeled_point_frequencies, self.distance_opt)
+                    if current_distance < min_distance:
+                        init_email = email
+                        min_distance = current_distance
+
+            elif self.distance_opt == "intersection":
                 min_distance = -1
                 for email in training: # select closest email to randomly selected mislabeled test email
                     current_distance = distance(email, mislabeled_point, self.distance_opt)
@@ -1345,6 +1411,42 @@ class ActiveUnlearner:
             self.mislabeled_chosen.add(mislabeled_point)
         except:
             raise AssertionError(str(mislabeled))
+
+        print "Chose the mislabeled point: ", mislabeled_point
+        print "File path: ", mislabeled_point.tag
+        print "Probability: ", mislabeled_point.prob
+
+        init_email = None
+
+        training = chain(t_e[0], t_e[1], t_e[2], t_e[3]) if working_set is None else working_set
+        if "frequency" in self.distance_opt:
+            min_distance = sys.maxint
+            mislabeled_point_frequencies = helpers.get_word_frequencies(mislabeled_point)
+            for email in training:
+                current_distance = distance(email, mislabeled_point_frequencies, self.distance_opt)
+                if current_distance < min_distance:
+                    init_email = email
+                    min_distance = current_distance
+
+        elif self.distance_opt == "intersection":
+            min_distance = -1
+            for email in training: # select closest email to randomly selected mislabeled test email
+                current_distance = distance(email, mislabeled_point, self.distance_opt)
+                if current_distance > min_distance:
+                    init_email = email
+                    min_distance = current_distance
+        else:
+            min_distance = sys.maxint
+            for email in training: # select closest email to randomly selected mislabeled test email
+                current_distance = distance(email, mislabeled_point, self.distance_opt)
+                if current_distance < min_distance:
+                    init_email = email
+                    min_distance = current_distance
+        print "-> selected ", init_email, " as cluster centroid with distance of ", min_distance, " from mislabeled point"
+        print "-> selected ", init_email.tag, " as cluster centroid with distance of ", min_distance, " from mislabeled point"
+        print type(init_email)
+        return init_email
+
 
         
 
