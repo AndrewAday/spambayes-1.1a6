@@ -439,7 +439,6 @@ class Cluster:
                     nearest = self.dist_list[0][1] # get nearest email
                     emails.append(nearest) # add to list
                     self.added.append(nearest)
-                    print "THIS IS NEAREST", nearest
                     self.working_set.remove(nearest) # remove from working set so email doesn't show up again when we recreate dist_list
                     self.cluster_word_frequency = helpers.update_word_frequencies(self.cluster_word_frequency, nearest) # update word frequencies
                     self.dist_list = self.distance_array(self.separate) # update distance list w/ new frequency list
