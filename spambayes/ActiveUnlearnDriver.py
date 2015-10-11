@@ -286,8 +286,6 @@ class Cluster:
     def distance_array(self, separate):
         """Returns a list containing the distances from each email to the center."""
         train_examples = self.active_unlearner.driver.tester.train_examples
-        print "----------------------------------------THIS IS THE WORKING SET--------------------------------------------------"
-        print self.working_set[0:10]
 
         if separate: # if true, all emails must be same type (spam or ham) as centroid
             if self.working_set is None:
@@ -330,8 +328,7 @@ class Cluster:
             #     counter += 1
             # print "-> Intersection distance list: ", dist_list[0:10]
             return dist_list # reverse the distance list so that closest element is at start
-        print "----------------------------------------THIS IS THE DIST_LIST--------------------------------------------------"
-        print dist_list[0:10]
+        
         return dist_list
 
     # def unset(self, tag):
@@ -668,9 +665,9 @@ class Cluster:
                 while unlearned < n:
                     email = self.added.pop()
                     new_elements.append(email) # add to new emails list
-                    self.cluster_set.remove(nearest)
-                    self.working_set.append(nearest)
-                    self.cluster_word_frequency = helpers.revert_word_frequencies(self.cluster_word_frequency, nearest) # update word frequencies
+                    self.cluster_set.remove(email)
+                    self.working_set.append(email)
+                    self.cluster_word_frequency = helpers.revert_word_frequencies(self.cluster_word_frequency, email) # update word frequencies
                     unlearned += 1
                 self.dist_list = self.distance_array(self.separate) 
                 assert(len(new_elements) == n), str(len(new_elements)) + " " + str(n)
