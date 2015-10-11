@@ -265,10 +265,10 @@ class Cluster:
         self.active_unlearner = active_unlearner # point to calling au instance
         self.sort_first = sort_first
         self.opt = distance_opt
-	# if 'frequency' in self.opt:
-        #    self.working_set = [train for train in working_set]
-        # else:
-        self.working_set = working_set
+	    if 'frequency' in self.opt:
+           self.working_set = [train for train in working_set]
+        else:
+            self.working_set = working_set
         self.ham = set()
         self.spam = set()
         if 'frequency' in self.opt:
