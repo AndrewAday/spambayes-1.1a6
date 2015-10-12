@@ -79,8 +79,10 @@ def cluster_au(au, gold=False, pos_cluster_opt=0, shrink_rejects=False):
         cluster_list.append([net_rate_change, cluster])
 
         print "\nRemoving cluster from shuffled training set...\n"
+        oringinal_len = len(training)
         for email in cluster.cluster_set: # remove emails from phantom training set so they are not assigned to other clusters
             training.remove(email)
+        print "\nTraining space is now at ", original_len, " --> ", len(training), " emails"
 
     cluster_list.sort() # sorts by net_rate_change
     print "\nClustering process done and sorted.\n"

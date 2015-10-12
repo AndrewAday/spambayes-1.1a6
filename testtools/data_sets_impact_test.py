@@ -217,12 +217,12 @@ def main():
 
             with open(dest + data_set + " (unlearn_stats).txt", 'w+') as outfile:
                 try:
-                    # unlearn_stats(au, outfile, data_set, [train_ham, train_spam], [test_ham, test_spam],
-                    #               [ham_polluted, spam_polluted], total_polluted, total_unpolluted,
-                    #               train_time, vanilla=[vanilla_detection_rate, v_au], noisy_clusters=True)
                     unlearn_stats(au, outfile, data_set, [train_ham, train_spam], [test_ham, test_spam],
                                   [ham_polluted, spam_polluted], total_polluted, total_unpolluted,
-                                  train_time, vanilla=None, noisy_clusters=True)
+                                  train_time, vanilla=[vanilla_detection_rate, v_au], noisy_clusters=True)
+                    # unlearn_stats(au, outfile, data_set, [train_ham, train_spam], [test_ham, test_spam],
+                    #               [ham_polluted, spam_polluted], total_polluted, total_unpolluted,
+                    #               train_time, vanilla=None, noisy_clusters=True)
 
                 except KeyboardInterrupt:
                     outfile.flush()
