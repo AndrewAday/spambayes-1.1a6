@@ -82,7 +82,7 @@ def cluster_au(au, gold=False, pos_cluster_opt=0, shrink_rejects=False):
         original_len = len(training)
         for email in cluster.cluster_set: # remove emails from phantom training set so they are not assigned to other clusters
             training.remove(email)
-        print "\nTraining space is now at ", original_len, " --> ", len(training), " emails"
+        #print "\nTraining space is now at ", original_len, " --> ", len(training), " emails"
 
     cluster_list.sort() # sorts by net_rate_change
     print "\nClustering process done and sorted.\n"
@@ -598,6 +598,11 @@ class Cluster:
                 added += 1
             assert(len(new_elements) == n), str(len(new_elements)) + " " + str(n)
             assert(len(self.cluster_set) == self.size), str(len(self.cluster_set)) + " " + str(self.size)
+            for msg in new_elements:
+                if msg.train == 1 or msg.train == 3:
+                    self.ham.add(msg)
+                elif msg.train == 0 or msg.train == 2:
+                    self.spam.add(msg)
             return new_elements 
 
         old_cluster_set = self.cluster_set
@@ -674,7 +679,7 @@ class Cluster:
                         self.ham.remove(msg)
                     elif msg.train == 0 or msg.train == 2:
                         self.spam.remove(msg)
-                        
+
                 return new_elements
             else:
                 new_cluster_set = set(item[1] for item in self.dist_list[:self.size])
@@ -783,7 +788,7 @@ class ActiveUnlearner:
             self.driver.tester.train_examples[ham.train].remove(ham)
         for spam in cluster.spam:
             self.driver.tester.train_examples[spam.train].remove(spam)
-        print "\n>>>>>>>Real training space is now at ", original_len, " --> ", len(training), " emails"
+        # print "\n>>>>>>>Real training space is now at ", original_len, " --> ", len(training), " emails"
 
     def learn(self, cluster):
         """Learns a cluster from the ActiveUnlearner."""
