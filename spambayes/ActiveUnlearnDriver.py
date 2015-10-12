@@ -781,10 +781,16 @@ class ActiveUnlearner:
 
         self.driver.untrain(cluster.ham, cluster.spam)
 
+        train_examples = self.driver.tester.train_examples # copy all training data to train_examples variable
+        training = [train for train in chain(train_examples[0], train_examples[1], train_examples[2],
+                                             train_examples[3])]
+
+        original_len = len(training)
         for ham in cluster.ham:
             self.driver.tester.train_examples[ham.train].remove(ham)
         for spam in cluster.spam:
             self.driver.tester.train_examples[spam.train].remove(spam)
+        print "\n>>>>>>>Real training space is now at ", original_len, " --> ", len(training), " emails"
 
     def learn(self, cluster):
         """Learns a cluster from the ActiveUnlearner."""
