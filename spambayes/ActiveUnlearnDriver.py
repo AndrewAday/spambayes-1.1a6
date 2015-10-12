@@ -268,12 +268,12 @@ class Cluster:
         self.sort_first = sort_first
         self.opt = distance_opt
 
-        # self.working_set = working_set
+        self.working_set = working_set
 
-        if 'frequency' in self.opt:
-            self.working_set = [train for train in working_set]
-        else:
-            self.working_set = working_set
+        # if 'frequency' in self.opt:
+        #     self.working_set = [train for train in working_set]
+        # else:
+        #     self.working_set = working_set
         self.ham = set()
         self.spam = set()
         if 'frequency' in self.opt:
@@ -293,22 +293,23 @@ class Cluster:
 
         if separate: # if true, all emails must be same type (spam or ham) as centroid
             if self.working_set is None:
-                dist_list = [(distance(self.clustroid, train, self.opt), train) for train in chain(train_examples[0],
+                if "frequency" in self.opt:
+                    dist_list = [(distance(train, self.cluster_word_frequency, self.opt), train) for train in chain(train_examples[0],
                                                                                                    train_examples[1],
                                                                                                    train_examples[2],
                                                                                                    train_examples[3])
-                             if train.train in self.train]
-
+                                                                    if train.train in self.train]
+                else: 
+                    dist_list = [(distance(self.clustroid, train, self.opt), train) for train in chain(train_examples[0],
+                                                                                                       train_examples[1],
+                                                                                                       train_examples[2],
+                                                                                                       train_examples[3])
+                                 if train.train in self.train]
             else:
                 if "frequency" in self.opt:
-                    # dist_list_real = [train for train in self.working_set]
-                    # for email in self.added:
-                    #     dist_list_real.remove(email)
+                    print "     Creating Distance Array using frequency method"
                     dist_list = [(distance(train, self.cluster_word_frequency, self.opt), train) for train in self.working_set if
                                  train.train in self.train]
-                    # for train in self.working_set:
-                    #     if train.train in self.train:
-                    #         dist_list.append((distance(train, self.cluster_word_frequency, self.opt), train))
                     
                 else:
                     dist_list = [(distance(self.clustroid, train, self.opt), train) for train in self.working_set if
@@ -327,17 +328,14 @@ class Cluster:
                 dist_list = [(distance(self.clustroid, train, self.opt), train) for train in self.working_set]
 
         if self.sort_first:
-            dist_list.sort() # sorts tuples by first element default
+            dist_list.sort() # sorts tuples by first element default, the distance
 
         if self.opt == "intersection":
             dist_list = dist_list[::-1]
-            # counter = 0
-            # for distance, email in dist_list:
-            #     self.msg_index[email.tag] = counter # positional index for unlearning
-            #     counter += 1
-            # print "-> Intersection distance list: ", dist_list[0:10]
             return dist_list # reverse the distance list so that closest element is at start
-        
+        print "\n ----------------Generated Distance Array----------------\n"
+        print [email[0] for email in dist_list[:5]]
+
         return dist_list
 
     # def unset(self, tag):
@@ -345,6 +343,11 @@ class Cluster:
 
     # def updateset(self,tag,update):
     #     self.dist_list[self.msg_index[tag]] = update
+    def update_dist_list(self, separate=True): 
+        """Updates self.dist_list for the frequency[1,2] method"""
+        emails = [train[1] for train in self.dist_list] # get array of emails
+        self.dist_list = [(distance(train, self.cluster_word_frequency, self.opt), train) for train in emails]
+        self.dist_list.sort()
 
     def make_cluster(self):
         """Constructs the initial cluster of emails."""
@@ -355,15 +358,6 @@ class Cluster:
 
         if self.sort_first:
             if self.opt == "intersection":
-
-                # if self.size >= len(self.dist_list): # if remaining emails is < size, no need to iterate through
-                #     new_email = self.dist_list[0][1]
-                #     self.common_features = set(t[1] for t in new_email.clues)
-                #     for distance, email in self.dist_list:
-                #         self.common_features = self.common_features & set([t[1] for t in email.clues])
-
-                #     self.dist_list = [] # all emails added, dist_list now empty
-                #     return set(item[1] for item in self.dist_list)
                 
                 S_current = [self.clustroid]
                 self.common_features = set([t[1] for t in self.clustroid.clues]) # set common feature vector
@@ -372,19 +366,6 @@ class Cluster:
                         self.dist_list.remove((d,e))
                         print "-> removed duplicate clustroid ", e.tag
                         break
-
-
-                # TODO remove clustroid, otherwise will be added twice
-                # if (self.dist_list[0][1].tag == self.clustroid.tag):
-                #     # self.unset(self.clustroid.tag)
-                #     del self.dist_list[0] # it's the same message, don't add it twice
-                # else:
-                #     print "what is going on..."
-                #     sys.exit()
-                
-                # new_email = self.dist_list.pop(0)[1] # pop next closest email
-                # self.common_features = self.common_features & set([t[1] for t in new_email.clues]) # update common features
-                # S_current.add(new_email) # add closest email
 
                 current_size = 1
 
@@ -435,22 +416,26 @@ class Cluster:
                 print "-> cluster created"
                 return set(S_current)
             elif 'frequency' in self.opt:
-                emails = [self.clustroid]
+                emails = [self.clustroid] # list of added emails
+                
                 for d,e in self.dist_list: # Remove the duplicate clustroid in self.dist_list 
                     if e.tag == self.clustroid.tag:
                         self.dist_list.remove((d,e))
-                        self.working_set.remove(e)
+                        # self.working_set.remove(e)
                         print "-> removed duplicate clustroid ", e.tag
-                self.dist_list = self.distance_array(self.separate)
+                        break
+
                 current_size = 1
                 while current_size < self.size:
                     nearest = self.dist_list[0][1] # get nearest email
                     assert(nearest.tag != self.clustroid.tag), str(nearest.tag) + " " + str(self.clustroid.tag)
                     emails.append(nearest) # add to list
                     self.added.append(nearest)
-                    self.working_set.remove(nearest) # remove from working set so email doesn't show up again when we recreate dist_list
+                    # self.working_set.remove(nearest) # remove from working set so email doesn't show up again when we recreate dist_list
                     self.cluster_word_frequency = helpers.update_word_frequencies(self.cluster_word_frequency, nearest) # update word frequencies
-                    self.dist_list = self.distance_array(self.separate) # update distance list w/ new frequency list
+                    del self.dist_list[0] # so we don't add the email twice
+                    self.update_dist_list() # new cluster_word_frequency, so need to resort closest emails
+                    # self.dist_list = self.distance_array(self.separate) # update distance list w/ new frequency list
                     current_size += 1
                 print "-> cluster initialized with size", len(emails)
                 return set(emails)
@@ -594,7 +579,6 @@ class Cluster:
                 return new_elements
 
         if 'frequency' in self.opt:
-            self.dist_list = self.distance_array(self.separate) # refresh distance list
             if n >= len(self.dist_list):
                 n = len(self.dist_list)
             print "Adding ", n, " more emails to cluster of size ", self.size, " via ", self.opt,  " method"
@@ -607,9 +591,10 @@ class Cluster:
                 new_elements.append(nearest) # add to new list
                 self.added.append(nearest)
                 self.cluster_set.add(nearest) # add to original cluster set
-                self.working_set.remove(nearest)
                 self.cluster_word_frequency = helpers.update_word_frequencies(self.cluster_word_frequency, nearest) # update word frequencies
-                self.dist_list = self.distance_array(self.separate) # update distance list w/ new frequency list
+                # self.dist_list = self.distance_array(self.separate) # update distance list w/ new frequency list
+                del self.dist_list[0]
+                self.update_dist_list()
                 added += 1
             assert(len(new_elements) == n), str(len(new_elements)) + " " + str(n)
             assert(len(self.cluster_set) == self.size), str(len(self.cluster_set)) + " " + str(self.size)
@@ -675,12 +660,21 @@ class Cluster:
                     email = self.added.pop() # remove most recently added email
                     new_elements.append(email) # add to new emails list
                     self.cluster_set.remove(email)
-                    self.working_set.append(email)
+                    # self.working_set.append(email)
                     self.cluster_word_frequency = helpers.revert_word_frequencies(self.cluster_word_frequency, email) # update word frequencies
+                    self.dist_list.append((0, email))
                     unlearned += 1
-                self.dist_list = self.distance_array(self.separate) 
+                #self.dist_list = self.distance_array(self.separate) 
+                self.update_dist_list()
                 assert(len(new_elements) == n), str(len(new_elements)) + " " + str(n)
                 assert(len(self.cluster_set) == self.size), str(len(self.cluster_set)) + " " + str(self.size)
+
+                for msg in new_elements:
+                    if msg.train == 1 or msg.train == 3:
+                        self.ham.remove(msg)
+                    elif msg.train == 0 or msg.train == 2:
+                        self.spam.remove(msg)
+                        
                 return new_elements
             else:
                 new_cluster_set = set(item[1] for item in self.dist_list[:self.size])
@@ -697,7 +691,6 @@ class Cluster:
         for msg in new_elements:
             if msg.train == 1 or msg.train == 3:
                 self.ham.remove(msg)
-
             elif msg.train == 0 or msg.train == 2:
                 self.spam.remove(msg)
 
