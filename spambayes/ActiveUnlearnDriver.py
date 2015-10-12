@@ -437,8 +437,9 @@ class Cluster:
                 for d,e in self.dist_list: # Remove the duplicate clustroid in self.dist_list 
                     if e.tag == self.clustroid.tag:
                         self.dist_list.remove((d,e))
-                        # self.working_set.remove(e)
+                        self.working_set.remove(e)
                         print "-> removed duplicate clustroid ", e.tag
+                self.dist_list = self.distance_array(self.separate)
                 current_size = 1
                 while current_size < self.size:
                     nearest = self.dist_list[0][1] # get nearest email
