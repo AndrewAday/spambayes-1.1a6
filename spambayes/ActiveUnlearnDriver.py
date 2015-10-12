@@ -273,7 +273,6 @@ class Cluster:
         self.spam = set()
         if 'frequency' in self.opt:
             self.cluster_word_frequency = helpers.get_word_frequencies(self.clustroid)
-            print self.cluster_word_frequency
             self.added = [] # keeps track of order emails are added
 
         self.dist_list = self.distance_array(self.separate) # returns list containing dist from all emails in phantom space to center clustroid
@@ -431,7 +430,6 @@ class Cluster:
                 for d,e in self.dist_list: # Remove the duplicate clustroid in self.dist_list 
                     if e.tag == self.clustroid.tag:
                         self.dist_list.remove((d,e))
-                        print "the msg object to remove ",  e
                         self.working_set.remove(e) # remove from working set so we no longer encounter
                         print "-> removed duplicate clustroid ", e.tag
                         break
@@ -1251,6 +1249,7 @@ class ActiveUnlearner:
                 cluster = cluster_list[i]
                 print "\n-----------------------------------------------------\n"
                 print "\nChecking cluster " + str(j + 1) + " of " + str(list_length) + "...\n"
+                print "\nOriginal increase in detection rate is ", cluster[0]
                 j += 1
                 old_detection_rate = detection_rate
                 
@@ -1385,7 +1384,6 @@ class ActiveUnlearner:
                     if current_distance < min_distance:
                         init_email = email
                         min_distance = current_distance
-            print "-> selected ", init_email, " as cluster centroid with distance of ", min_distance, " from mislabeled point"
             print "-> selected ", init_email.tag, " as cluster centroid with distance of ", min_distance, " from mislabeled point"
             print type(init_email)
             return init_email
