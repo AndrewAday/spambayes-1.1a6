@@ -439,11 +439,10 @@ class Cluster:
                         self.dist_list.remove((d,e))
                         # self.working_set.remove(e)
                         print "-> removed duplicate clustroid ", e.tag
-                        break
                 current_size = 1
                 while current_size < self.size:
                     nearest = self.dist_list[0][1] # get nearest email
-                    assert(nearest != self.clustroid), str(nearest) + " " + str(self.clustroid)
+                    assert(nearest.tag != self.clustroid.tag), str(nearest.tag) + " " + str(self.clustroid.tag)
                     emails.append(nearest) # add to list
                     self.added.append(nearest)
                     self.working_set.remove(nearest) # remove from working set so email doesn't show up again when we recreate dist_list
