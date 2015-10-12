@@ -265,6 +265,9 @@ class Cluster:
         self.active_unlearner = active_unlearner # point to calling au instance
         self.sort_first = sort_first
         self.opt = distance_opt
+
+        # self.working_set = working_set
+
         if 'frequency' in self.opt:
             self.working_set = [train for train in working_set]
         else:
@@ -296,10 +299,14 @@ class Cluster:
 
             else:
                 if "frequency" in self.opt:
-                    dist_list = []
-                    for train in self.working_set:
-                        if train.train in self.train:
-                            dist_list.append((distance(train, self.cluster_word_frequency, self.opt), train))
+                    # dist_list_real = [train for train in self.working_set]
+                    # for email in self.added:
+                    #     dist_list_real.remove(email)
+                    dist_list = [(distance(train, self.cluster_word_frequency, self.opt), train) for train in self.working_set if
+                                 train.train in self.train]
+                    # for train in self.working_set:
+                    #     if train.train in self.train:
+                    #         dist_list.append((distance(train, self.cluster_word_frequency, self.opt), train))
                     
                 else:
                     dist_list = [(distance(self.clustroid, train, self.opt), train) for train in self.working_set if
@@ -430,12 +437,13 @@ class Cluster:
                 for d,e in self.dist_list: # Remove the duplicate clustroid in self.dist_list 
                     if e.tag == self.clustroid.tag:
                         self.dist_list.remove((d,e))
-                        self.working_set.remove(e) # remove from working set so we no longer encounter
+                        # self.working_set.remove(e)
                         print "-> removed duplicate clustroid ", e.tag
                         break
                 current_size = 1
                 while current_size < self.size:
                     nearest = self.dist_list[0][1] # get nearest email
+                    assert(nearest != self.clustroid), str(nearest) + " " + str(self.clustroid)
                     emails.append(nearest) # add to list
                     self.added.append(nearest)
                     self.working_set.remove(nearest) # remove from working set so email doesn't show up again when we recreate dist_list
@@ -584,6 +592,7 @@ class Cluster:
                 return new_elements
 
         if 'frequency' in self.opt:
+            self.dist_list = self.distance_array(self.separate) # refresh distance list
             if n >= len(self.dist_list):
                 n = len(self.dist_list)
             print "Adding ", n, " more emails to cluster of size ", self.size, " via ", self.opt,  " method"
@@ -593,13 +602,14 @@ class Cluster:
             added = 0
             while added < n:
                 nearest = self.dist_list[0][1] # get nearest email
-                new_elements.append(nearest) # add to new emails list
+                new_elements.append(nearest) # add to new list
                 self.added.append(nearest)
                 self.cluster_set.add(nearest) # add to original cluster set
                 self.working_set.remove(nearest)
                 self.cluster_word_frequency = helpers.update_word_frequencies(self.cluster_word_frequency, nearest) # update word frequencies
                 self.dist_list = self.distance_array(self.separate) # update distance list w/ new frequency list
                 added += 1
+            assert(len(new_elements) == n), str(len(new_elements)) + " " + str(n)
             assert(len(self.cluster_set) == self.size), str(len(self.cluster_set)) + " " + str(self.size)
             return new_elements 
 
@@ -649,7 +659,6 @@ class Cluster:
     def cluster_less(self, n):
         """Contracts the cluster to include n less emails and returns the now newly excluded emails."""
 
-
         old_cluster_set = self.cluster_set
         self.size -= n
         assert(self.size > 0), "Cluster size would become negative!"
@@ -661,7 +670,7 @@ class Cluster:
                 unlearned = 0
                 new_elements = []
                 while unlearned < n:
-                    email = self.added.pop()
+                    email = self.added.pop() # remove most recently added email
                     new_elements.append(email) # add to new emails list
                     self.cluster_set.remove(email)
                     self.working_set.append(email)
@@ -669,6 +678,7 @@ class Cluster:
                     unlearned += 1
                 self.dist_list = self.distance_array(self.separate) 
                 assert(len(new_elements) == n), str(len(new_elements)) + " " + str(n)
+                assert(len(self.cluster_set) == self.size), str(len(self.cluster_set)) + " " + str(self.size)
                 return new_elements
             else:
                 new_cluster_set = set(item[1] for item in self.dist_list[:self.size])
@@ -1363,7 +1373,6 @@ class ActiveUnlearner:
             if "frequency" in self.distance_opt:
                 min_distance = sys.maxint
                 mislabeled_point_frequencies = helpers.get_word_frequencies(mislabeled_point)
-                print mislabeled_point_frequencies
                 for email in training:
                     current_distance = distance(email, mislabeled_point_frequencies, self.distance_opt)
                     if current_distance < min_distance:
