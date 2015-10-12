@@ -602,7 +602,7 @@ class Cluster:
                 self.cluster_word_frequency = helpers.update_word_frequencies(self.cluster_word_frequency, nearest) # update word frequencies
                 self.dist_list = self.distance_array(self.separate) # update distance list w/ new frequency list
                 added += 1
-            assert(len(self.cluster_set) == self.size), str(len(self.cluster_set)) + " " + str(len(self.size))
+            assert(len(self.cluster_set) == self.size), str(len(self.cluster_set)) + " " + str(self.size)
             return new_elements 
 
         old_cluster_set = self.cluster_set

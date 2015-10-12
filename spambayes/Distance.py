@@ -28,7 +28,7 @@ def distance(msg1, msg2, opt=None, is_eu=True):
         if opt=="frequency1": # msg2 is a dict, where keys are the words and values are the frequencies in the cluster
             distance = 0.0
             msg1_word_vector = [t[1] for t in msg1.clues]
-            if len(msg1_word_vector == 0):
+	        if len(msg1_word_vector) == 0:
                 return sys.maxint
             for word in msg1_word_vector:
                 if word not in msg2:
