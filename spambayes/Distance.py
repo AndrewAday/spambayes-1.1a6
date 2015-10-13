@@ -5,7 +5,7 @@ import os
 
 # l_distance = Levenshtein.distance
 
-match = {"frequency1", "frequency2", "intersection", "inv-match", "sub-match", "sub-match-norm"}
+match = {"frequency1", "frequency2","frequency3","frequency4", "intersection", "inv-match", "sub-match", "sub-match-norm"}
 
 def e_s(x, is_eu):
     if is_eu:
