@@ -201,7 +201,7 @@ def main():
                                                       msgs.SpamStream(spam_p, [spam_p])],     # Training Spam
                                                      msgs.HamStream(ham_test, [ham_test]),          # Testing Ham
                                                      msgs.SpamStream(spam_test, [spam_test]),       # Testing Spam
-                                                     distance_opt="frequency2", all_opt=True,      
+                                                     distance_opt="frequency4", all_opt=True,      
                                                      update_opt="hybrid", greedy_opt=True,          
                                                      include_unsures=False) # Don't unclude unsure emails        
 
