@@ -50,8 +50,8 @@ def cluster_au(au, gold=False, pos_cluster_opt=0, shrink_rejects=False):
         # Final call and source of current_seed is mislabeled_initial() function
         # current_seed = cluster_methods(au, "mislabeled", training, mislabeled) 
         current_seed = cluster_methods(au, "weighted", training, mislabeled) # weighted function selects most confident falsely labeled email
-        
-
+        while current_seed == None:
+            current_seed = cluster_methods(au, "weighted", training, mislabeled) # weighted function selects most confident falsely labeled email
         if str(current_seed) == NO_CENTROIDS:
             current_seed = choice(training) # choose random remail from remaining emails as seed
             cluster_result = cluster_remaining(current_seed, au, training, impact=True)
@@ -1399,8 +1399,13 @@ class ActiveUnlearner:
                     if current_distance < min_distance:
                         init_email = email
                         min_distance = current_distance
-            print "-> selected ", init_email.tag, " as cluster centroid with distance of ", min_distance, " from mislabeled point"
             print type(init_email)
+            
+            if init_email is None:
+                print "Training emails remaining: ", training
+            else:
+                print "-> selected ", init_email.tag, " as cluster centroid with distance of ", min_distance, " from mislabeled point"
+
             return init_email
 
 
