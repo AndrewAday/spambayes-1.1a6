@@ -1369,8 +1369,7 @@ class ActiveUnlearner:
             mislabeled_point = possible_centroids[0] # Choose most potent mislabeled email
             self.mislabeled_chosen.add(mislabeled_point)
 
-            print "Chose the mislabeled point: ", mislabeled_point
-            print "File path: ", mislabeled_point.tag
+            print "Chose the mislabeled point: ", mislabeled_point.tag
             print "Probability: ", mislabeled_point.prob
 
             init_email = None

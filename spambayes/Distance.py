@@ -50,6 +50,32 @@ def distance(msg1, msg2, opt=None, is_eu=True):
             assert(distance > 0), str(distance) + " " + msg1_word_vector
             return 1.0/distance # 1/(N2+N3+N8+3)
 
+        if opt=="frequency3":
+            distance = 0.0
+            msg1_word_vector = [t[1] for t in msg1.clues]
+            if len(msg1_word_vector) == 0:
+                return sys.maxint
+            for word in msg1_word_vector:
+                if word not in msg2:
+                    distance += 1.0
+                else:
+                    distance += 1.0/(msg2[word] + 1.0)
+            return distance/len(msg1_word_vector) # 1/(N2+1)+1/(N3+1)+1/(N8+1)
+
+        if opt=="frequency4":
+            distance = 0.0
+            msg1_word_vector = [t[1] for t in msg1.clues]
+            if len(msg1_word_vector) == 0:
+                return sys.maxint
+            for word in msg1_word_vector:
+                if word not in msg2:
+                    distance += 1.0
+                else:
+                    distance += (msg2[word] + 1.0)
+            assert(distance > 0), str(distance) + " " + msg1_word_vector
+            return 1.0/(distance * len(msg1_word_vector)) # 1/(N2+N3+N8+3)
+
+
         if opt=="intersection":
             msg1_word_vector = [t[1] for t in msg1.clues] # 1x150 vector containing most potent words
             msg2_word_vector = [t[1] for t in msg2.clues]
