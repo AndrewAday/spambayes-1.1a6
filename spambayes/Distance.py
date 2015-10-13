@@ -60,7 +60,8 @@ def distance(msg1, msg2, opt=None, is_eu=True):
                     distance += 1.0
                 else:
                     distance += 1.0/(msg2[word] + 1.0)
-            return distance/float(len(msg1_word_vector)) # 1/(N2+1)+1/(N3+1)+1/(N8+1)
+            # return distance/float(len(msg1_word_vector)) # 1/(N2+1)+1/(N3+1)+1/(N8+1)
+            return distance
 
         if opt=="frequency4":
             distance = 0.0
