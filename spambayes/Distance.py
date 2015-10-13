@@ -60,7 +60,7 @@ def distance(msg1, msg2, opt=None, is_eu=True):
                     distance += 1.0
                 else:
                     distance += 1.0/(msg2[word] + 1.0)
-            return distance/len(msg1_word_vector) # 1/(N2+1)+1/(N3+1)+1/(N8+1)
+            return distance/float(len(msg1_word_vector)) # 1/(N2+1)+1/(N3+1)+1/(N8+1)
 
         if opt=="frequency4":
             distance = 0.0
@@ -73,7 +73,7 @@ def distance(msg1, msg2, opt=None, is_eu=True):
                 else:
                     distance += (msg2[word] + 1.0)
             assert(distance > 0), str(distance) + " " + msg1_word_vector
-            return 1.0/(distance * len(msg1_word_vector)) # 1/(N2+N3+N8+3)
+            return 1.0/(distance * float(len(msg1_word_vector))) # 1/(N2+N3+N8+3)
 
 
         if opt=="intersection":
