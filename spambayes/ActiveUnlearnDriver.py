@@ -50,7 +50,7 @@ def cluster_au(au, gold=False, pos_cluster_opt=0, shrink_rejects=False):
         # Final call and source of current_seed is mislabeled_initial() function
         # current_seed = cluster_methods(au, "mislabeled", training, mislabeled) 
         current_seed = cluster_methods(au, "weighted", training, mislabeled) # weighted function selects most confident falsely labeled email
-        while current_seed == None:
+        while current_seed is None:
             current_seed = cluster_methods(au, "weighted", training, mislabeled) # weighted function selects most confident falsely labeled email
         if str(current_seed) == NO_CENTROIDS:
             current_seed = choice(training) # choose random remail from remaining emails as seed
