@@ -5,7 +5,7 @@ import os
 
 # l_distance = Levenshtein.distance
 
-match = {"frequency1", "frequency2","frequency3","frequency4", "intersection", "inv-match", "sub-match", "sub-match-norm"}
+match = {"frequency1", "frequency2","frequency3","frequency4", "frequency5", "intersection", "inv-match", "sub-match", "sub-match-norm"}
 
 def e_s(x, is_eu):
     if is_eu:
@@ -74,6 +74,27 @@ def distance(msg1, msg2, opt=None, is_eu=True):
                     distance += (msg2[word] + 1.0)
             assert(distance > 0), str(distance) + " " + msg1_word_vector
             return 1.0/(distance * float(len(msg1_word_vector))) # 1/(N2+N3+N8+3)
+
+        # (1/(N2+1)+1/(N3+1)+1/(N8+1)) / (|M|*|M|), 
+        # where M is the number of common features between the cluster and the sample.  
+        # That is, M equals 3 in the example (N2, N3, and N8). 
+
+        if opt=="frequency5":
+            distance = 0.0
+            common_features = 1
+            msg1_word_vector = [t[1] for t in msg1.clues]
+            if len(msg1_word_vector) == 0:
+                return sys.maxint
+            for word in msg1_word_vector:
+                if word not in msg2:
+                    distance += 1.0
+                else:
+                    distance += 1.0/(msg2[word] + 1.0)
+                    common_features += 1
+            return distance/(common_features ** 2)
+
+
+
 
 
         if opt=="intersection":
