@@ -256,9 +256,9 @@ def neg_cluster_decrementer(au, first_state_rate, cluster):
 class Cluster:
     def __init__(self, msg, size, active_unlearner, distance_opt, working_set=None, sort_first=True, separate=True):
         self.clustroid = msg # seed of the cluster
-        if msg.train == 1 or msg.train == 3: # if spam set1 or spam set3
+        if msg.train == 1 or msg.train == 3: # if ham set1 or ham set3
             self.train = [1, 3]
-        elif msg.train == 0 or msg.train == 2: # if ham set1 or ham set3
+        elif msg.train == 0 or msg.train == 2: # if spam set1 or spam set3
             self.train = [0, 2]
         self.common_features = []
         self.msg_index = {}
@@ -482,7 +482,7 @@ class Cluster:
                 self.size -= 1
     	    else:
         		cluster_set_new.append(msg)
-        		if "ham.txt" in msg.tag:
+        		if "ham" in msg.tag:
         			ham_new.add(msg)
         		else:
         			spam_new.add(msg)
