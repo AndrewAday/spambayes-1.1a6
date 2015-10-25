@@ -164,7 +164,7 @@ def cluster_remaining_multi(center, au, train_proxy, train_mutex, impact=True):
         train_mutex.release()
         return cluster
 
-def cluster_au(au, gold=False, pos_cluster_opt=0, shrink_rejects=False):
+def cluster_au(au, gold=False, pos_cluster_opt=0):
     """Clusters the training space of an ActiveUnlearner and returns the list of clusters."""
     print "\n-----------------------------------------------\n"
     cluster_list = [] # list of tuples (net_rate_change, cluster)
@@ -194,7 +194,7 @@ def cluster_au(au, gold=False, pos_cluster_opt=0, shrink_rejects=False):
             cluster_result = cluster_remaining(current_seed, au, training, impact=True)
         else:
             cluster_result = determine_cluster(current_seed, au, working_set=training, gold=gold, impact=True, # if true, relearn clusters after returning them
-                                               pos_cluster_opt=pos_cluster_opt,shrink_rejects=shrink_rejects)
+                                               pos_cluster_opt=pos_cluster_opt)
         if cluster_result is None:
             print "!!!How did this happen?????"
             sys.exit(cluster_result)
@@ -1435,7 +1435,7 @@ class ActiveUnlearner:
 
             else: # do the whole process again, this time with the training space - unlearned clusters
                 del cluster_list
-                cluster_list = cluster_au(self, gold, pos_cluster_opt=pos_cluster_opt,shrink_rejects=shrink_rejects)
+                cluster_list = cluster_au(self, gold, pos_cluster_opt=pos_cluster_opt)
                 attempt_count += 1
                 gc.collect()
 
