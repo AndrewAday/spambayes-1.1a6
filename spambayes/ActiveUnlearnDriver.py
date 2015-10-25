@@ -50,7 +50,7 @@ def cluster_au_multi(au, gold=False, pos_cluster_opt=0, shrink_rejects=False, n_
     print mislabeled[0].prob
     print ns.test.get_guts()
     print ns.test.tag
-    print ns.test.get_prob()
+    print ns.test.clues
 
 
     q = mp.Queue()
