@@ -43,6 +43,9 @@ def cluster_au_multi(au, gold=False, pos_cluster_opt=0, shrink_rejects=False, n_
     mislabeled = list(au.get_mislabeled(update=True))
     mislabeled.sort(key=lambda x: fabs(.50-x.prob), reverse=True)
 
+    print mislabeled[0]
+    print mislabeled[0].prob
+
     q = mp.Queue()
 
     train_proxy = manager.list(training)
