@@ -47,6 +47,8 @@ class Msg(object):
         self.guts = []
     def get_guts(self):
         return self.guts
+    def get_prob(self):
+        return self.prob
 
     # We have defined __slots__, so need these to be able to be pickled.
     def __getstate__(self):
