@@ -22,6 +22,15 @@ def e_f(x, is_eu):
     else:
         return x
 
+def multi_distance_wrapper(args):
+    """unpacks arguments for distance methods when executed by pool processes"""
+    # print "this is the train email", args[0]
+    # print "This is its path, ", args[0].tag
+    # print "this is its everything", dir(args[0])
+    # print "This is its clues, ", args[1]
+    args[0].clues = args[1]
+    new_args = [args[0], args[2], args[3]]
+    return (distance(*new_args), args[0]) 
 
 def distance(msg1, msg2, opt=None, is_eu=True):
     if opt in match:
