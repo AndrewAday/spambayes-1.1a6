@@ -45,8 +45,8 @@ def cluster_au_multi(au, gold=False, pos_cluster_opt=0, shrink_rejects=False, n_
     mislabeled.sort(key=lambda x: fabs(.50-x.prob), reverse=True)
     ns.mislabeled = mislabeled
     ns.training = training
-    ns.test = mislabeled[0]
-    ns.test.prob = mislabeled[0].prob
+    ns.test = copy.deepcopy(mislabeled[0])
+    # ns.test.prob = mislabeled[0].prob
     print "testing"
     print mislabeled[0].prob
     print ns.test.get_guts()
@@ -56,8 +56,8 @@ def cluster_au_multi(au, gold=False, pos_cluster_opt=0, shrink_rejects=False, n_
 
     q = mp.Queue()
 
-    train_proxy = ns.training
-    mis_proxy = ns.mislabeled
+    # train_proxy = ns.training
+    # mis_proxy = ns.mislabeled
     # train_proxy = manager.list(training)
     # mis_proxy = manager.list(mislabeled)
 
