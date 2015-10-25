@@ -63,7 +63,7 @@ def unlearn_stats(au, outfile, data_set, train, test, polluted, total_polluted, 
         # get the unlearned cluster list
         # Testing shrinking the rejected clusters
         # cluster_list = au.impact_active_unlearn(outfile, test=True, pollution_set3=pollution_set3, gold=True, shrink_rejects=True) 
-        cluster_list = au.impact_active_unlearn(outfile, test=True, pollution_set3=pollution_set3, gold=True, shrink_rejects=False) 
+        cluster_list = au.impact_active_unlearn(outfile, test=True, pollution_set3=pollution_set3, gold=True, n_processes=1) 
         
         time_end = time.time()
         unlearn_time = seconds_to_english(time_end - time_start)
@@ -206,13 +206,12 @@ def main():
                                                      update_opt="hybrid", greedy_opt=True,          
                                                      include_unsures=False, multi_process=False) # Don't unclude unsure emails        
 
-            # vanilla active unlearner
-            v_au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham_train, [ham_train]), []],
-                                                       [msgs.SpamStream(spam_train, [spam_train]), []],
-                                                       msgs.HamStream(ham_test, [ham_test]),
-                                                       msgs.SpamStream(spam_test, [spam_test]))
-
-            vanilla_detection_rate = v_au.current_detection_rate
+            # v_au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham_train, [ham_train]), []],
+            #                                            [msgs.SpamStream(spam_train, [spam_train]), []],
+            #                                            msgs.HamStream(ham_test, [ham_test]),
+            #                                            msgs.SpamStream(spam_test, [spam_test]))
+            # 
+            # vanilla_detection_rate = v_au.current_detection_rate
 
             time_2 = time.time()
             train_time = seconds_to_english(time_2 - time_1)
@@ -222,12 +221,12 @@ def main():
 
             with open(dest + data_set + " (unlearn_stats).txt", 'w+') as outfile:
                 try:
-                     unlearn_stats(au, outfile, data_set, [train_ham, train_spam], [test_ham, test_spam],
-                                   [ham_polluted, spam_polluted], total_polluted, total_unpolluted,
-                                   train_time, vanilla=[vanilla_detection_rate, v_au], noisy_clusters=True)
                     # unlearn_stats(au, outfile, data_set, [train_ham, train_spam], [test_ham, test_spam],
-                    #              [ham_polluted, spam_polluted], total_polluted, total_unpolluted,
-                    #              train_time, vanilla=None, noisy_clusters=True)
+                    #               [ham_polluted, spam_polluted], total_polluted, total_unpolluted,
+                    #               train_time, vanilla=[vanilla_detection_rate, v_au], noisy_clusters=True)
+                     unlearn_stats(au, outfile, data_set, [train_ham, train_spam], [test_ham, test_spam],
+                                  [ham_polluted, spam_polluted], total_polluted, total_unpolluted,
+                                  train_time, vanilla=None, noisy_clusters=True)
 
                 except KeyboardInterrupt:
                     outfile.flush()

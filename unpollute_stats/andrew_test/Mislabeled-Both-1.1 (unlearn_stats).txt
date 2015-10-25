@@ -1,0 +1,11 @@
+---------------------------
+Data Set: Mislabeled-Both-1.1
+Vanilla Training: 4200 ham and 4200 spam.
+Testing: 10533 ham and 10984 spam.
+Pollution Training: 1800 ham and 1800 spam.
+---------------------------
+
+
+CLUSTER AND RATE COUNTS:
+---------------------------
+0: 63.1175349723
