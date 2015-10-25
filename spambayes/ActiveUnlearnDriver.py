@@ -52,8 +52,7 @@ def cluster_au_multi(au, gold=False, pos_cluster_opt=0, shrink_rejects=False, n_
     print dir(mis_proxy[0])
     print repr(mis_proxy[0])
     print str(mis_proxy[0])
-    print mis_proxy[0]._getvalue()
-    print mis_proxy[0].prob
+    print mis_proxy[0].clues
 
     train_mutex = mp.RLock()
     mis_mutex = mp.Lock()
