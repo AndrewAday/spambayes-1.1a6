@@ -45,7 +45,7 @@ class Msg(object):
 
     def guts_clear(self):
         self.guts = []
-    def get_gets(self):
+    def get_guts(self):
         return self.guts
 
     # We have defined __slots__, so need these to be able to be pickled.
