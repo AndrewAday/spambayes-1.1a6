@@ -43,9 +43,6 @@ def cluster_au_multi(au, gold=False, pos_cluster_opt=0, shrink_rejects=False, n_
     mislabeled = list(au.get_mislabeled(update=True))
     mislabeled.sort(key=lambda x: fabs(.50-x.prob), reverse=True)
 
-    print mislabeled[0]
-    print mislabeled[0].prob
-
     q = mp.Queue()
 
     train_proxy = manager.list(training)
@@ -106,7 +103,7 @@ def weighted_initial_multi(au, train_proxy, train_mutex, mis_proxy, mis_mutex):
     else:
         mis_mutex.acquire()
         print len(mis_proxy), " mislabeled emails remaining as possible cluster centroids"
-        mislabeled_point = mis_proxy[0] # Choose most potent mislabeled email
+        mislabeled_point = copy.deepcopy(mis_proxy[0]) # Choose most potent mislabeled email
         del mis_proxy[0]
 
         print name, " Chose the mislabeled point: ", mislabeled_point.tag
