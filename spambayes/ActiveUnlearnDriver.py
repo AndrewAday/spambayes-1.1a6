@@ -354,21 +354,20 @@ class Cluster:
     #     self.dist_list[self.msg_index[tag]] = update
     def update_dist_list(self, separate=True): 
         """Updates self.dist_list for the frequency[1,2] method"""
-        start_time = time.time()
-        if self.multi_process:
-            emails = [(train[1], train[1].clues, self.cluster_word_frequency, self.opt) for train in self.dist_list] # get array of emails
-            pool = mp.Pool(processes=5)
-            self.dist_list = pool.map(multi_distance_wrapper, emails)
-            for i,e in enumerate(emails):
-                if self.dist_list[i][1].tag == e[0].tag:
-                    self.dist_list[i][1].clues = e[1]
-        else: 
-            emails = [train[1] for train in self.dist_list] # get array of emails
-            self.dist_list = [(distance(train, self.cluster_word_frequency, self.opt), train) for train in emails]
-
+        
+        # if self.multi_process:
+        #     emails = [(train[1], train[1].clues, self.cluster_word_frequency, self.opt) for train in self.dist_list] # get array of emails
+        #     pool = mp.Pool(processes=5)
+        #     self.dist_list = pool.map(multi_distance_wrapper, emails)
+        #     for i,e in enumerate(emails):
+        #         if self.dist_list[i][1].tag == e[0].tag:
+        #             self.dist_list[i][1].clues = e[1]
+        # else: 
+        emails = [train[1] for train in self.dist_list] # get array of emails
+        self.dist_list = [(distance(train, self.cluster_word_frequency, self.opt), train) for train in emails]
         self.dist_list.sort()
-        end_time = time.time()
-        print "TIME TAKEN TO UPDATE DIST_LIST with multi_processing as ", self.multi_process, ": ", end_time - start_time
+        
+        
 
     def make_cluster(self):
         """Constructs the initial cluster of emails."""
