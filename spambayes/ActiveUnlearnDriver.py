@@ -33,6 +33,7 @@ def cluster_au_multi(au, gold=False, pos_cluster_opt=0, shrink_rejects=False, n_
     print "\n-------------Beginning cluster_au_multi----------------\n"
     
     manager = mp.Manager()
+    ns = manager.Namespace()
     pre_cluster_rate = au.current_detection_rate
 
     cluster_list = []
@@ -42,17 +43,20 @@ def cluster_au_multi(au, gold=False, pos_cluster_opt=0, shrink_rejects=False, n_
     print "\nResetting mislabeled...\n"
     mislabeled = list(au.get_mislabeled(update=True))
     mislabeled.sort(key=lambda x: fabs(.50-x.prob), reverse=True)
+    ns.mislabeled = mislabeled
+    ns.training = training
 
     q = mp.Queue()
 
-    train_proxy = manager.list(training)
-    mis_proxy = manager.list(mislabeled)
+    train_proxy = ns.training
+    mis_proxy = ns.mislabeled
+    # train_proxy = manager.list(training)
+    # mis_proxy = manager.list(mislabeled)
 
     print mis_proxy[0]
     print dir(mis_proxy[0])
     print repr(mis_proxy[0])
-    print str(mis_proxy[0])
-    print mis_proxy[0]._exposed_
+    print mis_proxy[0].clue
 
     train_mutex = mp.RLock()
     mis_mutex = mp.Lock()
