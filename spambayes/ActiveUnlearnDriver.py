@@ -103,8 +103,7 @@ def weighted_initial_multi(au, train_proxy, train_mutex, mis_proxy, mis_mutex):
     else:
         mis_mutex.acquire()
         print len(mis_proxy), " mislabeled emails remaining as possible cluster centroids"
-        mislabeled_point = copy.deepcopy(mis_proxy[0]) # Choose most potent mislabeled email
-        del mis_proxy[0]
+        mislabeled_point = mis_proxy.pop(0) # Choose most potent mislabeled email
 
         print name, " Chose the mislabeled point: ", mislabeled_point.tag
         print "Probability: ", mislabeled_point.prob
