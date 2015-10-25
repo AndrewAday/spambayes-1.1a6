@@ -28,6 +28,141 @@ def chosen_sum(chosen, x, opt=None):
         s += distance(msg, x, opt)
     return s
 
+def cluster_au_multi(au, gold=False, pos_cluster_opt=0, shrink_rejects=False, n_processes=2):
+    """Clusters the training space of an ActiveUnlearner with n_processes and returns the list of clusters."""
+    print "\n-------------Beginning cluster_au_multi----------------\n"
+    
+    manager = mp.Manager()
+    pre_cluster_rate = au.current_detection_rate
+
+    cluster_list = []
+    training = au.shuffle_training()
+    original_training_size = len(training)
+
+    print "\nResetting mislabeled...\n"
+    mislabeled = list(au.get_mislabeled(update=True))
+    mislabeled.sort(key=lambda x: fabs(.50-x.prob), reverse=True)
+
+    q = mp.Queue()
+
+    train_proxy = manager.list(training)
+    mis_proxy = manager.list(mislabeled)
+    train_mutex = mp.RLock()
+    mis_mutex = mp.Lock()
+
+    while len(training) > 0:
+        print "\n-----------------------------------------------------\n"
+        print "\n" + str(len(training)) + " emails out of " + str(original_training_size) + \
+              " still unclustered.\n"
+        if len(training) > 1000 * n_processes:
+            workers = [mp.Process(name="Worker " + str(i), target=cluster_au_multi_job,
+                        args=(copy.deepcopy(au),q, train_proxy, train_mutex, mis_proxy, mis_mutex, gold,
+                            pos_cluster_opt))
+                        for i in range(n_processes)]
+            for worker in workers:
+                worker.start()
+            for worker in workers:
+                worker.join()
+            
+        else:
+            worker = mp.Process(name="Solo Worker", target=cluster_au_multi_job,
+                        args=(copy.deepcopy(au),q, train_proxy, train_mutex, mis_proxy, mis_mutex, gold,
+                            pos_cluster_opt))
+            worker.start()
+            worker.join()
+
+        while not q.empty():
+            net_rate_change, cluster = q.get()
+            cluster_list.append([net_rate_change, cluster])
+
+            # for email in cluster.cluster_set: 
+            #     training.remove(email)
+
+    cluster_list.sort() 
+    print "\nClustering process done and sorted.\n"
+    return cluster_list 
+
+def cluster_au_multi_job(au, q, train_proxy, train_mutex, mis_proxy, mis_mutex, gold, pos_cluster_opt):
+    name = mp.current_process().name
+    current_seed = weighted_initial_multi(au, train_proxy, train_mutex, mis_proxy, mis_mutex)
+    while current_seed is None:
+        current_seed = weighted_initial_multi(au, train_proxy, train_mutex, mis_proxy, mis_mutex)
+    if current_seed == NO_CENTROIDS:
+        cluster_result = cluster_remaining_multi(center, au, train_proxy, train_mutex)
+    else:
+        cluster_result = determine_cluster(current_seed, au, working_set=train_proxy, gold=gold, impact=True,
+                                               pos_cluster_opt=pos_cluster_opt, name=name, train_mutex=train_mutex)
+    if cluster_result != None:
+        q.put(cluster_result)
+    return
+
+def weighted_initial_multi(au, train_proxy, train_mutex, mis_proxy, mis_mutex):
+    name = mp.current_process().name
+    if len(mis_proxy) == 0: #No more centers to select
+        return NO_CENTROIDS
+    else:
+        mis_mutex.acquire()
+        print len(mis_proxy), " mislabeled emails remaining as possible cluster centroids"
+        mislabeled_point = mis_proxy[0] # Choose most potent mislabeled email
+        del mis_proxy[0]
+
+        print name, " Chose the mislabeled point: ", mislabeled_point.tag
+        print "Probability: ", mislabeled_point.prob
+
+        mis_mutex.release()
+
+        init_email = None
+
+        if "frequency" in self.distance_opt:
+            min_distance = sys.maxint
+            mislabeled_point_frequencies = helpers.get_word_frequencies(mislabeled_point)
+            train_mutex.acquire()
+            for email in train_proxy:
+                current_distance = distance(email, mislabeled_point_frequencies, self.distance_opt)
+                if current_distance < min_distance:
+                    init_email = email
+                    min_distance = current_distance
+        
+        if init_email is None:
+            print "Training emails remaining: ", training
+        else:
+            train_proxy.remove(init_email) # prevent other threads from choosing same centroid
+            train_mutex.release()
+            print "-> selected ", init_email.tag, " as cluster centroid with distance of ", min_distance, " from mislabeled point"
+
+        return init_email
+
+def cluster_remaining_multi(center, au, train_proxy, train_mutex, impact=True):
+    train_mutex.acquire()
+    if len(working_set) == 0: # another thread has finished the job, terminate
+        return None
+
+    name = mp.current_process().name
+    print "No more cluster centroids, ", name, "is grouping all remaining emails into one cluster"
+
+    first_state_rate = au.current_detection_rate
+    cluster = Cluster(center, len(train_proxy), au, working_set=train_proxy, 
+                                    distance_opt=au.distance_opt, multi_process=au.multi_process)
+
+    au.unlearn(cluster)
+    au.init_ground()
+    new_detection_rate = au.driver.tester.correct_classification_rate()
+
+    if impact: #include net_rate_change in return
+        au.learn(cluster) # relearn cluster in real training space so deltas of future cluster are not influenced
+        second_state_rate = au.current_detection_rate
+        
+        net_rate_change = second_state_rate - first_state_rate
+        au.current_detection_rate = first_state_rate
+
+        assert(au.current_detection_rate == first_state_rate), str(au.current_detection_rate) + " " + str(first_state_rate)
+        print "clustered remaining with a net rate change of ", second_state_rate, " - ", first_state_rate, " = ", net_rate_change
+        
+        train_mutex.release()
+        return net_rate_change, cluster
+    else:
+        train_mutex.release()
+        return cluster
 
 def cluster_au(au, gold=False, pos_cluster_opt=0, shrink_rejects=False):
     """Clusters the training space of an ActiveUnlearner and returns the list of clusters."""
@@ -40,7 +175,7 @@ def cluster_au(au, gold=False, pos_cluster_opt=0, shrink_rejects=False):
     
     au.mislabeled_chosen = set() # reset set of clustered mislabeled emails in this instance of au
 
-    print "\ncluster_au(ActiveUnelearnDriver:32): Clustering...\n"
+    print "\nClustering...\n"
     original_training_size = len(training)
     pre_cluster_rate = au.current_detection_rate
     while len(training) > 0: # loop until all emails in phantom training space have been assigned
@@ -136,78 +271,55 @@ def cluster_remaining(center, au, working_set, impact=True):
     
 
 
-def determine_cluster(center, au, pos_cluster_opt, working_set=None, gold=False, impact=False, test_waters=False, shrink_rejects=False):
+def determine_cluster(center, au, pos_cluster_opt, working_set=None, gold=False, impact=False, test_waters=False, name="", train_mutex=None):
     """Given a chosen starting center and a given increment of cluster size, it continues to grow and cluster more
     until the detection rate hits a maximum peak (i.e. optimal cluster); if first try is a decrease, reject this
     center and return False.
     """
+    if len(working_set) == 0:
+        return None
 
-    print "\nDetermining appropriate cluster around", center.tag, "...\n"
+    print name, " Determining appropriate cluster around", center.tag, "...\n"
     old_detection_rate = au.current_detection_rate
     first_state_rate = au.current_detection_rate
     counter = 0
 
-    print "making cluster with multi_process=", au.multi_process
+    print name, " making cluster with multi_process=", au.multi_process
     cluster = Cluster(center, au.increment, au, working_set=working_set, 
-                            distance_opt=au.distance_opt, multi_process=au.multi_process)
+                            distance_opt=au.distance_opt, multi_process=au.multi_process, name=name, train_mutex=train_mutex)
     # Test detection rate after unlearning cluster
     au.unlearn(cluster)
     au.init_ground()
     new_detection_rate = au.driver.tester.correct_classification_rate()
 
     if new_detection_rate <= old_detection_rate:    # Detection rate worsens - Reject
-        if shrink_rejects and new_detection_rate < old_detection_rate -.5: # TODO TEST: arbitrary threshold of -.5% accuracy
-            print "Attempting to shrink the cluster ", cluster
-            if gold: #golden_section_search
-                pass
-                cluster = au.cluster_by_gold(cluster, old_detection_rate, new_detection_rate, counter, test_waters)
-            else: #incremental search
-                sys.exit("Let's use gold for now") # incremental shrink_rejects is not implemented
-            if impact: #include net_rate_change in return
-                au.learn(cluster) # relearn cluster in real training space so deltas of future cluster are not influenced
-                second_state_rate = au.current_detection_rate
-                assert(second_state_rate == new_detection_rate), str(second_state_rate) + " " + str(new_detection_rate)
-                net_rate_change = second_state_rate - first_state_rate
-                au.current_detection_rate = first_state_rate
-                return net_rate_change, cluster
-            else:
-                return cluster
-
-        else:
-            print "\nCenter is inviable. " + str(new_detection_rate) + " < " + str(old_detection_rate) + "\n" 
-            if pos_cluster_opt != 2:
-                print "relearning cluster... "
-                au.learn(cluster)
-
-            second_state_rate = new_detection_rate
-            net_rate_change = second_state_rate - first_state_rate
-            print "cluster rejected with a net rate change of ", second_state_rate, " - ", first_state_rate, " = ", net_rate_change
-            au.current_detection_rate = first_state_rate
-            if pos_cluster_opt == 1:
-                return None
-
-            elif pos_cluster_opt == 2:
-                print "\nDecrementing until cluster is positive...\n"
-                return neg_cluster_decrementer(au, first_state_rate, cluster)
-
-            return net_rate_change, cluster
-
+        print name, " Center is inviable. " + str(new_detection_rate) + " < " + str(old_detection_rate) + "\n" 
+        if pos_cluster_opt != 2:
+            print "relearning cluster... "
+            au.learn(cluster)
+        second_state_rate = new_detection_rate
+        net_rate_change = second_state_rate - first_state_rate
+        print name, "cluster rejected with a net rate change of ", second_state_rate, " - ", first_state_rate, " = ", net_rate_change
+        au.current_detection_rate = first_state_rate
+        if pos_cluster_opt == 1:
+            return None
+        elif pos_cluster_opt == 2:
+            print name, "Decrementing until cluster is positive...\n"
+            return neg_cluster_decrementer(au, first_state_rate, cluster)
+        return net_rate_change, cluster
     elif cluster.size < au.increment:
         if impact:
             au.learn(cluster)
             second_state_rate = new_detection_rate
             net_rate_change = second_state_rate - first_state_rate
             au.current_detection_rate = first_state_rate
-            print "no more emails to cluster, returning cluster of size ", cluster.size
+            print name, " no more emails to cluster, returning cluster of size ", cluster.size
             return net_rate_change, cluster
-
         else:
             return cluster
-
     else:   # Detection rate improves - Grow cluster
         if gold:
             cluster = au.cluster_by_gold(cluster, old_detection_rate, new_detection_rate, counter, test_waters)
-
         else:
             cluster = au.cluster_by_increment(cluster, old_detection_rate, new_detection_rate, counter)
 
@@ -215,13 +327,11 @@ def determine_cluster(center, au, pos_cluster_opt, working_set=None, gold=False,
             au.learn(cluster) # relearn cluster in real training space so deltas of future cluster are not influenced
             second_state_rate = au.current_detection_rate
             net_rate_change = second_state_rate - first_state_rate
-            print "cluster found with a net rate change of ", second_state_rate, " - ", first_state_rate, " = ", net_rate_change
+            print name, " cluster found with a net rate change of ", second_state_rate, " - ", first_state_rate, " = ", net_rate_change
             au.current_detection_rate = first_state_rate
             return net_rate_change, cluster
-
         else:
             return cluster
-
 
 def cluster_print_stats(outfile, pollution_set3, detection_rate, cluster, cluster_count, attempt_count):
     """Prints stats for a given unlearned cluster and the present state of the machine after unlearning."""
@@ -261,9 +371,11 @@ def neg_cluster_decrementer(au, first_state_rate, cluster):
 
 class Cluster:
     def __init__(self, msg, size, active_unlearner, distance_opt, working_set=None, sort_first=True, separate=True,
-                 multi_process=False):
+                 multi_process=False, name="", train_mutex=None):
         self.clustroid = msg # seed of the cluster
-        self.multi_process= multi_process
+        self.multi_process = multi_process
+        self.name = name
+        self.train_mutex = train_mutex
         if msg.train == 1 or msg.train == 3: # if ham set1 or ham set3
             self.train = [1, 3]
         elif msg.train == 0 or msg.train == 2: # if spam set1 or spam set3
@@ -275,13 +387,7 @@ class Cluster:
         self.active_unlearner = active_unlearner # point to calling au instance
         self.sort_first = sort_first
         self.opt = distance_opt
-
         self.working_set = working_set
-
-        # if 'frequency' in self.opt:
-        #     self.working_set = [train for train in working_set]
-        # else:
-        #     self.working_set = working_set
         self.ham = set()
         self.spam = set()
         if 'frequency' in self.opt:
@@ -347,14 +453,8 @@ class Cluster:
 
         return dist_list
 
-    # def unset(self, tag):
-    #     self.dist_list[self.msg_index[tag]] = None
-
-    # def updateset(self,tag,update):
-    #     self.dist_list[self.msg_index[tag]] = update
     def update_dist_list(self, separate=True): 
         """Updates self.dist_list for the frequency[1,2] method"""
-        
         # if self.multi_process:
         #     emails = [(train[1], train[1].clues, self.cluster_word_frequency, self.opt) for train in self.dist_list] # get array of emails
         #     pool = mp.Pool(processes=5)
@@ -363,8 +463,8 @@ class Cluster:
         #         if self.dist_list[i][1].tag == e[0].tag:
         #             self.dist_list[i][1].clues = e[1]
         # else: 
-        emails = [train[1] for train in self.dist_list] # get array of emails
-        self.dist_list = [(distance(train, self.cluster_word_frequency, self.opt), train) for train in emails]
+        self.dist_list = [(distance(train, self.cluster_word_frequency, self.opt), train) for train in self.working_set if
+                                 train.train in self.train]
         self.dist_list.sort()
         
         
@@ -372,12 +472,15 @@ class Cluster:
     def make_cluster(self):
         """Constructs the initial cluster of emails."""
         # self.dist_list = [t for t in self.dist_list if t is not None]
+        if self.multi_process:
+            self.train_mutex.acquire() # reserve the training set
+            self.update_dist_list()
         if self.size > len(self.dist_list):
             print "\nTruncating cluster size...\n"
             self.size = len(self.dist_list)
 
-        if self.sort_first:
-            if self.opt == "intersection":
+        if self.sort_first: 
+            if self.opt == "intersection": # Note: not suited for multi_process
                 
                 S_current = [self.clustroid]
                 self.common_features = set([t[1] for t in self.clustroid.clues]) # set common feature vector
@@ -437,28 +540,29 @@ class Cluster:
                 return set(S_current)
             elif 'frequency' in self.opt:
                 emails = [self.clustroid] # list of added emails
-                
-                for d,e in self.dist_list: # Remove the duplicate clustroid in self.dist_list 
-                    if e.tag == self.clustroid.tag:
-                        self.dist_list.remove((d,e))
-                        # self.working_set.remove(e)
-                        print "-> removed duplicate clustroid ", e.tag
-                        break
+
+                if not self.multi_process:
+                    for d,e in self.dist_list: # Remove the duplicate clustroid in self.dist_list 
+                        if e.tag == self.clustroid.tag:
+                            self.dist_list.remove((d,e))
+                            # self.working_set.remove(e)
+                            print "-> removed duplicate clustroid ", e.tag
+                            break
 
                 current_size = 1
                 while current_size < self.size:
-                    print self.dist_list[:3]
                     nearest = self.dist_list[0][1] # get nearest email
                     assert(nearest.tag != self.clustroid.tag), str(nearest.tag) + " " + str(self.clustroid.tag)
                     emails.append(nearest) # add to list
                     self.added.append(nearest) # track order in which emails are added
-                    # self.working_set.remove(nearest) # remove from working set so email doesn't show up again when we recreate dist_list
                     self.cluster_word_frequency = helpers.update_word_frequencies(self.cluster_word_frequency, nearest) # update word frequencies
                     del self.dist_list[0] # so we don't add the email twice
+                    self.working_set.remove(nearest) # so we don't add email twice
                     self.update_dist_list() # new cluster_word_frequency, so need to resort closest emails
-                    # self.dist_list = self.distance_array(self.separate) # update distance list w/ new frequency list
                     current_size += 1
                 print "-> cluster initialized with size", len(emails)
+                if self.multi_process:
+                    self.train_mutex.release()
                 return set(emails)
             else:
                 return set(item[1] for item in self.dist_list[:self.size])
@@ -602,23 +706,34 @@ class Cluster:
         if 'frequency' in self.opt:
             if n >= len(self.dist_list):
                 n = len(self.dist_list)
-            print "Adding ", n, " more emails to cluster of size ", self.size, " via ", self.opt,  " method"
-            self.size += n
+            print self.name, " Adding ", n, " more emails to cluster of size ", self.size, " via ", self.opt,  " method"
+            expected = self.size + n
 
             new_elements = []
             added = 0
             while added < n:
+                if self.multi_process:
+                    self.train_mutex.acquire()
+                self.update_dist_list()
+                if len(self.dist_list) == 0:
+                    break
                 nearest = self.dist_list[0][1] # get nearest email
+                self.working_set.remove(nearest)
+                if self.multi_process:
+                    self.train_mutex.release()
                 new_elements.append(nearest) # add to new list
                 self.added.append(nearest)
                 self.cluster_set.add(nearest) # add to original cluster set
                 self.cluster_word_frequency = helpers.update_word_frequencies(self.cluster_word_frequency, nearest) # update word frequencies
-                # self.dist_list = self.distance_array(self.separate) # update distance list w/ new frequency list
-                del self.dist_list[0]
-                self.update_dist_list()
                 added += 1
-            assert(len(new_elements) == n), str(len(new_elements)) + " " + str(n)
-            assert(len(self.cluster_set) == self.size), str(len(self.cluster_set)) + " " + str(self.size)
+                self.size += 1
+
+            if not self.multi_process:
+                assert(len(new_elements) == n), str(len(new_elements)) + " " + str(n)
+                assert(len(self.cluster_set) == self.size), str(len(self.cluster_set)) + " " + str(self.size)
+             
+            print self.name, " created cluster of size, ", len(self.cluster_set()), " compared with expected ", expected  
+
             for msg in new_elements:
                 if msg.train == 1 or msg.train == 3:
                     self.ham.add(msg)
@@ -655,7 +770,7 @@ class Cluster:
         return new_elements
 
     def learn(self, n): # relearn only set.size elements. unlearning is too convoluted
-        print "-> relearning a cluster of size ", self.size, " via intersection method"
+        print self.name, " -> relearning a cluster of size ", self.size, " via intersection method"
         old_cluster_set = self.cluster_set
         self.ham = set()
         self.spam = set()
@@ -682,15 +797,17 @@ class Cluster:
             elif "frequency" in self.opt:
                 unlearned = 0
                 new_elements = []
+                if self.multi_process:
+                    self.train_mutex.acquire()
                 while unlearned < n:
                     email = self.added.pop() # remove most recently added email
                     new_elements.append(email) # add to new emails list
                     self.cluster_set.remove(email)
-                    # self.working_set.append(email)
+                    self.working_set.append(email)
                     self.cluster_word_frequency = helpers.revert_word_frequencies(self.cluster_word_frequency, email) # update word frequencies
-                    self.dist_list.append((0, email))
                     unlearned += 1
-                #self.dist_list = self.distance_array(self.separate) 
+                if self.multi_process:
+                    self.train_mutex.release()
                 self.update_dist_list()
                 assert(len(new_elements) == n), str(len(new_elements)) + " " + str(n)
                 assert(len(self.cluster_set) == self.size), str(len(self.cluster_set)) + " " + str(self.size)
@@ -1220,7 +1337,7 @@ class ActiveUnlearner:
         except KeyboardInterrupt:
             return cluster_list
 
-    def impact_active_unlearn(self, outfile, test=False, pollution_set3=True, gold=False, pos_cluster_opt=0, shrink_rejects=False):
+    def impact_active_unlearn(self, outfile, test=False, pollution_set3=True, gold=False, pos_cluster_opt=0, n_processes=2):
         """
         Attempts to improve the machine by first clustering the training space and then unlearning clusters based off
         of perceived impact to the machine.
@@ -1237,7 +1354,7 @@ class ActiveUnlearner:
 
             cluster_count, attempt_count = self.lazy_unlearn(detection_rate, unlearned_cluster_list,
                                                              cluster_count, attempt_count,
-                                                             outfile, pollution_set3, gold, pos_cluster_opt,shrink_rejects)
+                                                             outfile, pollution_set3, gold, pos_cluster_opt, n_processes)
 
             print "\nThreshold achieved or all clusters consumed after", cluster_count, "clusters unlearned and", \
                 attempt_count, "clustering attempts.\n"
@@ -1250,7 +1367,7 @@ class ActiveUnlearner:
             return unlearned_cluster_list
 
     def lazy_unlearn(self, detection_rate, unlearned_cluster_list, cluster_count, attempt_count, outfile,
-                     pollution_set3, gold, pos_cluster_opt, shrink_rejects):
+                     pollution_set3, gold, pos_cluster_opt, n_processes):
         """
         After clustering, unlearns all clusters with positive impact in the cluster list, in reverse order. This is
         due to the fact that going in the regular order usually first unlearns a large cluster that is actually not
@@ -1262,7 +1379,10 @@ class ActiveUnlearner:
         """
 
         # returns list of tuples contained (net_rate_change, cluster)
-        cluster_list = cluster_au(self, gold=gold, pos_cluster_opt=pos_cluster_opt,shrink_rejects=shrink_rejects) 
+        if self.multi_process:
+            cluster_list = cluster_au_multi(self, gold=gold, pos_cluster_opt=pos_cluster_opt, n_processes=n_processes)
+        else:
+            cluster_list = cluster_au(self, gold=gold, pos_cluster_opt=pos_cluster_opt) 
         
         rejection_rate = .1 # Reject all clusters <= this threshold delta value
         attempt_count += 1

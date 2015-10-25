@@ -63,7 +63,7 @@ def unlearn_stats(au, outfile, data_set, train, test, polluted, total_polluted, 
         # get the unlearned cluster list
         # Testing shrinking the rejected clusters
         # cluster_list = au.impact_active_unlearn(outfile, test=True, pollution_set3=pollution_set3, gold=True, shrink_rejects=True) 
-        cluster_list = au.impact_active_unlearn(outfile, test=True, pollution_set3=pollution_set3, gold=True, shrink_rejects=False) 
+        cluster_list = au.impact_active_unlearn(outfile, test=True, pollution_set3=pollution_set3, gold=True, n_processes=1) 
         
         time_end = time.time()
         unlearn_time = seconds_to_english(time_end - time_start)
@@ -153,7 +153,7 @@ def noisy_data_check(pure_clusters, v_au):
 
 
 def main():
-    sets = [16] # select which data sets you want to run algorithm on
+    sets = [11] # select which data sets you want to run algorithm on
     global dest
     if len(sys.argv) > 1:
         dest = sys.argv[1]
@@ -211,7 +211,7 @@ def main():
             #                                            [msgs.SpamStream(spam_train, [spam_train]), []],
             #                                            msgs.HamStream(ham_test, [ham_test]),
             #                                            msgs.SpamStream(spam_test, [spam_test]))
-
+            # 
             # vanilla_detection_rate = v_au.current_detection_rate
 
             time_2 = time.time()
