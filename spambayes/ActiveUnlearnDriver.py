@@ -48,7 +48,7 @@ def cluster_au_multi(au, gold=False, pos_cluster_opt=0, shrink_rejects=False, n_
     ns.test = mislabeled[0]
     print "testing"
     print mislabeled[0].prob
-    print ns.test.prob
+    print ns.test.tag
 
     q = mp.Queue()
 
