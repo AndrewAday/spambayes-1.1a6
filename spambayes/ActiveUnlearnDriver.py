@@ -56,6 +56,8 @@ def cluster_au_multi(au, gold=False, pos_cluster_opt=0, shrink_rejects=False, n_
     print "testing"
     print mislabeled[0].prob
     print ns.mislabeled_prob[0]
+    print ns.training[0]
+    print ns.training[0].prob
     print ns.test.tag
     print dir(ns.test)
     for attr in dir(ns.test):
