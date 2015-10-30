@@ -42,16 +42,18 @@ def cluster_au_multi(au, gold=False, pos_cluster_opt=0, shrink_rejects=False, n_
 
     print "\nResetting mislabeled...\n"
     mislabeled = list(au.get_mislabeled(update=True))
+
+    mislabled_prob = [email.prob for email in mislabeled]
+
     mislabeled.sort(key=lambda x: fabs(.50-x.prob), reverse=True)
     ns.mislabeled = mislabeled
     ns.training = training
+    ns.mislabeled_prob = mislabeled_prob
     ns.test = copy.deepcopy(mislabeled[0])
     # ns.test.prob = mislabeled[0].prob
     print "testing"
     print mislabeled[0].prob
-    print ns.test.get_guts()
-    print ns.test.tag
-    print ns.test.prob
+    print ns.mislabeled_prob[0]
 
 
     q = mp.Queue()
@@ -863,7 +865,7 @@ class ActiveUnlearner:
     Core component of the unlearning algorithm. Container class for most relevant methods, driver/classifier,
     and data.
     """
-    def __init__(self, training_ham, training_spam, testing_ham, testing_spam, threshold=95, increment=100,
+    def __init__(self, training_ham, training_spam, testing_ham, testing_spam, threshold=100, increment=100,
                  distance_opt="extreme", all_opt=False, update_opt="hybrid", greedy_opt=False, include_unsures=True,
                  multi_process=False):
         self.multi_process = multi_process
