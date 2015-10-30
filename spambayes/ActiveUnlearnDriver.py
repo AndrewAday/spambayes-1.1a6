@@ -55,8 +55,8 @@ def cluster_au_multi(au, gold=False, pos_cluster_opt=0, shrink_rejects=False, n_
     ns.test.prob = mislabeled[0].prob
     print "testing"
 
-    test_email = ns.mislabeled[0]
-    test_email.prob = ns.mislabeled_prob[0]
+    ns.mislabeled[0].prob = ns.mislabeled_prob[0]
+    print ns.mislabeled[0].prob
     print test_email
     print test_email.prob
 
