@@ -52,8 +52,9 @@ def cluster_au_multi(au, gold=False, pos_cluster_opt=0, shrink_rejects=False, n_
     ns.training = training
     ns.mislabeled_prob = mislabeled_prob
     ns.test = copy.deepcopy(mislabeled[0])
-    # ns.test.prob = mislabeled[0].prob
+    ns.test.prob = mislabeled[0].prob
     print "testing"
+    print ns.test.prob
     print mislabeled[0].prob
     print ns.mislabeled_prob[0]
     print ns.training[0]
