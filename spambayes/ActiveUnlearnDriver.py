@@ -43,9 +43,11 @@ def cluster_au_multi(au, gold=False, pos_cluster_opt=0, shrink_rejects=False, n_
     print "\nResetting mislabeled...\n"
     mislabeled = list(au.get_mislabeled(update=True))
 
-    mislabeled_prob = [email.prob for email in mislabeled]
+    
 
     mislabeled.sort(key=lambda x: fabs(.50-x.prob), reverse=True)
+    mislabeled_prob = [email.prob for email in mislabeled]
+
     ns.mislabeled = mislabeled
     ns.training = training
     ns.mislabeled_prob = mislabeled_prob
@@ -54,7 +56,12 @@ def cluster_au_multi(au, gold=False, pos_cluster_opt=0, shrink_rejects=False, n_
     print "testing"
     print mislabeled[0].prob
     print ns.mislabeled_prob[0]
-
+    print dir(ns.test)
+    for attr in dir(ns.test):
+        try:
+            print attr, ": ", ns.test.attr
+        except Exception:
+            pass
 
     q = mp.Queue()
 
