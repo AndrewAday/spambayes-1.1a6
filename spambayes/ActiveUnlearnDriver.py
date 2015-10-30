@@ -54,18 +54,11 @@ def cluster_au_multi(au, gold=False, pos_cluster_opt=0, shrink_rejects=False, n_
     ns.test = copy.deepcopy(mislabeled[0])
     ns.test.prob = mislabeled[0].prob
     print "testing"
-    print ns.test.prob
-    print mislabeled[0].prob
-    print ns.mislabeled_prob[0]
-    print ns.training[0]
-    print ns.training[0].prob
-    print ns.test.tag
-    print dir(ns.test)
-    for attr in dir(ns.test):
-        try:
-            print attr, ": ", ns.test.attr
-        except Exception:
-            pass
+
+    test_email = ns.mislabeled[0]
+    test_email.prob = ns.mislabeled_prob[0]
+    print test_email
+    print test_email.prob
 
     q = mp.Queue()
 
