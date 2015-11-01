@@ -527,7 +527,6 @@ class Cluster:
         else:
             emails = [train[1] for train in self.dist_list] # get array of emails
             self.dist_list = [(distance(train, self.cluster_word_frequency, self.opt), train) for train in emails]
-            self.dist_list.sort()
 
         self.dist_list.sort()
         
@@ -799,7 +798,7 @@ class Cluster:
                     self.update_proxies(nearest)
                     self.train_mutex.release()
                 else:
-                    self.working_set.remove(nearest)
+                    del self.dist_list[0]
                 new_elements.append(nearest) # add to new list
                 self.added.append(nearest)
                 self.cluster_set.add(nearest) # add to original cluster set
