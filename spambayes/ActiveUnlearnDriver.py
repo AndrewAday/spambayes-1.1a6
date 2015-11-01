@@ -138,7 +138,7 @@ def weighted_initial_multi(au, train_proxy, train_prob_proxy, train_clues_proxy,
         print len(mis_proxy), " mislabeled emails remaining as possible cluster centroids"
         mislabeled_point = mis_proxy.pop(0) # Choose most potent mislabeled email
         prob = mis_prob_proxy.pop(0)
-        clues = mis_prob_proxy.pop(0)
+        clues = mis_clues_proxy.pop(0)
         mislabeled_point = helpers.reconstruct_msg(mislabeled_point, prob, clues)
 
         print name, " Chose the mislabeled point: ", mislabeled_point.tag
