@@ -118,7 +118,7 @@ def cluster_au_multi_job(au, q, train_proxy, train_prob_proxy, train_clues_proxy
         current_seed = weighted_initial_multi(au, train_proxy, train_prob_proxy, train_clues_proxy, train_mutex, 
                                              mis_proxy, mis_prob_proxy, mis_clues_proxy, mis_mutex)
     
-    if current_seed == NO_CENTROIDS:
+    if str(current_seed) == NO_CENTROIDS:
         cluster_result = cluster_remaining_multi(center, au, train_proxy, train_prob_proxy, train_clues_proxy, train_mutex)
     else:
         cluster_result = determine_cluster(current_seed, au, working_set=train_proxy, train_prob=train_prob_proxy,
