@@ -525,7 +525,7 @@ class Cluster:
             self.dist_list = [(distance(train, self.cluster_word_frequency, self.opt), train) for train in train_msgs if
                                  train.train in self.train]
         else:
-            self.dist_list = [(distance(train, self.cluster_word_frequency, self.opt), train) for train in self.working_set if
+            self.dist_list = [(distance(train, self.cluster_word_frequency, self.opt), train) for train in self.dist_list if
                                      train.train in self.train]
         self.dist_list.sort()
         
