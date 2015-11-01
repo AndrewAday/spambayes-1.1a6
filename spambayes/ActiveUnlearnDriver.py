@@ -43,35 +43,36 @@ def cluster_au_multi(au, gold=False, pos_cluster_opt=0, shrink_rejects=False, n_
     original_training_size = len(training)
 
     print "\nResetting mislabeled...\n"
-    mislabeled = list(au.get_mislabeled(update=True))
 
-    
-    # To deal with strange bug
+    mislabeled = list(au.get_mislabeled(update=True))
     mislabeled.sort(key=lambda x: fabs(.50-x.prob), reverse=True)
     mislabeled_prob = [email.prob for email in mislabeled]
     mislabeled_clues = [email.clues for email in mislabeled]
 
-    mis_proxy = manager.list(mislabeled)
-    first_email = mis_proxy[0]
-    first_email.prob = mislabeled_prob[0]
-    print first_email, " : ", first_email.prob
-    mis_proxy[0] = first_email
-    print mis_proxy[0].prob
+    print mislabeled_clues[:5]
 
-    # ns.mislabeled = mislabeled
-    # ns.training_prob = training_prob
-    # ns.training_clues = training_clues
+    sys.exit()
 
-    ns.training = training
-    ns.mislabeled_prob = mislabeled_prob
-    ns.mislabeled_clues = mislabeled_clues
+    # mis_proxy = manager.list(mislabeled)
+    # first_email = mis_proxy[0]
+    # first_email.prob = mislabeled_prob[0]
+    # print first_email, " : ", first_email.prob
+    # mis_proxy[0] = first_email
+    # print mis_proxy[0].prob
+
+    # ns.training = training
+    # ns.mislabeled_prob = mislabeled_prob
+    # ns.mislabeled_clues = mislabeled_clues
 
     q = mp.Queue()
 
-    train_proxy = ns.training
-    mis_proxy = ns.mislabeled
     train_proxy = manager.list(training)
+    train_prob_proxy = manager.list(training_prob)
+    train_clues_proxy = manager.list(training_clues)
+
     mis_proxy = manager.list(mislabeled)
+    mis_prob_proxy = manager.list(mislabeled_prob)
+    mis_clues_proxy = manager.list(mislabeled_clues)
 
     train_mutex = mp.RLock()
     mis_mutex = mp.Lock()
@@ -82,8 +83,10 @@ def cluster_au_multi(au, gold=False, pos_cluster_opt=0, shrink_rejects=False, n_
               " still unclustered.\n"
         if len(training) > 1000 * n_processes:
             workers = [mp.Process(name="Worker " + str(i), target=cluster_au_multi_job,
-                        args=(copy.deepcopy(au), q, train_proxy, train_mutex, mis_proxy, mis_mutex, gold,
-                            pos_cluster_opt))
+                        args=(copy.deepcopy(au), q, 
+                            train_proxy, train_prob_proxy, train_clues_proxy, train_mutex, # proxies for training set
+                            mis_proxy, mis_prob_proxy, mis_clues_proxy, mis_mutex, # proxies for mislabeled set
+                            gold, pos_cluster_opt))
                         for i in range(n_processes)]
             for worker in workers:
                 worker.start()
@@ -108,11 +111,15 @@ def cluster_au_multi(au, gold=False, pos_cluster_opt=0, shrink_rejects=False, n_
     print "\nClustering process done and sorted.\n"
     return cluster_list 
 
-def cluster_au_multi_job(au, q, train_proxy, train_mutex, mis_proxy, mis_mutex, gold, pos_cluster_opt):
+def cluster_au_multi_job(au, q, train_proxy, train_prob_proxy, train_clues_proxy, train_mutex, 
+                        mis_proxy, mis_prob_proxy, mis_clues_proxy, mis_mutex, gold, pos_cluster_opt):
     name = mp.current_process().name
+    
     current_seed = weighted_initial_multi(au, train_proxy, train_mutex, mis_proxy, mis_mutex)
+    
     while current_seed is None:
         current_seed = weighted_initial_multi(au, train_proxy, train_mutex, mis_proxy, mis_mutex)
+    
     if current_seed == NO_CENTROIDS:
         cluster_result = cluster_remaining_multi(center, au, train_proxy, train_mutex)
     else:
@@ -122,7 +129,8 @@ def cluster_au_multi_job(au, q, train_proxy, train_mutex, mis_proxy, mis_mutex, 
         q.put(cluster_result)
     return
 
-def weighted_initial_multi(au, train_proxy, train_mutex, mis_proxy, mis_mutex):
+def weighted_initial_multi(au, train_proxy, train_prob_proxy, train_clues_proxy, train_mutex, 
+                        mis_proxy, mis_prob_proxy, mis_clues_proxy, mis_mutex):
     name = mp.current_process().name
     if len(mis_proxy) == 0: #No more centers to select
         return NO_CENTROIDS
@@ -130,6 +138,9 @@ def weighted_initial_multi(au, train_proxy, train_mutex, mis_proxy, mis_mutex):
         mis_mutex.acquire()
         print len(mis_proxy), " mislabeled emails remaining as possible cluster centroids"
         mislabeled_point = mis_proxy.pop(0) # Choose most potent mislabeled email
+        prob = mis_prob_proxy.pop(0)
+        clues = mis_prob_proxy.pop(0)
+        mislabeled_point = helpers.reconstruct_msg(mislabeled_point, prob, clues)
 
         print name, " Chose the mislabeled point: ", mislabeled_point.tag
         print "Probability: ", mislabeled_point.prob
