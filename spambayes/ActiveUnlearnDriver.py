@@ -49,10 +49,6 @@ def cluster_au_multi(au, gold=False, pos_cluster_opt=0, shrink_rejects=False, n_
     mislabeled_prob = [email.prob for email in mislabeled]
     mislabeled_clues = [email.clues for email in mislabeled]
 
-    print mislabeled_clues[:5]
-
-    sys.exit()
-
     # mis_proxy = manager.list(mislabeled)
     # first_email = mis_proxy[0]
     # first_email.prob = mislabeled_prob[0]
