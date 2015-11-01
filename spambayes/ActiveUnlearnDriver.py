@@ -115,11 +115,11 @@ def cluster_au_multi_job(au, q, train_proxy, train_prob_proxy, train_clues_proxy
                         mis_proxy, mis_prob_proxy, mis_clues_proxy, mis_mutex, gold, pos_cluster_opt):
     name = mp.current_process().name
     
-    current_seed = weighted_initial_multi(au, train_proxy, train_prob_proxy, train_clues_proxy, train_mutex, 
+    current_seed = weighted_initial_multi(au, train_proxy, train_prob_proxy, train_clues_proxy, train_train_proxy, train_mutex, 
                                              mis_proxy, mis_prob_proxy, mis_clues_proxy, mis_mutex)
     
     while current_seed is None:
-        current_seed = weighted_initial_multi(au, train_proxy, train_prob_proxy, train_clues_proxy, train_mutex, 
+        current_seed = weighted_initial_multi(au, train_proxy, train_prob_proxy, train_clues_proxy, train_train_proxy, train_mutex, 
                                              mis_proxy, mis_prob_proxy, mis_clues_proxy, mis_mutex)
     
     if str(current_seed) == NO_CENTROIDS:
@@ -132,7 +132,7 @@ def cluster_au_multi_job(au, q, train_proxy, train_prob_proxy, train_clues_proxy
         q.put(cluster_result)
     return
 
-def weighted_initial_multi(au, train_proxy, train_prob_proxy, train_clues_proxy, train_mutex, 
+def weighted_initial_multi(au, train_proxy, train_prob_proxy, train_clues_proxy, train_train_proxy, train_mutex, 
                         mis_proxy, mis_prob_proxy, mis_clues_proxy, mis_mutex):
     name = mp.current_process().name
     if len(mis_proxy) == 0: #No more centers to select
@@ -157,8 +157,8 @@ def weighted_initial_multi(au, train_proxy, train_prob_proxy, train_clues_proxy,
             min_distance = sys.maxint
             mislabeled_point_frequencies = helpers.get_word_frequencies(mislabeled_point)
 
-            train_emails = helpers.reconstruct_msg_list(train_proxy, train_prob_proxy, train_clues_proxy)
             train_mutex.acquire()
+            train_emails = helpers.reconstruct_msg_list(train_proxy, train_prob_proxy, train_clues_proxy, train_train_proxy)
             for indx,email in enumerate(train_emails):
                 current_distance = distance(email, mislabeled_point_frequencies, au.distance_opt)
                 if current_distance < min_distance:
