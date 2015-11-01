@@ -160,7 +160,7 @@ def weighted_initial_multi(au, train_proxy, train_prob_proxy, train_clues_proxy,
                 if current_distance < min_distance:
                     init_email = email
                     min_distance = current_distance
-                    email_inx = indx
+                    email_indx = indx
         
         if init_email is None:
             print name, " Training emails remaining: ", training
