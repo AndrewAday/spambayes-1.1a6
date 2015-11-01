@@ -163,7 +163,7 @@ def weighted_initial_multi(au, train_proxy, train_prob_proxy, train_clues_proxy,
                     email_indx = indx
         
         if init_email is None:
-            print name, " Training emails remaining: ", training
+            print name, " Training emails remaining: ", len(train_proxy)
         else:
             train_proxy.remove(init_email) # prevent other threads from choosing same centroid
             del train_prob_proxy[email_indx]
