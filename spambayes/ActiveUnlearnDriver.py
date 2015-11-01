@@ -525,8 +525,10 @@ class Cluster:
             self.dist_list = [(distance(train, self.cluster_word_frequency, self.opt), train) for train in train_msgs if
                                  train.train in self.train]
         else:
-            self.dist_list = [(distance(train, self.cluster_word_frequency, self.opt), train) for train in self.dist_list if
-                                     train.train in self.train]
+            emails = [train[1] for train in self.dist_list] # get array of emails
+            self.dist_list = [(distance(train, self.cluster_word_frequency, self.opt), train) for train in emails]
+            self.dist_list.sort()
+
         self.dist_list.sort()
         
         
