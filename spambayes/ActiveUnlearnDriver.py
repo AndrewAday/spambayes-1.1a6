@@ -38,39 +38,40 @@ def cluster_au_multi(au, gold=False, pos_cluster_opt=0, shrink_rejects=False, n_
 
     cluster_list = []
     training = au.shuffle_training()
+    training_prob = [email.prob for email in training]
+    training_clues = [email.clues for email in training]
     original_training_size = len(training)
 
     print "\nResetting mislabeled...\n"
     mislabeled = list(au.get_mislabeled(update=True))
 
     
-
+    # To deal with strange bug
     mislabeled.sort(key=lambda x: fabs(.50-x.prob), reverse=True)
     mislabeled_prob = [email.prob for email in mislabeled]
+    mislabeled_clues = [email.clues for email in mislabeled]
 
-    ns.mislabeled = mislabeled
+    mis_proxy = manager.list(mislabeled)
+    first_email = mis_proxy[0]
+    first_email.prob = mislabeled_prob[0]
+    print first_email, " : ", first_email.prob
+    mis_proxy[0] = first_email
+    print mis_prox[0].prob
+
+    # ns.mislabeled = mislabeled
+    # ns.training_prob = training_prob
+    # ns.training_clues = training_clues
+
     ns.training = training
     ns.mislabeled_prob = mislabeled_prob
-    ns.test = copy.deepcopy(mislabeled[0])
-    ns.test.prob = mislabeled[0].prob
-    print "testing"
-
-    ns.mislabeled[0].prob = ns.mislabeled_prob[0]
-    print ns.mislabeled[0].prob
-    print test_email
-    print test_email.prob
+    ns.mislabeled_clues = mislabeled_clues
 
     q = mp.Queue()
 
-    # train_proxy = ns.training
-    # mis_proxy = ns.mislabeled
-    # train_proxy = manager.list(training)
-    # mis_proxy = manager.list(mislabeled)
-
-    # print mis_proxy[0]
-    # print dir(mis_proxy[0])
-    # print repr(mis_proxy[0])
-    # print mis_proxy[0].prob
+    train_proxy = ns.training
+    mis_proxy = ns.mislabeled
+    train_proxy = manager.list(training)
+    mis_proxy = manager.list(mislabeled)
 
     train_mutex = mp.RLock()
     mis_mutex = mp.Lock()
@@ -81,7 +82,7 @@ def cluster_au_multi(au, gold=False, pos_cluster_opt=0, shrink_rejects=False, n_
               " still unclustered.\n"
         if len(training) > 1000 * n_processes:
             workers = [mp.Process(name="Worker " + str(i), target=cluster_au_multi_job,
-                        args=(copy.deepcopy(au),q, train_proxy, train_mutex, mis_proxy, mis_mutex, gold,
+                        args=(copy.deepcopy(au), q, train_proxy, train_mutex, mis_proxy, mis_mutex, gold,
                             pos_cluster_opt))
                         for i in range(n_processes)]
             for worker in workers:
