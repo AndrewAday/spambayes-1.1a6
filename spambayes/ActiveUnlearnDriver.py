@@ -11,8 +11,8 @@ import multiprocessing as mp
 from math import sqrt, fabs
 
 phi = (1 + sqrt(5)) / 2
-grow_tol = 50 # window tolerance for gold_section_search to maximize positive delta
-shrink_tol = 10 # window tolerance for golden_section_search to minize negative delta
+grow_tol = 50  # window tolerance for gold_section_search to maximize positive delta
+shrink_tol = 10  # window tolerance for golden_section_search to minize negative delta
 dec = 20
 
 NO_CENTROIDS = '1234567890'
@@ -312,7 +312,7 @@ def cluster_remaining(center, au, working_set, impact=True):
     
 
 
-def determine_cluster(center, au, pos_cluster_opt, working_set=None, train_prob=None, train_clues=None
+def determine_cluster(center, au, pos_cluster_opt, working_set=None, train_prob=None, train_clues=None,
                     gold=False, impact=False, test_waters=False, name="", train_mutex=None):
     """Given a chosen starting center and a given increment of cluster size, it continues to grow and cluster more
     until the detection rate hits a maximum peak (i.e. optimal cluster); if first try is a decrease, reject this
