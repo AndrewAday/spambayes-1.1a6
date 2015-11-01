@@ -83,7 +83,7 @@ def cluster_au_multi(au, gold=False, pos_cluster_opt=0, shrink_rejects=False, n_
               " still unclustered.\n"
         if len(training) > 1000 * n_processes:
             workers = [mp.Process(name="Worker " + str(i), target=cluster_au_multi_job,
-                        args=(copy.deepcopy(au), q, 
+                        args=(copy.deepcopy(au), q, working_set
                             train_proxy, train_prob_proxy, train_clues_proxy, train_mutex, # proxies for training set
                             mis_proxy, mis_prob_proxy, mis_clues_proxy, mis_mutex, # proxies for mislabeled set
                             gold, pos_cluster_opt))
@@ -111,20 +111,23 @@ def cluster_au_multi(au, gold=False, pos_cluster_opt=0, shrink_rejects=False, n_
     print "\nClustering process done and sorted.\n"
     return cluster_list 
 
-def cluster_au_multi_job(au, q, train_proxy, train_prob_proxy, train_clues_proxy, train_mutex, 
+def cluster_au_multi_job(au, q, wokring_set, train_proxy, train_prob_proxy, train_clues_proxy, train_mutex, 
                         mis_proxy, mis_prob_proxy, mis_clues_proxy, mis_mutex, gold, pos_cluster_opt):
     name = mp.current_process().name
     
-    current_seed = weighted_initial_multi(au, train_proxy, train_mutex, mis_proxy, mis_mutex)
+    current_seed = weighted_initial_multi(au, train_proxy, train_prob_proxy, train_clues_proxy, train_mutex, 
+                                             mis_proxy, mis_prob_proxy, mis_clues_proxy, mis_mutex)
     
     while current_seed is None:
-        current_seed = weighted_initial_multi(au, train_proxy, train_mutex, mis_proxy, mis_mutex)
+        current_seed = weighted_initial_multi(au, train_proxy, train_prob_proxy, train_clues_proxy, train_mutex, 
+                                             mis_proxy, mis_prob_proxy, mis_clues_proxy, mis_mutex)
     
     if current_seed == NO_CENTROIDS:
-        cluster_result = cluster_remaining_multi(center, au, train_proxy, train_mutex)
+        cluster_result = cluster_remaining_multi(center, au, train_proxy, train_prob_proxy, train_clues_proxy, train_mutex)
     else:
-        cluster_result = determine_cluster(current_seed, au, working_set=train_proxy, gold=gold, impact=True,
-                                               pos_cluster_opt=pos_cluster_opt, name=name, train_mutex=train_mutex)
+        cluster_result = determine_cluster(current_seed, au, working_set=train_proxy, train_prob=train_prob_proxy,
+                                            train_clues=train_clues_proxy, train_mutex=train_mutex,
+                                            gold=gold, impact=True, pos_cluster_opt=pos_cluster_opt, name=name)
     if cluster_result != None:
         q.put(cluster_result)
     return
@@ -143,11 +146,12 @@ def weighted_initial_multi(au, train_proxy, train_prob_proxy, train_clues_proxy,
         mislabeled_point = helpers.reconstruct_msg(mislabeled_point, prob, clues)
 
         print name, " Chose the mislabeled point: ", mislabeled_point.tag
-        print "Probability: ", mislabeled_point.prob
+        print name, "Probability: ", mislabeled_point.prob
 
         mis_mutex.release()
 
         init_email = None
+        email_indx = None
 
         if "frequency" in self.distance_opt:
             min_distance = sys.maxint
@@ -155,17 +159,20 @@ def weighted_initial_multi(au, train_proxy, train_prob_proxy, train_clues_proxy,
 
             train_emails = helpers.reconstruct_msg_list(train_proxy, train_prob_proxy, train_clues_proxy)
             train_mutex.acquire()
-            for email in train_emails:
+            for indx,email in enumerate(train_emails):
                 current_distance = distance(email, mislabeled_point_frequencies, au.distance_opt)
                 if current_distance < min_distance:
                     init_email = email
                     min_distance = current_distance
+                    email_inx = indx
         
         if init_email is None:
-            print "Training emails remaining: ", training
+            print name, "Training emails remaining: ", training
         else:
             train_proxy.remove(init_email) # prevent other threads from choosing same centroid
-            print "-> selected ", init_email.tag, " as cluster centroid with distance of ", min_distance, " from mislabeled point"
+            del train_prob_proxy[email_indx]
+            del train_clues_proxy[email_indx]
+            print name, "-> selected ", init_email.tag, " as cluster centroid with distance of ", min_distance, " from mislabeled point"
 
         train_mutex.release()
         return init_email
@@ -309,7 +316,8 @@ def cluster_remaining(center, au, working_set, impact=True):
     
 
 
-def determine_cluster(center, au, pos_cluster_opt, working_set=None, gold=False, impact=False, test_waters=False, name="", train_mutex=None):
+def determine_cluster(center, au, pos_cluster_opt, working_set=None, train_prob=None, train_clues=None
+                    gold=False, impact=False, test_waters=False, name="", train_mutex=None):
     """Given a chosen starting center and a given increment of cluster size, it continues to grow and cluster more
     until the detection rate hits a maximum peak (i.e. optimal cluster); if first try is a decrease, reject this
     center and return False.
@@ -317,13 +325,16 @@ def determine_cluster(center, au, pos_cluster_opt, working_set=None, gold=False,
     if len(working_set) == 0:
         return None
 
+    # if train_mutex is not None:
+    #     working_set = helpers.reconstruct_msg_list(working_set, train_prob, train_clues)
+
     print name, " Determining appropriate cluster around", center.tag, "...\n"
     old_detection_rate = au.current_detection_rate
     first_state_rate = au.current_detection_rate
     counter = 0
 
     print name, " making cluster with multi_process=", au.multi_process
-    cluster = Cluster(center, au.increment, au, working_set=working_set, 
+    cluster = Cluster(center, au.increment, au, working_set=working_set, train_prob=train_prob, train_clues=train_clues, 
                             distance_opt=au.distance_opt, multi_process=au.multi_process, name=name, train_mutex=train_mutex)
     # Test detection rate after unlearning cluster
     au.unlearn(cluster)
@@ -408,12 +419,14 @@ def neg_cluster_decrementer(au, first_state_rate, cluster):
 
 
 class Cluster:
-    def __init__(self, msg, size, active_unlearner, distance_opt, working_set=None, sort_first=True, separate=True,
-                 multi_process=False, name="", train_mutex=None):
+    def __init__(self, msg, size, active_unlearner, distance_opt, working_set=None, train_prob=None, train_clues=None,
+                sort_first=True, separate=True, multi_process=False, name="", train_mutex=None):
         self.clustroid = msg # seed of the cluster
         self.multi_process = multi_process
         self.name = name
         self.train_mutex = train_mutex
+        self.train_prob = train_prob
+        self.train_clues = train_clues
         if msg.train == 1 or msg.train == 3: # if ham set1 or ham set3
             self.train = [1, 3]
         elif msg.train == 0 or msg.train == 2: # if spam set1 or spam set3
@@ -460,8 +473,13 @@ class Cluster:
                                  if train.train in self.train]
             else:
                 if "frequency" in self.opt:
-                    print "     Creating Distance Array using frequency method"
-                    dist_list = [(distance(train, self.cluster_word_frequency, self.opt), train) for train in self.working_set if
+                    print self.name, " Creating Distance Array using frequency method"
+                    if self.multi_process:
+                        train_msgs = helpers.reconstruct_msg_list(self.working_set, self.train_prob, self.train_clues)
+                        dist_list = [(distance(train, self.cluster_word_frequency, self.opt), train) for train in train_msgs if
+                                 train.train in self.train]
+                    else:
+                        dist_list = [(distance(train, self.cluster_word_frequency, self.opt), train) for train in self.working_set if
                                  train.train in self.train]
                     
                 else:
@@ -500,9 +518,14 @@ class Cluster:
         #     for i,e in enumerate(emails):
         #         if self.dist_list[i][1].tag == e[0].tag:
         #             self.dist_list[i][1].clues = e[1]
-        # else: 
-        self.dist_list = [(distance(train, self.cluster_word_frequency, self.opt), train) for train in self.working_set if
+        # else:
+        if self.multi_process:
+            train_msgs = helpers.reconstruct_msg_list(self.working_set, self.train_prob, self.train_clues)
+            self.dist_list = [(distance(train, self.cluster_word_frequency, self.opt), train) for train in train_msgs if
                                  train.train in self.train]
+        else:
+            self.dist_list = [(distance(train, self.cluster_word_frequency, self.opt), train) for train in self.working_set if
+                                     train.train in self.train]
         self.dist_list.sort()
         
         
@@ -595,10 +618,13 @@ class Cluster:
                     self.added.append(nearest) # track order in which emails are added
                     self.cluster_word_frequency = helpers.update_word_frequencies(self.cluster_word_frequency, nearest) # update word frequencies
                     del self.dist_list[0] # so we don't add the email twice
-                    self.working_set.remove(nearest) # so we don't add email twice
+                    if self.multi_process:
+                        self.update_proxies(nearest) # remove from manager
+                    else: 
+                        self.working_set.remove(nearest)
                     self.update_dist_list() # new cluster_word_frequency, so need to resort closest emails
                     current_size += 1
-                print "-> cluster initialized with size", len(emails)
+                print self.name, "-> cluster initialized with size", len(emails)
                 if self.multi_process:
                     self.train_mutex.release()
                 return set(emails)
@@ -608,6 +634,13 @@ class Cluster:
         else:
             k_smallest = quickselect.k_smallest
             return set(item[1] for item in k_smallest(self.dist_list, self.size))
+
+    def update_proxies(self, email):
+        for i,e in enumerate(self.working_set):
+            if e.tag == email.tag:
+                del self.working_set[i]
+                del self.train_prob[i]
+                del self.train_clues[i]
 
     def divide(self):
         """Divides messages in the cluster between spam and ham."""
@@ -756,9 +789,11 @@ class Cluster:
                 if len(self.dist_list) == 0:
                     break
                 nearest = self.dist_list[0][1] # get nearest email
-                self.working_set.remove(nearest)
                 if self.multi_process:
+                    self.update_proxies(nearest)
                     self.train_mutex.release()
+                else:
+                    self.working_set.remove(nearest)
                 new_elements.append(nearest) # add to new list
                 self.added.append(nearest)
                 self.cluster_set.add(nearest) # add to original cluster set
@@ -840,7 +875,11 @@ class Cluster:
                 while unlearned < n:
                     email = self.added.pop() # remove most recently added email
                     new_elements.append(email) # add to new emails list
-                    self.cluster_set.remove(email)
+                    if self.multi_process:
+                        self.update_proxies(email)
+                        self.train_mutex.release()
+                    else:
+                        self.cluster_set.remove(email)
                     self.working_set.append(email)
                     self.cluster_word_frequency = helpers.revert_word_frequencies(self.cluster_word_frequency, email) # update word frequencies
                     unlearned += 1
@@ -874,7 +913,7 @@ class Cluster:
                 self.ham.remove(msg)
             elif msg.train == 0 or msg.train == 2:
                 self.spam.remove(msg)
-
+        print self.name, " unlearned ", n, " emails"
         return new_elements
 
 
