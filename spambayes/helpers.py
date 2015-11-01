@@ -31,6 +31,7 @@ def reconstruct_msg_list(msg_proxy, prob_proxy, clues_proxy):
 	for x in range(len(msgs)):
 		msgs[x].prob = prob_proxy[x]
 		msgs[x].clues = clues_proxy[x]
+	return msgs
 
 def _vectorize(msg):
 	return [t[1] for t in msg.clues]

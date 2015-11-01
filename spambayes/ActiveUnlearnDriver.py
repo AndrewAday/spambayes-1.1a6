@@ -152,9 +152,11 @@ def weighted_initial_multi(au, train_proxy, train_prob_proxy, train_clues_proxy,
         if "frequency" in self.distance_opt:
             min_distance = sys.maxint
             mislabeled_point_frequencies = helpers.get_word_frequencies(mislabeled_point)
+
+            train_emails = helpers.reconstruct_msg_list(train_proxy, train_prob_proxy, train_clues_proxy)
             train_mutex.acquire()
-            for email in train_proxy:
-                current_distance = distance(email, mislabeled_point_frequencies, self.distance_opt)
+            for email in train_emails:
+                current_distance = distance(email, mislabeled_point_frequencies, au.distance_opt)
                 if current_distance < min_distance:
                     init_email = email
                     min_distance = current_distance
@@ -163,9 +165,9 @@ def weighted_initial_multi(au, train_proxy, train_prob_proxy, train_clues_proxy,
             print "Training emails remaining: ", training
         else:
             train_proxy.remove(init_email) # prevent other threads from choosing same centroid
-            train_mutex.release()
             print "-> selected ", init_email.tag, " as cluster centroid with distance of ", min_distance, " from mislabeled point"
 
+        train_mutex.release()
         return init_email
 
 def cluster_remaining_multi(center, au, train_proxy, train_mutex, impact=True):
