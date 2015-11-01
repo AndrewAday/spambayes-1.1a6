@@ -21,16 +21,17 @@ def get_word_frequencies(msg):
 		word_freq[word] = 1
 	return word_freq
 
-def reconstruct_msg(msg, prob, clues):
+def reconstruct_msg(msg, prob, clues, train):
 	msg.prob = prob
 	msg.clues = clues
 	return msg
 
-def reconstruct_msg_list(msg_proxy, prob_proxy, clues_proxy):
+def reconstruct_msg_list(msg_proxy, prob_proxy, clues_proxy, train_proxy):
 	msgs = [msg for msg in msg_proxy]
 	for x in range(len(msgs)):
 		msgs[x].prob = prob_proxy[x]
 		msgs[x].clues = clues_proxy[x]
+		msgs[x].train = train_proxy[x]
 	return msgs
 
 def _vectorize(msg):
