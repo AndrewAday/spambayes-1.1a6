@@ -79,7 +79,7 @@ def cluster_au_multi(au, gold=False, pos_cluster_opt=0, shrink_rejects=False, n_
               " still unclustered.\n"
         if len(training) > 1000 * n_processes:
             workers = [mp.Process(name="Worker " + str(i), target=cluster_au_multi_job,
-                        args=(copy.deepcopy(au), q, working_set
+                        args=(copy.deepcopy(au), q, working_set,
                             train_proxy, train_prob_proxy, train_clues_proxy, train_mutex, # proxies for training set
                             mis_proxy, mis_prob_proxy, mis_clues_proxy, mis_mutex, # proxies for mislabeled set
                             gold, pos_cluster_opt))
