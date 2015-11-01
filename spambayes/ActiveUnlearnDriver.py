@@ -614,7 +614,7 @@ class Cluster:
 
                 current_size = 1
                 while current_size < self.size:
-                    print self.name " size ", current_size
+                    print self.name, " size ", current_size
                     nearest = self.dist_list[0][1] # get nearest email
                     assert(nearest.tag != self.clustroid.tag), str(nearest.tag) + " " + str(self.clustroid.tag)
                     emails.append(nearest) # add to list
