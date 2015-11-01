@@ -149,7 +149,7 @@ def weighted_initial_multi(au, train_proxy, train_prob_proxy, train_clues_proxy,
         init_email = None
         email_indx = None
 
-        if "frequency" in self.distance_opt:
+        if "frequency" in au.distance_opt:
             min_distance = sys.maxint
             mislabeled_point_frequencies = helpers.get_word_frequencies(mislabeled_point)
 
@@ -163,7 +163,7 @@ def weighted_initial_multi(au, train_proxy, train_prob_proxy, train_clues_proxy,
                     email_inx = indx
         
         if init_email is None:
-            print name, "Training emails remaining: ", training
+            print name, " Training emails remaining: ", training
         else:
             train_proxy.remove(init_email) # prevent other threads from choosing same centroid
             del train_prob_proxy[email_indx]
