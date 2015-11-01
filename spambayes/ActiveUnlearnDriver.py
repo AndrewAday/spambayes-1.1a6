@@ -623,7 +623,7 @@ class Cluster:
                     del self.dist_list[0] # so we don't add the email twice
                     if self.multi_process:
                         self.update_proxies(nearest) # remove from manager
-                    else: 
+                    else:
                         self.working_set.remove(nearest)
                     self.update_dist_list() # new cluster_word_frequency, so need to resort closest emails
                     current_size += 1

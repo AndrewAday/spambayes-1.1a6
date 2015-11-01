@@ -204,7 +204,7 @@ def main():
                                                      msgs.SpamStream(spam_test, [spam_test]),       # Testing Spam
                                                      distance_opt="frequency5", all_opt=True,      
                                                      update_opt="hybrid", greedy_opt=True,          
-                                                     include_unsures=False, multi_process=True) # Don't unclude unsure emails        
+                                                     include_unsures=False, multi_process=False) # Don't unclude unsure emails        
 
             # v_au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham_train, [ham_train]), []],
             #                                            [msgs.SpamStream(spam_train, [spam_train]), []],
