@@ -153,7 +153,7 @@ def noisy_data_check(pure_clusters, v_au):
 
 
 def main():
-    sets = [16] # select which data sets you want to run algorithm on
+    sets = [12] # select which data sets you want to run algorithm on
     global dest
     if len(sys.argv) > 1:
         dest = sys.argv[1]
