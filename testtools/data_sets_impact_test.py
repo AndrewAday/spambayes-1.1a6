@@ -15,7 +15,7 @@ from spambayes import ActiveUnlearnDriver
 from spambayes.Options import options # Imports global options variable from spambayes/Options.py
 from spambayes import msgs
 from testtools import data_sets as ds # File manager for test/training data
-from testtools import partioner
+from testtools import partitioner
 from testtools.io_locations import dest
 
 # Set options global for spambayes

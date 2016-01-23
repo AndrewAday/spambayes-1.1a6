@@ -69,9 +69,9 @@ class MsgStream(object):
     def produce(self):
         if self.keep is None:
             for directory in self.directories:
-                if indices is not None:
+                if self.indices is not None:
                     emails = os.listdir(directory)
-                    for i in indices:
+                    for i in self.indices:
                         yield Msg(directory, emails[i])
                 else:
                     for fname in os.listdir(directory):

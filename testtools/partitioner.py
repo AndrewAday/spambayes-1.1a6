@@ -8,7 +8,7 @@ def partition(ham_count, ham_stream, spam_count, spam_stream, option):
     if option == 'random':
         return random(ham_count, spam_count)
 
-def random(ham_count, ham_stream):
+def random(ham_count, spam_count):
     ham_indices = range(ham_count)
     spam_indices = range(spam_count)
     shuffle(ham_indices)

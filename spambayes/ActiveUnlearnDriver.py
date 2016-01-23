@@ -564,7 +564,7 @@ class ActiveUnlearner:
     and data.
     """
     def __init__(self, training_ham, training_spam, testing_ham, testing_spam, threshold=95, increment=100,
-                 distance_opt="frequency5", all_opt=False, update_opt="hybrid", greedy_opt=False, include_unsures=True
+                 distance_opt="frequency5", all_opt=False, update_opt="hybrid", greedy_opt=False, include_unsures=True,
                  cv_ham=None, cv_spam=None):
         self.distance_opt = distance_opt
         self.all = all_opt
