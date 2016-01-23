@@ -564,7 +564,8 @@ class ActiveUnlearner:
     and data.
     """
     def __init__(self, training_ham, training_spam, testing_ham, testing_spam, threshold=95, increment=100,
-                 distance_opt="extreme", all_opt=False, update_opt="hybrid", greedy_opt=False, include_unsures=True):
+                 distance_opt="frequency5", all_opt=False, update_opt="hybrid", greedy_opt=False, include_unsures=True
+                 cv_ham=None, cv_spam=None):
         self.distance_opt = distance_opt
         self.all = all_opt
         self.greedy = greedy_opt
@@ -576,6 +577,9 @@ class ActiveUnlearner:
         self.driver = TestDriver.Driver()
         self.set_driver()
         
+        self.cv_ham = cv_ham
+        self.cv_spam = cv_spam
+
         self.hamspams = zip(training_ham, training_spam)
         self.set_data() # train classified on hamspams
         self.testing_spam = testing_spam
@@ -603,21 +607,24 @@ class ActiveUnlearner:
         for hamstream, spamstream in self.hamspams:
             self.driver.train(hamstream, spamstream)
 
-    def init_ground(self, first_test=False, update=False):
+    def init_ground(self, first_test=False, update=False, cross=False):
         """Runs on the testing data to check the detection rate. If it's not the first test, it tests based on cached
         test msgs."""
-        if first_test: # No cache, gotta run on empty
-            self.driver.test(self.testing_ham, self.testing_spam, first_test, all_opt=self.all)
+        if cross:  # We are testing on T2
+            self.driver.test(self.cv_ham, self.cv_spam, False)
+        else:
+            if first_test: # No cache, gotta run on empty
+                self.driver.test(self.testing_ham, self.testing_spam, first_test, all_opt=self.all)
 
-        else: # Use cached data
-            if self.update == "pure":
-                update = True
+            else: # Use cached data
+                if self.update == "pure":
+                    update = True
 
-            elif self.update != "hybrid":
-                raise AssertionError("You should really pick an updating method. It gets better results.")
+                elif self.update != "hybrid":
+                    raise AssertionError("You should really pick an updating method. It gets better results.")
 
-            self.driver.test(self.driver.tester.truth_examples[1], self.driver.tester.truth_examples[0], first_test,
-                             update=update, all_opt=self.all)
+                self.driver.test(self.driver.tester.truth_examples[1], self.driver.tester.truth_examples[0], first_test,
+                                 update=update, all_opt=self.all)
 
     def set_training_nums(self):
         """Tests on initial vanilla training msgs to determine prob scores."""
@@ -979,7 +986,11 @@ class ActiveUnlearner:
                     self.current_detection_rate = detection_rate
                     cluster_print_stats(outfile, pollution_set3, detection_rate, cluster, cluster_count, attempt_count)
                     print "\nCurrent detection rate achieved is " + str(detection_rate) + ".\n"
-
+                    if self.cv_ham is not None:  # then we must test against t2 as well
+                        self.init_ground(cross=True)
+                        t2_detect_rate = self.driver.tester.correct_classification_rate()
+                        t2_print_stats(outfile, t2_detect_rate)
+                        print "\Detection rate against t2 achieved is " + str(t2_detect_rate) + ".\n"
                 else:
                     self.learn(cluster[1]) # else relearn cluster and move to the next one
                     detection_rate = old_detection_rate

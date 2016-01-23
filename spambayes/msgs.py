@@ -57,10 +57,11 @@ class Msg(object):
 class MsgStream(object):
     __slots__ = 'tag', 'directories', 'keep'
 
-    def __init__(self, tag, directories, keep=None):
+    def __init__(self, tag, directories, keep=None, indices=None):
         self.tag = tag
         self.directories = directories
         self.keep = keep
+        self.indices=indices
 
     def __str__(self):
         return self.tag
@@ -68,8 +69,13 @@ class MsgStream(object):
     def produce(self):
         if self.keep is None:
             for directory in self.directories:
-                for fname in os.listdir(directory):
-                    yield Msg(directory, fname)
+                if indices is not None:
+                    emails = os.listdir(directory)
+                    for i in indices:
+                        yield Msg(directory, emails[i])
+                else:
+                    for fname in os.listdir(directory):
+                        yield Msg(directory, fname)
             return
         # We only want part of the msgs.  Shuffle each directory list, but
         # in such a way that we'll get the same result each time this is
@@ -87,18 +93,18 @@ class MsgStream(object):
         return self.produce()
 
 class HamStream(MsgStream):
-    def __init__(self, tag, directories, train=0):
+    def __init__(self, tag, directories, train=0, indices=None):
         if train:
-            MsgStream.__init__(self, tag, directories, HAMTRAIN)
+            MsgStream.__init__(self, tag, directories, HAMTRAIN, indices=indices)
         else:
-            MsgStream.__init__(self, tag, directories, HAMTEST)
+            MsgStream.__init__(self, tag, directories, HAMTEST, indices=indices)
 
 class SpamStream(MsgStream):
-    def __init__(self, tag, directories, train=0):
+    def __init__(self, tag, directories, train=0, indices=None):
         if train:
-            MsgStream.__init__(self, tag, directories, SPAMTRAIN)
+            MsgStream.__init__(self, tag, directories, SPAMTRAIN, indices=indices)
         else:
-            MsgStream.__init__(self, tag, directories, SPAMTEST)
+            MsgStream.__init__(self, tag, directories, SPAMTEST, indices=indices)
 
 def setparms(hamtrain, spamtrain, hamtest=None, spamtest=None, seed=None):
     """Set HAMTEST/TRAIN and SPAMTEST/TRAIN.

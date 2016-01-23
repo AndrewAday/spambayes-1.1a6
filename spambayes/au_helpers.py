@@ -173,3 +173,9 @@ def cluster_print_stats(outfile, pollution_set3, detection_rate, cluster, cluste
 
     else:
         pass
+
+def t2_print_stats(outfile, detection_rate):
+    outfile.write('t2 detection rate: ' + str(detection_rate))
+    outfile.flush()
+    os.fsync(outfile)
+

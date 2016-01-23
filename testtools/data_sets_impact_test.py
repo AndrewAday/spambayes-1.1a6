@@ -3,6 +3,8 @@ __author__ = 'Alex'
 import os
 import sys
 import time
+import argparse
+
 
 # sys.path.insert(-1, os.getcwd())
 # sys.path.insert(-1, os.path.dirname(os.getcwd()))
@@ -13,6 +15,7 @@ from spambayes import ActiveUnlearnDriver
 from spambayes.Options import options # Imports global options variable from spambayes/Options.py
 from spambayes import msgs
 from testtools import data_sets as ds # File manager for test/training data
+from testtools import partioner
 from testtools.io_locations import dest
 
 # Set options global for spambayes
@@ -156,9 +159,18 @@ def noisy_data_check(pure_clusters, v_au):
 
 def main():
     sets = [11] # select which data sets you want to run algorithm on
-    global dest
-    if len(sys.argv) > 1:
-        dest = sys.argv[1]
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-cv', '--cross', type=str, help="partition test set into T1 and T2 for cross-validation",
+        choices=['random'], default=None)
+    parser.add_argument('-d', '--dest', type=str, help="choose alternate destination for output file")
+
+    args = parser.parse_args()
+    print args
+    
+    if args.dest:
+        global dest
+        dest = args.dest
 
     print "path selected: ", dest
 
@@ -200,15 +212,32 @@ def main():
         try:
             time_1 = time.time() # begin timer
             # Instantiate ActiveUnlearner object
-            au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham_train, [ham_train]),
-                                                      msgs.HamStream(ham_p, [ham_p])],        # Training Ham 
-                                                     [msgs.SpamStream(spam_train, [spam_train]),
-                                                      msgs.SpamStream(spam_p, [spam_p])],     # Training Spam
-                                                     msgs.HamStream(ham_test, [ham_test]),          # Testing Ham
-                                                     msgs.SpamStream(spam_test, [spam_test]),       # Testing Spam
-                                                     distance_opt="frequency5", all_opt=True,      
-                                                     update_opt="hybrid", greedy_opt=True,          
-                                                     include_unsures=False) # Don't unclude unsure emails        
+            if args.cross is not None:
+                t1_ham, t1_spam, t2_ham, t2_spam = partitioner.partition(test_ham,ham_test,test_spam,spam_test,args.cross)
+                
+                au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham_train, [ham_train]),
+                                                          msgs.HamStream(ham_p, [ham_p])],        # Training Ham 
+                                                         [msgs.SpamStream(spam_train, [spam_train]),
+                                                          msgs.SpamStream(spam_p, [spam_p])],     # Training Spam
+                                                         msgs.HamStream(ham_test, [ham_test], indices=t1_ham),          # Testing Ham
+                                                         msgs.SpamStream(spam_test, [spam_test], indices=t1_spam),       # Testing Spam
+                                                         cv_ham=msgs.HamStream(ham_test, [ham_test], indices=t2_ham),       # T2 testing Ham
+                                                         cv_spam=msgs.SpamStream(spam_test, [spam_test], indices=t2_spam),  # T2 testing Spam
+                                                         distance_opt="frequency5", all_opt=True,      
+                                                         update_opt="hybrid", greedy_opt=True,          
+                                                         include_unsures=False) # Don't unclude unsure emails        
+
+            else:
+                c_au = None
+                au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham_train, [ham_train]),
+                                                          msgs.HamStream(ham_p, [ham_p])],        # Training Ham 
+                                                         [msgs.SpamStream(spam_train, [spam_train]),
+                                                          msgs.SpamStream(spam_p, [spam_p])],     # Training Spam
+                                                         msgs.HamStream(ham_test, [ham_test]),          # Testing Ham
+                                                         msgs.SpamStream(spam_test, [spam_test]),       # Testing Spam
+                                                         distance_opt="frequency5", all_opt=True,      
+                                                         update_opt="hybrid", greedy_opt=True,          
+                                                         include_unsures=False) # Don't unclude unsure emails        
 
             # vanilla active unlearner
             v_au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham_train, [ham_train]), []],
@@ -228,7 +257,8 @@ def main():
                 try:
                     unlearn_stats(au, outfile, data_set, [train_ham, train_spam], [test_ham, test_spam],
                                   [ham_polluted, spam_polluted], total_polluted, total_unpolluted,
-                                  train_time, vanilla=[vanilla_detection_rate, v_au], noisy_clusters=True)
+                                  train_time, vanilla=[vanilla_detection_rate, v_au], noisy_clusters=True,
+                                  cross=c_au)
                     # unlearn_stats(au, outfile, data_set, [train_ham, train_spam], [test_ham, test_spam],
                     #               [ham_polluted, spam_polluted], total_polluted, total_unpolluted,
                     #               train_time, vanilla=None, noisy_clusters=True)

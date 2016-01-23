@@ -99,6 +99,7 @@ class Test:
     # msg in the stream, after the spam probability is computed.
     def predict(self, stream, is_spam, init_ground=False, callback=None, update=False, all_opt=False):
         guess = self.classifier.spamprob
+        self.reset_test_results()  # warning: might break something?
         for example in stream:
             old_prob = 0
 
