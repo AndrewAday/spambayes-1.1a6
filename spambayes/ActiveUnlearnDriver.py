@@ -7,7 +7,6 @@ import gc
 import copy
 import os
 import time
-import multiprocessing as mp
 from math import sqrt, fabs
 
 phi = (1 + sqrt(5)) / 2
@@ -107,7 +106,7 @@ def cluster_remaining(center, au, working_set, impact=True):
 
     first_state_rate = au.current_detection_rate
     cluster = Cluster(center, len(working_set), au, working_set=working_set, 
-                                    distance_opt=au.distance_opt, multi_process=au.multi_process)
+                                    distance_opt=au.distance_opt)
 
     au.unlearn(cluster)
     au.init_ground()
@@ -140,9 +139,8 @@ def determine_cluster(center, au, working_set=None, gold=False, impact=False, te
     first_state_rate = au.current_detection_rate
     counter = 0
 
-    print "making cluster with multi_process=", au.multi_process
     cluster = Cluster(center, au.increment, au, working_set=working_set, 
-                            distance_opt=au.distance_opt, multi_process=au.multi_process)
+                            distance_opt=au.distance_opt)
     # Test detection rate after unlearning cluster
     au.unlearn(cluster)
     au.init_ground()
@@ -197,10 +195,8 @@ def cluster_print_stats(outfile, pollution_set3, detection_rate, cluster, cluste
         pass
 
 class Cluster:
-    def __init__(self, msg, size, active_unlearner, distance_opt, working_set=None, sort_first=True, separate=True,
-                 multi_process=False):
+    def __init__(self, msg, size, active_unlearner, distance_opt, working_set=None, sort_first=True, separate=True):
         self.clustroid = msg # seed of the cluster
-        self.multi_process= multi_process
         if msg.train == 1 or msg.train == 3: # if ham set1 or ham set3
             self.train = [1, 3]
         elif msg.train == 0 or msg.train == 2: # if spam set1 or spam set3
@@ -291,15 +287,6 @@ class Cluster:
     #     self.dist_list[self.msg_index[tag]] = update
     def update_dist_list(self, separate=True): 
         """Updates self.dist_list for the frequency[1,2] method"""
-        
-        # if self.multi_process:
-        #     emails = [(train[1], train[1].clues, self.cluster_word_frequency, self.opt) for train in self.dist_list] # get array of emails
-        #     pool = mp.Pool(processes=5)
-        #     self.dist_list = pool.map(multi_distance_wrapper, emails)
-        #     for i,e in enumerate(emails):
-        #         if self.dist_list[i][1].tag == e[0].tag:
-        #             self.dist_list[i][1].clues = e[1]
-        # else: 
         emails = [train[1] for train in self.dist_list] # get array of emails
         self.dist_list = [(distance(train, self.cluster_word_frequency, self.opt), train) for train in emails]
         self.dist_list.sort()
@@ -587,9 +574,7 @@ class ActiveUnlearner:
     and data.
     """
     def __init__(self, training_ham, training_spam, testing_ham, testing_spam, threshold=95, increment=100,
-                 distance_opt="extreme", all_opt=False, update_opt="hybrid", greedy_opt=False, include_unsures=True,
-                 multi_process=False):
-        self.multi_process = multi_process
+                 distance_opt="extreme", all_opt=False, update_opt="hybrid", greedy_opt=False, include_unsures=True):
         self.distance_opt = distance_opt
         self.all = all_opt
         self.greedy = greedy_opt
