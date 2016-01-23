@@ -228,7 +228,6 @@ def main():
                                                          include_unsures=False) # Don't unclude unsure emails        
 
             else:
-                c_au = None
                 au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham_train, [ham_train]),
                                                           msgs.HamStream(ham_p, [ham_p])],        # Training Ham 
                                                          [msgs.SpamStream(spam_train, [spam_train]),
@@ -257,8 +256,7 @@ def main():
                 try:
                     unlearn_stats(au, outfile, data_set, [train_ham, train_spam], [test_ham, test_spam],
                                   [ham_polluted, spam_polluted], total_polluted, total_unpolluted,
-                                  train_time, vanilla=[vanilla_detection_rate, v_au], noisy_clusters=True,
-                                  cross=c_au)
+                                  train_time, vanilla=[vanilla_detection_rate, v_au], noisy_clusters=True)
                     # unlearn_stats(au, outfile, data_set, [train_ham, train_spam], [test_ham, test_spam],
                     #               [ham_polluted, spam_polluted], total_polluted, total_unpolluted,
                     #               train_time, vanilla=None, noisy_clusters=True)
