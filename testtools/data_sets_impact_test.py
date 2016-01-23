@@ -4,8 +4,10 @@ import os
 import sys
 import time
 
-sys.path.insert(-1, os.getcwd())
-sys.path.insert(-1, os.path.dirname(os.getcwd()))
+# sys.path.insert(-1, os.getcwd())
+# sys.path.insert(-1, os.path.dirname(os.getcwd()))
+sys.path.append(os.getcwd())
+sys.path.append(os.path.dirname(os.getcwd()))
 
 from spambayes import ActiveUnlearnDriver
 from spambayes.Options import options # Imports global options variable from spambayes/Options.py
@@ -153,7 +155,7 @@ def noisy_data_check(pure_clusters, v_au):
 
 
 def main():
-    sets = [12] # select which data sets you want to run algorithm on
+    sets = [11] # select which data sets you want to run algorithm on
     global dest
     if len(sys.argv) > 1:
         dest = sys.argv[1]
@@ -164,6 +166,8 @@ def main():
         ham = hams[i]
         spam = spams[i]
         data_set = set_dirs[i]
+
+        print "beginning tests on ", data_set
 
         if i > 10: #Set2 is test and Set1 is training for all mislabeled datasets
             ham_test = ham[1] # approx 20,000 test and 12,000 train
@@ -207,12 +211,12 @@ def main():
                                                      include_unsures=False, multi_process=True) # Don't unclude unsure emails        
 
             # vanilla active unlearner
-            # v_au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham_train, [ham_train]), []],
-            #                                            [msgs.SpamStream(spam_train, [spam_train]), []],
-            #                                            msgs.HamStream(ham_test, [ham_test]),
-            #                                            msgs.SpamStream(spam_test, [spam_test]))
+            v_au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham_train, [ham_train]), []],
+                                                       [msgs.SpamStream(spam_train, [spam_train]), []],
+                                                       msgs.HamStream(ham_test, [ham_test]),
+                                                       msgs.SpamStream(spam_test, [spam_test]))
 
-            # vanilla_detection_rate = v_au.current_detection_rate
+            vanilla_detection_rate = v_au.current_detection_rate
 
             time_2 = time.time()
             train_time = seconds_to_english(time_2 - time_1)
@@ -222,12 +226,12 @@ def main():
 
             with open(dest + data_set + " (unlearn_stats).txt", 'w+') as outfile:
                 try:
-                    # unlearn_stats(au, outfile, data_set, [train_ham, train_spam], [test_ham, test_spam],
-                    #               [ham_polluted, spam_polluted], total_polluted, total_unpolluted,
-                    #               train_time, vanilla=[vanilla_detection_rate, v_au], noisy_clusters=True)
                     unlearn_stats(au, outfile, data_set, [train_ham, train_spam], [test_ham, test_spam],
                                   [ham_polluted, spam_polluted], total_polluted, total_unpolluted,
-                                  train_time, vanilla=None, noisy_clusters=True)
+                                  train_time, vanilla=[vanilla_detection_rate, v_au], noisy_clusters=True)
+                    # unlearn_stats(au, outfile, data_set, [train_ham, train_spam], [test_ham, test_spam],
+                    #               [ham_polluted, spam_polluted], total_polluted, total_unpolluted,
+                    #               train_time, vanilla=None, noisy_clusters=True)
 
                 except KeyboardInterrupt:
                     outfile.flush()

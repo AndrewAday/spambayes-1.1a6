@@ -738,19 +738,21 @@ class ActiveUnlearner:
         self.increment = increment
         self.threshold = threshold
         self.include_unsures = include_unsures
+        
         self.driver = TestDriver.Driver()
         self.set_driver()
+        
         self.hamspams = zip(training_ham, training_spam)
         self.set_data() # train classified on hamspams
         self.testing_spam = testing_spam
         self.testing_ham = testing_ham
         
-        # testi on the polluted and unpolluted training emails to get the initial probabilities
+        # test on the polluted and unpolluted training emails to get the initial probabilities
         self.set_training_nums()
         self.set_pol_nums()
         
         # Train algorithm normally
-        self.init_ground(True) # for caching in tester.py variable 
+        self.init_ground(first_test=True) # for caching in tester.py variable 
         self.mislabeled_chosen = set()
         self.training_chosen = set()
 
@@ -827,49 +829,49 @@ class ActiveUnlearner:
 
     # --------------------------------------------------------------------------------------------------------------
 
-    def detect_rate(self, cluster):
-        """Returns the detection rate if a given cluster is unlearned.
-        Relearns the cluster afterwards.
-        """
-        self.unlearn(cluster)
-        self.init_ground()
-        detection_rate = self.driver.tester.correct_classification_rate()
-        self.learn(cluster)
-        return detection_rate
+    # def detect_rate(self, cluster):
+    #     """Returns the detection rate if a given cluster is unlearned.
+    #     Relearns the cluster afterwards.
+    #     """
+    #     self.unlearn(cluster)
+    #     self.init_ground()
+    #     detection_rate = self.driver.tester.correct_classification_rate()
+    #     self.learn(cluster)
+    #     return detection_rate
 
-    def start_detect_rate(self, cluster):
-        """Determines the detection rate after unlearning an initial cluster."""
-        self.unlearn(cluster)
-        self.init_ground()
-        detection_rate = self.driver.tester.correct_classification_rate()
-        return detection_rate
+    # def start_detect_rate(self, cluster):
+    #     """Determines the detection rate after unlearning an initial cluster."""
+    #     self.unlearn(cluster)
+    #     self.init_ground()
+    #     detection_rate = self.driver.tester.correct_classification_rate()
+    #     return detection_rate
 
-    def continue_detect_rate(self, cluster, n):
-        """Determines the detection rate after growing a cluster to be unlearned."""
-        old_cluster = copy.deepcopy(cluster.cluster_set)
-        cluster.cluster_more(n)
-        new_cluster = cluster.cluster_set
+    # def continue_detect_rate(self, cluster, n):
+    #     """Determines the detection rate after growing a cluster to be unlearned."""
+    #     old_cluster = copy.deepcopy(cluster.cluster_set)
+    #     cluster.cluster_more(n)
+    #     new_cluster = cluster.cluster_set
 
-        new_unlearns = new_cluster - old_cluster
-        assert(len(new_unlearns) == len(new_cluster) - len(old_cluster))
-        assert(len(new_unlearns) == n), len(new_unlearns)
+    #     new_unlearns = new_cluster - old_cluster
+    #     assert(len(new_unlearns) == len(new_cluster) - len(old_cluster))
+    #     assert(len(new_unlearns) == n), len(new_unlearns)
 
-        unlearn_hams = []
-        unlearn_spams = []
+    #     unlearn_hams = []
+    #     unlearn_spams = []
 
-        for unlearn in new_unlearns:
-            if unlearn.train == 1 or unlearn.train == 3:
-                unlearn_hams.append(unlearn)
+    #     for unlearn in new_unlearns:
+    #         if unlearn.train == 1 or unlearn.train == 3:
+    #             unlearn_hams.append(unlearn)
 
-            elif unlearn.train == 0 or unlearn.train == 2:
-                unlearn_spams.append(unlearn)
+    #         elif unlearn.train == 0 or unlearn.train == 2:
+    #             unlearn_spams.append(unlearn)
 
-            self.driver.tester.train_examples[unlearn.train].remove(unlearn)
+    #         self.driver.tester.train_examples[unlearn.train].remove(unlearn)
 
-        self.driver.untrain(unlearn_hams, unlearn_spams)
-        self.init_ground()
-        detection_rate = self.driver.tester.correct_classification_rate()
-        return detection_rate
+    #     self.driver.untrain(unlearn_hams, unlearn_spams)
+    #     self.init_ground()
+    #     detection_rate = self.driver.tester.correct_classification_rate()
+    #     return detection_rate
 
     # --------------------------------------------------------------------------------------------------------------
 
@@ -889,40 +891,38 @@ class ActiveUnlearner:
 
             if unlearn:
                 self.driver.tester.train_examples[message.train].remove(message)
-
             else:
                 self.driver.tester.train_examples[message.train].append(message)
 
         if unlearn:
             self.driver.untrain(hams, spams)
-
         else:
             self.driver.train(hams, spams)
 
-    def cluster_by_increment(self, cluster, old_detection_rate, new_detection_rate, counter):
-        """Finds an appropriate cluster around a msg by incrementing linearly until it reaches a peak detection rate."""
-        while new_detection_rate > old_detection_rate:
-            counter += 1
-            print "\nExploring cluster of size", (counter + 1) * self.increment, "...\n"
+    # def cluster_by_increment(self, cluster, old_detection_rate, new_detection_rate, counter):
+    #     """Finds an appropriate cluster around a msg by incrementing linearly until it reaches a peak detection rate."""
+    #     while new_detection_rate > old_detection_rate:
+    #         counter += 1
+    #         print "\nExploring cluster of size", (counter + 1) * self.increment, "...\n"
 
-            old_detection_rate = new_detection_rate
-            new_unlearns = cluster.cluster_more(self.increment)
+    #         old_detection_rate = new_detection_rate
+    #         new_unlearns = cluster.cluster_more(self.increment)
 
-            assert(len(new_unlearns) == self.increment), len(new_unlearns)
-            self.divide_new_elements(new_unlearns, True)
-            self.init_ground()
-            new_detection_rate = self.driver.tester.correct_classification_rate()
+    #         assert(len(new_unlearns) == self.increment), len(new_unlearns)
+    #         self.divide_new_elements(new_unlearns, True)
+    #         self.init_ground()
+    #         new_detection_rate = self.driver.tester.correct_classification_rate()
 
-        # This part is done because we've clustered just past the peak point, so we need to go back
-        # one increment and relearn the extra stuff.
+    #     # This part is done because we've clustered just past the peak point, so we need to go back
+    #     # one increment and relearn the extra stuff.
 
-        new_learns = cluster.cluster_less(self.increment)
-        assert(cluster.size == self.increment * counter), counter
-        self.divide_new_elements(new_learns, False)
+    #     new_learns = cluster.cluster_less(self.increment)
+    #     assert(cluster.size == self.increment * counter), counter
+    #     self.divide_new_elements(new_learns, False)
 
-        print "\nAppropriate cluster found, with size " + str(cluster.size) + ".\n"
-        self.current_detection_rate = old_detection_rate
-        return cluster
+    #     print "\nAppropriate cluster found, with size " + str(cluster.size) + ".\n"
+    #     self.current_detection_rate = old_detection_rate
+    #     return cluster
 
     def cluster_by_gold(self, cluster, old_detection_rate, new_detection_rate, counter, test_waters):
         """Finds an appropriate cluster around a msg by using the golden section search method."""
@@ -969,38 +969,38 @@ class ActiveUnlearner:
         Performs golden section search on the size of a cluster; grows/shrinks exponentially at a rate of phi to ensure that
         window ratios will be same at all levels (except edge cases), and uses this to determine the initial window.
         """
-        if shrink_rejects:
-            shrink_cluster = cluster.size - int(cluster.size/phi)
-            while counter == 0 or new_detection_rate > old_detection_rate:
-                counter += 1
-                sizes.append(cluster.size)
-                detection_rates.append(new_detection_rate)
-                old_detection_rate = new_detection_rate
-                print "\n Exploring a shrunk cluster of size", cluster.size - shrink_cluster, "...\n"
+        # if shrink_rejects:
+        #     shrink_cluster = cluster.size - int(cluster.size/phi)
+        #     while counter == 0 or new_detection_rate > old_detection_rate:
+        #         counter += 1
+        #         sizes.append(cluster.size)
+        #         detection_rates.append(new_detection_rate)
+        #         old_detection_rate = new_detection_rate
+        #         print "\n Exploring a shrunk cluster of size", cluster.size - shrink_cluster, "...\n"
                 
-                new_learns = cluster.cluster_less(shrink_cluster)
-                shrink_cluster = cluster.size - int(cluster.size/phi)
+        #         new_learns = cluster.cluster_less(shrink_cluster)
+        #         shrink_cluster = cluster.size - int(cluster.size/phi)
 
-                self.divide_new_elements(new_learns, False)
-                self.init_ground()
-                new_detection_rate = self.driver.tester.correct_classification_rate()
+        #         self.divide_new_elements(new_learns, False)
+        #         self.init_ground()
+        #         new_detection_rate = self.driver.tester.correct_classification_rate()
 
-        else:
-            extra_cluster = int(phi * cluster.size)
-            while new_detection_rate > old_detection_rate:
-                counter += 1
+        # else:
+        extra_cluster = int(phi * cluster.size)
+        while new_detection_rate > old_detection_rate:
+            counter += 1
 
-                sizes.append(cluster.size)
-                detection_rates.append(new_detection_rate)
-                old_detection_rate = new_detection_rate
-                print "\nExploring cluster of size", cluster.size + int(round(extra_cluster)), "...\n"
+            sizes.append(cluster.size)
+            detection_rates.append(new_detection_rate)
+            old_detection_rate = new_detection_rate
+            print "\nExploring cluster of size", cluster.size + int(round(extra_cluster)), "...\n"
 
-                new_unlearns = cluster.cluster_more(int(round(extra_cluster))) # new_unlearns is array of newly added emails
-                extra_cluster *= phi
+            new_unlearns = cluster.cluster_more(int(round(extra_cluster))) # new_unlearns is array of newly added emails
+            extra_cluster *= phi
 
-                self.divide_new_elements(new_unlearns, True) # unlearns the newly added elements
-                self.init_ground() # rerun test to find new classification accuracy
-                new_detection_rate = self.driver.tester.correct_classification_rate()
+            self.divide_new_elements(new_unlearns, True) # unlearns the newly added elements
+            self.init_ground() # rerun test to find new classification accuracy
+            new_detection_rate = self.driver.tester.correct_classification_rate()
 
         sizes.append(cluster.size) # array of all cluster sizes
         detection_rates.append(new_detection_rate) # array of all classification rates
