@@ -1,18 +1,16 @@
 from random import choice, shuffle
-from spambayes import TestDriver, quickselect, helpers
-from Distance import distance, multi_distance_wrapper
+from spambayes import TestDriver, helpers
+from spambayes.au_helpers import *
+from Distance import distance
 from itertools import chain
 import sys
 import gc
-import copy
 import os
 import time
 from math import sqrt, fabs
 
 phi = (1 + sqrt(5)) / 2
 grow_tol = 50 # window tolerance for gold_section_search to maximize positive delta
-shrink_tol = 10 # window tolerance for golden_section_search to minize negative delta
-dec = 20
 
 NO_CENTROIDS = '1234567890'
 # class Alerts(Enum):
@@ -20,552 +18,544 @@ NO_CENTROIDS = '1234567890'
 #     SENTINAL = 2
 
 
-def chosen_sum(chosen, x, opt=None):
-    """Given a given msg and a set of chosen emails, returns the sum of distances from the given msg."""
-    s = 0
-    for msg in chosen:
-        s += distance(msg, x, opt)
-    return s
-
-
-def cluster_au(au, gold=False, shrink_rejects=False):
-    """Clusters the training space of an ActiveUnlearner and returns the list of clusters."""
-    print "\n-----------------------------------------------\n"
-    cluster_list = [] # list of tuples (net_rate_change, cluster)
-    training = au.shuffle_training() # returns a shuffled array containing all training emails
-    print "\nResetting mislabeled...\n"
-    mislabeled = au.get_mislabeled(update=True) # gets an array of all false positives, false negatives
-    # ^ also runs init_ground, which will update accuracy of classifier on test emails
+# def cluster_au(au, gold=False, shrink_rejects=False):
+#     """Clusters the training space of an ActiveUnlearner and returns the list of clusters."""
+#     print "\n-----------------------------------------------\n"
+#     cluster_list = [] # list of tuples (net_rate_change, cluster)
+#     training = au.shuffle_training() # returns a shuffled array containing all training emails
+#     print "\nResetting mislabeled...\n"
+#     mislabeled = au.get_mislabeled(update=True) # gets an array of all false positives, false negatives
+#     # ^ also runs init_ground, which will update accuracy of classifier on test emails
     
-    au.mislabeled_chosen = set() # reset set of clustered mislabeled emails in this instance of au
+#     au.mislabeled_chosen = set() # reset set of clustered mislabeled emails in this instance of au
 
-    print "\ncluster_au(ActiveUnelearnDriver:32): Clustering...\n"
-    original_training_size = len(training)
-    pre_cluster_rate = au.current_detection_rate
-    while len(training) > 0: # loop until all emails in phantom training space have been assigned
-        print "\n-----------------------------------------------------\n"
-        print "\n" + str(len(training)) + " emails out of " + str(original_training_size) + \
-              " still unclustered.\n"
+#     print "\ncluster_au(ActiveUnelearnDriver:32): Clustering...\n"
+#     original_training_size = len(training)
+#     pre_cluster_rate = au.current_detection_rate
+#     while len(training) > 0: # loop until all emails in phantom training space have been assigned
+#         print "\n-----------------------------------------------------\n"
+#         print "\n" + str(len(training)) + " emails out of " + str(original_training_size) + \
+#               " still unclustered.\n"
 
-        # Choose an arbitrary email from the mislabeled emails and returns the training email closest to it.
-        # Final call and source of current_seed is mislabeled_initial() function
-        current_seed = cluster_methods(au, "weighted", training, mislabeled) # weighted function selects most confident falsely labeled email
-        while current_seed is None:
-            current_seed = cluster_methods(au, "weighted", training, mislabeled) # weighted function selects most confident falsely labeled email
-        if str(current_seed) == NO_CENTROIDS:
-            current_seed = choice(training) # choose random remail from remaining emails as seed
-            cluster_result = cluster_remaining(current_seed, au, training, impact=True)
-        else:
-            cluster_result = determine_cluster(current_seed, au, working_set=training, gold=gold, impact=True, # if true, relearn clusters after returning them
-                                               shrink_rejects=shrink_rejects)
-        if cluster_result is None:
-            print "!!!How did this happen?????"
-            sys.exit(cluster_result)
-            # while cluster_result is None:
-            #     # current_seed = cluster_methods(au, "mislabeled", training, mislabeled)
-            #     current_seed = cluster_methods(au, "weighted", training, mislabeled)
-            #     cluster_result = determine_cluster(current_seed, au, working_set=training, gold=gold, impact=True,
-            #                                        pos_cluster_opt=pos_cluster_opt,shrink_rejects=shrink_rejects)
+#         # Choose an arbitrary email from the mislabeled emails and returns the training email closest to it.
+#         # Final call and source of current_seed is mislabeled_initial() function
+#         current_seed = cluster_methods(au, "weighted", training, mislabeled) # weighted function selects most confident falsely labeled email
+#         while current_seed is None:
+#             current_seed = cluster_methods(au, "weighted", training, mislabeled) # weighted function selects most confident falsely labeled email
+#         if str(current_seed) == NO_CENTROIDS:
+#             current_seed = choice(training) # choose random remail from remaining emails as seed
+#             cluster_result = cluster_remaining(current_seed, au, training, impact=True)
+#         else:
+#             cluster_result = determine_cluster(current_seed, au, working_set=training, gold=gold, impact=True, # if true, relearn clusters after returning them
+#                                                shrink_rejects=shrink_rejects)
+#         if cluster_result is None:
+#             print "!!!How did this happen?????"
+#             sys.exit(cluster_result)
+#             # while cluster_result is None:
+#             #     # current_seed = cluster_methods(au, "mislabeled", training, mislabeled)
+#             #     current_seed = cluster_methods(au, "weighted", training, mislabeled)
+#             #     cluster_result = determine_cluster(current_seed, au, working_set=training, gold=gold, impact=True,
+#             #                                        pos_cluster_opt=pos_cluster_opt,shrink_rejects=shrink_rejects)
 
-        net_rate_change, cluster = cluster_result
-        # After getting the cluster and net_rate_change, you relearn the cluster in original dataset if impact=True
+#         net_rate_change, cluster = cluster_result
+#         # After getting the cluster and net_rate_change, you relearn the cluster in original dataset if impact=True
 
-        post_cluster_rate = au.current_detection_rate
+#         post_cluster_rate = au.current_detection_rate
 
-        # make sure the cluster was properly relearned
-        assert(post_cluster_rate == pre_cluster_rate), str(pre_cluster_rate) + " " + str(post_cluster_rate)
-        print "cluster relearned successfully: au detection rate back to ", post_cluster_rate
+#         # make sure the cluster was properly relearned
+#         assert(post_cluster_rate == pre_cluster_rate), str(pre_cluster_rate) + " " + str(post_cluster_rate)
+#         print "cluster relearned successfully: au detection rate back to ", post_cluster_rate
 
-        cluster_list.append([net_rate_change, cluster])
+#         cluster_list.append([net_rate_change, cluster])
 
-        print "\nRemoving cluster from shuffled training set...\n"
-        original_len = len(training)
-        for email in cluster.cluster_set: # remove emails from phantom training set so they are not assigned to other clusters
-            training.remove(email)
-        #print "\nTraining space is now at ", original_len, " --> ", len(training), " emails"
+#         print "\nRemoving cluster from shuffled training set...\n"
+#         original_len = len(training)
+#         for email in cluster.cluster_set: # remove emails from phantom training set so they are not assigned to other clusters
+#             training.remove(email)
+#         #print "\nTraining space is now at ", original_len, " --> ", len(training), " emails"
 
-    cluster_list.sort() # sorts by net_rate_change
-    print "\nClustering process done and sorted.\n"
-    return cluster_list 
+#     cluster_list.sort() # sorts by net_rate_change
+#     print "\nClustering process done and sorted.\n"
+#     return cluster_list 
 
 
-def cluster_methods(au, method, working_set, mislabeled):
-    """Given a desired clustering method, returns the next msg to cluster around."""
+# def cluster_methods(au, method, working_set, mislabeled):
+#     """Given a desired clustering method, returns the next msg to cluster around."""
     
-    if method == "weighted":
-        return au.select_initial(mislabeled, "weighted", working_set)
-    else:
-        raise AssertionError("Please specify clustering method.")
+#     if method == "weighted":
+#         return au.select_initial(mislabeled, "weighted", working_set)
+#     else:
+#         raise AssertionError("Please specify clustering method.")
 
-def cluster_remaining(center, au, working_set, impact=True):
-    """ This function is called if weighted_initial returns NO_CENTROIDS, meaning there are no more misabeled emails to use as centers.
-    The remaining emails in the working set are then returned as one cluster.
-    """
+# def cluster_remaining(center, au, working_set, impact=True):
+#     """ This function is called if weighted_initial returns NO_CENTROIDS, meaning there are no more misabeled emails to use as centers.
+#     The remaining emails in the working set are then returned as one cluster.
+#     """
 
-    print "No more cluster centroids, grouping all remaining emails into one cluster"
+#     print "No more cluster centroids, grouping all remaining emails into one cluster"
 
-    first_state_rate = au.current_detection_rate
-    cluster = Cluster(center, len(working_set), au, working_set=working_set, 
-                                    distance_opt=au.distance_opt)
+#     first_state_rate = au.current_detection_rate
+#     cluster = Cluster(center, len(working_set), au, working_set=working_set, 
+#                                     distance_opt=au.distance_opt)
 
-    au.unlearn(cluster)
-    au.init_ground()
-    new_detection_rate = au.driver.tester.correct_classification_rate()
+#     au.unlearn(cluster)
+#     au.init_ground()
+#     new_detection_rate = au.driver.tester.correct_classification_rate()
 
-    if impact: #include net_rate_change in return
-        au.learn(cluster) # relearn cluster in real training space so deltas of future cluster are not influenced
-        second_state_rate = au.current_detection_rate
+#     if impact: #include net_rate_change in return
+#         au.learn(cluster) # relearn cluster in real training space so deltas of future cluster are not influenced
+#         second_state_rate = au.current_detection_rate
         
-        net_rate_change = second_state_rate - first_state_rate
-        au.current_detection_rate = first_state_rate
+#         net_rate_change = second_state_rate - first_state_rate
+#         au.current_detection_rate = first_state_rate
 
-        assert(au.current_detection_rate == first_state_rate), str(au.current_detection_rate) + " " + str(first_state_rate)
-        print "clustered remaining with a net rate change of ", second_state_rate, " - ", first_state_rate, " = ", net_rate_change
+#         assert(au.current_detection_rate == first_state_rate), str(au.current_detection_rate) + " " + str(first_state_rate)
+#         print "clustered remaining with a net rate change of ", second_state_rate, " - ", first_state_rate, " = ", net_rate_change
         
-        return net_rate_change, cluster
-    else:
-        return cluster
+#         return net_rate_change, cluster
+#     else:
+#         return cluster
     
 
 
-def determine_cluster(center, au, working_set=None, gold=False, impact=False, test_waters=False, shrink_rejects=False):
-    """Given a chosen starting center and a given increment of cluster size, it continues to grow and cluster more
-    until the detection rate hits a maximum peak (i.e. optimal cluster); if first try is a decrease, reject this
-    center and return False.
-    """
+# def determine_cluster(center, au, working_set=None, gold=False, impact=False, test_waters=False, shrink_rejects=False):
+#     """Given a chosen starting center and a given increment of cluster size, it continues to grow and cluster more
+#     until the detection rate hits a maximum peak (i.e. optimal cluster); if first try is a decrease, reject this
+#     center and return False.
+#     """
 
-    print "\nDetermining appropriate cluster around", center.tag, "...\n"
-    old_detection_rate = au.current_detection_rate
-    first_state_rate = au.current_detection_rate
-    counter = 0
+#     print "\nDetermining appropriate cluster around", center.tag, "...\n"
+#     old_detection_rate = au.current_detection_rate
+#     first_state_rate = au.current_detection_rate
+#     counter = 0
 
-    cluster = Cluster(center, au.increment, au, working_set=working_set, 
-                            distance_opt=au.distance_opt)
-    # Test detection rate after unlearning cluster
-    au.unlearn(cluster)
-    au.init_ground()
-    new_detection_rate = au.driver.tester.correct_classification_rate()
+#     cluster = Cluster(center, au.increment, au, working_set=working_set, 
+#                             distance_opt=au.distance_opt)
+#     # Test detection rate after unlearning cluster
+#     au.unlearn(cluster)
+#     au.init_ground()
+#     new_detection_rate = au.driver.tester.correct_classification_rate()
 
-    if new_detection_rate <= old_detection_rate:    # Detection rate worsens - Reject
-        print "\nCenter is inviable. " + str(new_detection_rate) + " < " + str(old_detection_rate) + "\n" 
-        print "relearning cluster... "
-        au.learn(cluster)
+#     if new_detection_rate <= old_detection_rate:    # Detection rate worsens - Reject
+#         print "\nCenter is inviable. " + str(new_detection_rate) + " < " + str(old_detection_rate) + "\n" 
+#         print "relearning cluster... "
+#         au.learn(cluster)
 
-        second_state_rate = new_detection_rate
-        net_rate_change = second_state_rate - first_state_rate
-        print "cluster rejected with a net rate change of ", second_state_rate, " - ", first_state_rate, " = ", net_rate_change
-        au.current_detection_rate = first_state_rate
+#         second_state_rate = new_detection_rate
+#         net_rate_change = second_state_rate - first_state_rate
+#         print "cluster rejected with a net rate change of ", second_state_rate, " - ", first_state_rate, " = ", net_rate_change
+#         au.current_detection_rate = first_state_rate
 
-        return net_rate_change, cluster
+#         return net_rate_change, cluster
 
-    elif cluster.size < au.increment:
-        if impact:
-            au.learn(cluster)
-            second_state_rate = new_detection_rate
-            net_rate_change = second_state_rate - first_state_rate
-            au.current_detection_rate = first_state_rate
-            print "no more emails to cluster, returning cluster of size ", cluster.size
-            return net_rate_change, cluster
+#     elif cluster.size < au.increment:
+#         if impact:
+#             au.learn(cluster)
+#             second_state_rate = new_detection_rate
+#             net_rate_change = second_state_rate - first_state_rate
+#             au.current_detection_rate = first_state_rate
+#             print "no more emails to cluster, returning cluster of size ", cluster.size
+#             return net_rate_change, cluster
 
-    else:   # Detection rate improves - Grow cluster
-        if gold:
-            cluster = au.cluster_by_gold(cluster, old_detection_rate, new_detection_rate, counter, test_waters)
-        if impact: #include net_rate_change in return
-            au.learn(cluster) # relearn cluster in real training space so deltas of future cluster are not influenced
-            second_state_rate = au.current_detection_rate
-            net_rate_change = second_state_rate - first_state_rate
-            print "cluster found with a net rate change of ", second_state_rate, " - ", first_state_rate, " = ", net_rate_change
-            au.current_detection_rate = first_state_rate
-            return net_rate_change, cluster
+#     else:   # Detection rate improves - Grow cluster
+#         if gold:
+#             cluster = au.cluster_by_gold(cluster, old_detection_rate, new_detection_rate, counter, test_waters)
+#         if impact: #include net_rate_change in return
+#             au.learn(cluster) # relearn cluster in real training space so deltas of future cluster are not influenced
+#             second_state_rate = au.current_detection_rate
+#             net_rate_change = second_state_rate - first_state_rate
+#             print "cluster found with a net rate change of ", second_state_rate, " - ", first_state_rate, " = ", net_rate_change
+#             au.current_detection_rate = first_state_rate
+#             return net_rate_change, cluster
 
-def cluster_print_stats(outfile, pollution_set3, detection_rate, cluster, cluster_count, attempt_count):
-    """Prints stats for a given unlearned cluster and the present state of the machine after unlearning."""
-    if outfile is not None:
-        if pollution_set3:
-            outfile.write(str(cluster_count) + ", " + str(attempt_count) + ": " + str(detection_rate) + ", " +
-                          str(cluster[1].size) + ", " + str(cluster[1].target_set3()) + "\n")
+# def cluster_print_stats(outfile, pollution_set3, detection_rate, cluster, cluster_count, attempt_count):
+#     """Prints stats for a given unlearned cluster and the present state of the machine after unlearning."""
+#     if outfile is not None:
+#         if pollution_set3:
+#             outfile.write(str(cluster_count) + ", " + str(attempt_count) + ": " + str(detection_rate) + ", " +
+#                           str(cluster[1].size) + ", " + str(cluster[1].target_set3()) + "\n")
 
-        else:
-            outfile.write(str(cluster_count) + ", " + str(attempt_count) + ": " + str(detection_rate) + ", " +
-                          str(cluster[1].size) + ", " + str(cluster[1].target_set4()) + "\n")
-        outfile.flush()
-        os.fsync(outfile)
+#         else:
+#             outfile.write(str(cluster_count) + ", " + str(attempt_count) + ": " + str(detection_rate) + ", " +
+#                           str(cluster[1].size) + ", " + str(cluster[1].target_set4()) + "\n")
+#         outfile.flush()
+#         os.fsync(outfile)
 
-    else:
-        pass
+#     else:
+#         pass
 
-class Cluster:
-    def __init__(self, msg, size, active_unlearner, distance_opt, working_set=None, sort_first=True, separate=True):
-        self.clustroid = msg # seed of the cluster
-        if msg.train == 1 or msg.train == 3: # if ham set1 or ham set3
-            self.train = [1, 3]
-        elif msg.train == 0 or msg.train == 2: # if spam set1 or spam set3
-            self.train = [0, 2]
-        self.common_features = []
-        self.msg_index = {}
-        self.separate = separate
-        self.size = size # arbitrarily set to 100
-        self.active_unlearner = active_unlearner # point to calling au instance
-        self.sort_first = sort_first
-        self.opt = distance_opt
+# class Cluster:
+#     def __init__(self, msg, size, active_unlearner, distance_opt, working_set=None, sort_first=True, separate=True):
+#         self.clustroid = msg # seed of the cluster
+#         if msg.train == 1 or msg.train == 3: # if ham set1 or ham set3
+#             self.train = [1, 3]
+#         elif msg.train == 0 or msg.train == 2: # if spam set1 or spam set3
+#             self.train = [0, 2]
+#         self.common_features = []
+#         self.msg_index = {}
+#         self.separate = separate
+#         self.size = size # arbitrarily set to 100
+#         self.active_unlearner = active_unlearner # point to calling au instance
+#         self.sort_first = sort_first
+#         self.opt = distance_opt
 
-        self.working_set = working_set
+#         self.working_set = working_set
 
-        # if 'frequency' in self.opt:
-        #     self.working_set = [train for train in working_set]
-        # else:
-        #     self.working_set = working_set
-        self.ham = set()
-        self.spam = set()
-        if 'frequency' in self.opt:
-            self.cluster_word_frequency = helpers.get_word_frequencies(self.clustroid)
-            self.added = [] # keeps track of order emails are added
+#         # if 'frequency' in self.opt:
+#         #     self.working_set = [train for train in working_set]
+#         # else:
+#         #     self.working_set = working_set
+#         self.ham = set()
+#         self.spam = set()
+#         if 'frequency' in self.opt:
+#             self.cluster_word_frequency = helpers.get_word_frequencies(self.clustroid)
+#             self.added = [] # keeps track of order emails are added
 
-        self.dist_list = self.distance_array(self.separate) # returns list containing dist from all emails in phantom space to center clustroid
-        self.cluster_set = self.make_cluster() # adds closest emails to cluster
-        self.divide() # adds cluster emails to ham and spam
+#         self.dist_list = self.distance_array(self.separate) # returns list containing dist from all emails in phantom space to center clustroid
+#         self.cluster_set = self.make_cluster() # adds closest emails to cluster
+#         self.divide() # adds cluster emails to ham and spam
 
-    def __repr__(self):
-        return "(" + self.clustroid.tag + ", " + str(self.size) + ")"
+#     def __repr__(self):
+#         return "(" + self.clustroid.tag + ", " + str(self.size) + ")"
 
-    def distance_array(self, separate):
-        """Returns a list containing the distances from each email to the center."""
-        train_examples = self.active_unlearner.driver.tester.train_examples
+#     def distance_array(self, separate):
+#         """Returns a list containing the distances from each email to the center."""
+#         train_examples = self.active_unlearner.driver.tester.train_examples
 
-        if separate: # if true, all emails must be same type (spam or ham) as centroid
-            if self.working_set is None:
-                if "frequency" in self.opt:
-                    print "     Creating Distance Array using frequency method"
-                    dist_list = [(distance(train, self.cluster_word_frequency, self.opt), train) for train in chain(train_examples[0],
-                                                                                                   train_examples[1],
-                                                                                                   train_examples[2],
-                                                                                                   train_examples[3])
-                                                                    if train.train in self.train]
-                else: 
-                    dist_list = [(distance(self.clustroid, train, self.opt), train) for train in chain(train_examples[0],
-                                                                                                       train_examples[1],
-                                                                                                       train_examples[2],
-                                                                                                       train_examples[3])
-                                 if train.train in self.train]
-            else:
-                if "frequency" in self.opt:
-                    print "     Creating Distance Array using frequency method"
-                    dist_list = [(distance(train, self.cluster_word_frequency, self.opt), train) for train in self.working_set if
-                                 train.train in self.train]
+#         if separate: # if true, all emails must be same type (spam or ham) as centroid
+#             if self.working_set is None:
+#                 if "frequency" in self.opt:
+#                     print "     Creating Distance Array using frequency method"
+#                     dist_list = [(distance(train, self.cluster_word_frequency, self.opt), train) for train in chain(train_examples[0],
+#                                                                                                    train_examples[1],
+#                                                                                                    train_examples[2],
+#                                                                                                    train_examples[3])
+#                                                                     if train.train in self.train]
+#                 else: 
+#                     dist_list = [(distance(self.clustroid, train, self.opt), train) for train in chain(train_examples[0],
+#                                                                                                        train_examples[1],
+#                                                                                                        train_examples[2],
+#                                                                                                        train_examples[3])
+#                                  if train.train in self.train]
+#             else:
+#                 if "frequency" in self.opt:
+#                     print "     Creating Distance Array using frequency method"
+#                     dist_list = [(distance(train, self.cluster_word_frequency, self.opt), train) for train in self.working_set if
+#                                  train.train in self.train]
                     
-                else:
-                    dist_list = [(distance(self.clustroid, train, self.opt), train) for train in self.working_set if
-                                 train.train in self.train]
-                    assert(len(dist_list) > 0)
+#                 else:
+#                     dist_list = [(distance(self.clustroid, train, self.opt), train) for train in self.working_set if
+#                                  train.train in self.train]
+#                     assert(len(dist_list) > 0)
                 
                 
-        else:
-            if self.working_set is None:
-                dist_list = [(distance(self.clustroid, train, self.opt), train) for train in chain(train_examples[0],
-                                                                                                   train_examples[1],
-                                                                                                   train_examples[2],
-                                                                                                   train_examples[3])]
+#         else:
+#             if self.working_set is None:
+#                 dist_list = [(distance(self.clustroid, train, self.opt), train) for train in chain(train_examples[0],
+#                                                                                                    train_examples[1],
+#                                                                                                    train_examples[2],
+#                                                                                                    train_examples[3])]
 
-            else:
-                dist_list = [(distance(self.clustroid, train, self.opt), train) for train in self.working_set]
+#             else:
+#                 dist_list = [(distance(self.clustroid, train, self.opt), train) for train in self.working_set]
 
-        if self.sort_first:
-            dist_list.sort() # sorts tuples by first element default, the distance
+#         if self.sort_first:
+#             dist_list.sort() # sorts tuples by first element default, the distance
 
-        if self.opt == "intersection":
-            dist_list = dist_list[::-1]
-            return dist_list # reverse the distance list so that closest element is at start
-        print "\n ----------------Generated Distance Array----------------\n"
-        print [email[0] for email in dist_list[:5]]
+#         if self.opt == "intersection":
+#             dist_list = dist_list[::-1]
+#             return dist_list # reverse the distance list so that closest element is at start
+#         print "\n ----------------Generated Distance Array----------------\n"
+#         print [email[0] for email in dist_list[:5]]
 
-        return dist_list
+#         return dist_list
 
-    # def unset(self, tag):
-    #     self.dist_list[self.msg_index[tag]] = None
+#     # def unset(self, tag):
+#     #     self.dist_list[self.msg_index[tag]] = None
 
-    # def updateset(self,tag,update):
-    #     self.dist_list[self.msg_index[tag]] = update
-    def update_dist_list(self, separate=True): 
-        """Updates self.dist_list for the frequency[1,2] method"""
-        emails = [train[1] for train in self.dist_list] # get array of emails
-        self.dist_list = [(distance(train, self.cluster_word_frequency, self.opt), train) for train in emails]
-        self.dist_list.sort()
+#     # def updateset(self,tag,update):
+#     #     self.dist_list[self.msg_index[tag]] = update
+#     def update_dist_list(self, separate=True): 
+#         """Updates self.dist_list for the frequency[1,2] method"""
+#         emails = [train[1] for train in self.dist_list] # get array of emails
+#         self.dist_list = [(distance(train, self.cluster_word_frequency, self.opt), train) for train in emails]
+#         self.dist_list.sort()
         
         
 
-    def make_cluster(self):
-        """Constructs the initial cluster of emails."""
-        # self.dist_list = [t for t in self.dist_list if t is not None]
-        if self.size > len(self.dist_list):
-            print "\nTruncating cluster size...\n"
-            self.size = len(self.dist_list)
+#     def make_cluster(self):
+#         """Constructs the initial cluster of emails."""
+#         # self.dist_list = [t for t in self.dist_list if t is not None]
+#         if self.size > len(self.dist_list):
+#             print "\nTruncating cluster size...\n"
+#             self.size = len(self.dist_list)
 
-        if self.sort_first:
-            if self.opt == "intersection":
+#         if self.sort_first:
+#             if self.opt == "intersection":
                 
-                S_current = [self.clustroid]
-                self.common_features = set([t[1] for t in self.clustroid.clues]) # set common feature vector
-                for d,e in self.dist_list: #Remove the duplicate clustroid in self.dist_list 
-                    if e.tag == self.clustroid.tag:
-                        self.dist_list.remove((d,e))
-                        print "-> removed duplicate clustroid ", e.tag
-                        break
+#                 S_current = [self.clustroid]
+#                 self.common_features = set([t[1] for t in self.clustroid.clues]) # set common feature vector
+#                 for d,e in self.dist_list: #Remove the duplicate clustroid in self.dist_list 
+#                     if e.tag == self.clustroid.tag:
+#                         self.dist_list.remove((d,e))
+#                         print "-> removed duplicate clustroid ", e.tag
+#                         break
 
-                current_size = 1
+#                 current_size = 1
 
-                while current_size < self.size: # recursively add elements by greatest intersection
-                    if len(self.dist_list) == 1:
-                        new_email = self.dist_list[0][1]
-                        self.common_features = self.common_features & set([t[1] for t in new_email.clues])
-                        # self.unset(new_email.tag)
-                        del self.dist_list[0] # email added, remove from dist_list
-                        S_current.append(new_email)
-                    else:
-                        for index in range(0, len(self.dist_list)):
-                            if index == len(self.dist_list) - 1:
-                                new_email = self.dist_list[index][1]
-                                self.common_features = self.common_features & set([t[1] for t in new_email.clues])
-                                S_current.append(new_email)
-                                # self.unset(new_email.tag)
-                                del self.dist_list[index]
-                            else:
-                                new_email = self.dist_list[index][1]
-                                new_email_2 = self.dist_list[index+1][1]
-                                assert(new_email is not None)
-                                assert(new_email_2 is not None)
-                                S_explore = self.common_features & set([t[1] for t in new_email.clues])
-                                if len(S_explore) >= self.dist_list[index+1][0]: # |S2&e2| >= |S1&e3|, add to list
-                                    self.common_features = S_explore # update common feature list
-                                    S_current.append(new_email)
-                                    # self.unset(new_email.tag)
-                                    del self.dist_list[index]
-                                    break # break out of for loop
-                                else:
-                                    S_explore_new = self.common_features & set([t[1] for t in new_email_2.clues]) # calculate |S2&e3|
-                                    if len(S_explore) >= len(S_explore_new): # |S2&e2| >= |S2&e3|, add to list
-                                        self.common_features = S_explore # update common feature list
-                                        S_current.append(new_email)
-                                        self.dist_list[index+1] = (len(S_explore_new), new_email_2)
-                                        # self.updateset(new_email_2.tag,(len(S_explore_new), new_email_2))
-                                        # self.unset(new_email.tag)
-                                        del self.dist_list[index]
-                                        break
-                                    else:
-                                        # self.updateset(new_email.tag,(len(S_explore_new), new_email))
-                                        self.dist_list[index] = (len(S_explore), new_email)
+#                 while current_size < self.size: # recursively add elements by greatest intersection
+#                     if len(self.dist_list) == 1:
+#                         new_email = self.dist_list[0][1]
+#                         self.common_features = self.common_features & set([t[1] for t in new_email.clues])
+#                         # self.unset(new_email.tag)
+#                         del self.dist_list[0] # email added, remove from dist_list
+#                         S_current.append(new_email)
+#                     else:
+#                         for index in range(0, len(self.dist_list)):
+#                             if index == len(self.dist_list) - 1:
+#                                 new_email = self.dist_list[index][1]
+#                                 self.common_features = self.common_features & set([t[1] for t in new_email.clues])
+#                                 S_current.append(new_email)
+#                                 # self.unset(new_email.tag)
+#                                 del self.dist_list[index]
+#                             else:
+#                                 new_email = self.dist_list[index][1]
+#                                 new_email_2 = self.dist_list[index+1][1]
+#                                 assert(new_email is not None)
+#                                 assert(new_email_2 is not None)
+#                                 S_explore = self.common_features & set([t[1] for t in new_email.clues])
+#                                 if len(S_explore) >= self.dist_list[index+1][0]: # |S2&e2| >= |S1&e3|, add to list
+#                                     self.common_features = S_explore # update common feature list
+#                                     S_current.append(new_email)
+#                                     # self.unset(new_email.tag)
+#                                     del self.dist_list[index]
+#                                     break # break out of for loop
+#                                 else:
+#                                     S_explore_new = self.common_features & set([t[1] for t in new_email_2.clues]) # calculate |S2&e3|
+#                                     if len(S_explore) >= len(S_explore_new): # |S2&e2| >= |S2&e3|, add to list
+#                                         self.common_features = S_explore # update common feature list
+#                                         S_current.append(new_email)
+#                                         self.dist_list[index+1] = (len(S_explore_new), new_email_2)
+#                                         # self.updateset(new_email_2.tag,(len(S_explore_new), new_email_2))
+#                                         # self.unset(new_email.tag)
+#                                         del self.dist_list[index]
+#                                         break
+#                                     else:
+#                                         # self.updateset(new_email.tag,(len(S_explore_new), new_email))
+#                                         self.dist_list[index] = (len(S_explore), new_email)
                     
-                    current_size += 1
-                    # print "appending to cluster: size ", current_size, "/100"
-                    # sys.stdout.write("\033[F")
-                print "-> cluster created"
-                return set(S_current)
-            elif 'frequency' in self.opt:
-                emails = [self.clustroid] # list of added emails
+#                     current_size += 1
+#                     # print "appending to cluster: size ", current_size, "/100"
+#                     # sys.stdout.write("\033[F")
+#                 print "-> cluster created"
+#                 return set(S_current)
+#             elif 'frequency' in self.opt:
+#                 emails = [self.clustroid] # list of added emails
                 
-                for d,e in self.dist_list: # Remove the duplicate clustroid in self.dist_list 
-                    if e.tag == self.clustroid.tag:
-                        self.dist_list.remove((d,e))
-                        # self.working_set.remove(e)
-                        print "-> removed duplicate clustroid ", e.tag
-                        break
+#                 for d,e in self.dist_list: # Remove the duplicate clustroid in self.dist_list 
+#                     if e.tag == self.clustroid.tag:
+#                         self.dist_list.remove((d,e))
+#                         # self.working_set.remove(e)
+#                         print "-> removed duplicate clustroid ", e.tag
+#                         break
 
-                current_size = 1
-                while current_size < self.size:
-                    nearest = self.dist_list[0][1] # get nearest email
-                    assert(nearest.tag != self.clustroid.tag), str(nearest.tag) + " " + str(self.clustroid.tag)
-                    emails.append(nearest) # add to list
-                    self.added.append(nearest) # track order in which emails are added
-                    # self.working_set.remove(nearest) # remove from working set so email doesn't show up again when we recreate dist_list
-                    self.cluster_word_frequency = helpers.update_word_frequencies(self.cluster_word_frequency, nearest) # update word frequencies
-                    del self.dist_list[0] # so we don't add the email twice
-                    self.update_dist_list() # new cluster_word_frequency, so need to resort closest emails
-                    # self.dist_list = self.distance_array(self.separate) # update distance list w/ new frequency list
-                    current_size += 1
-                print "-> cluster initialized with size", len(emails)
-                return set(emails)
-            else:
-                return set(item[1] for item in self.dist_list[:self.size])
+#                 current_size = 1
+#                 while current_size < self.size:
+#                     nearest = self.dist_list[0][1] # get nearest email
+#                     assert(nearest.tag != self.clustroid.tag), str(nearest.tag) + " " + str(self.clustroid.tag)
+#                     emails.append(nearest) # add to list
+#                     self.added.append(nearest) # track order in which emails are added
+#                     # self.working_set.remove(nearest) # remove from working set so email doesn't show up again when we recreate dist_list
+#                     self.cluster_word_frequency = helpers.update_word_frequencies(self.cluster_word_frequency, nearest) # update word frequencies
+#                     del self.dist_list[0] # so we don't add the email twice
+#                     self.update_dist_list() # new cluster_word_frequency, so need to resort closest emails
+#                     # self.dist_list = self.distance_array(self.separate) # update distance list w/ new frequency list
+#                     current_size += 1
+#                 print "-> cluster initialized with size", len(emails)
+#                 return set(emails)
+#             else:
+#                 return set(item[1] for item in self.dist_list[:self.size])
 
-        else:
-            k_smallest = quickselect.k_smallest
-            return set(item[1] for item in k_smallest(self.dist_list, self.size))
+#         else:
+#             k_smallest = quickselect.k_smallest
+#             return set(item[1] for item in k_smallest(self.dist_list, self.size))
 
-    def divide(self):
-        """Divides messages in the cluster between spam and ham."""
-        for msg in self.cluster_set:
-            if msg.train == 1 or msg.train == 3:
-                self.ham.add(msg)
-            elif msg.train == 0 or msg.train == 2:
-                self.spam.add(msg)
-            else:
-                raise AssertionError
+#     def divide(self):
+#         """Divides messages in the cluster between spam and ham."""
+#         for msg in self.cluster_set:
+#             if msg.train == 1 or msg.train == 3:
+#                 self.ham.add(msg)
+#             elif msg.train == 0 or msg.train == 2:
+#                 self.spam.add(msg)
+#             else:
+#                 raise AssertionError
 
-    def target_spam(self):
-        """Returns a count of the number of spam emails in the cluster."""
-        counter = 0
-        for msg in self.cluster_set:
-            if msg.tag.endswith(".spam.txt"):
-                counter += 1
+#     def target_spam(self):
+#         """Returns a count of the number of spam emails in the cluster."""
+#         counter = 0
+#         for msg in self.cluster_set:
+#             if msg.tag.endswith(".spam.txt"):
+#                 counter += 1
 
-        return counter
+#         return counter
 
-    def target_set3(self):
-        """Returns a count of the number of Set3 emails in the cluster."""
-        counter = 0
-        for msg in self.cluster_set:
-            if "Set3" in msg.tag:
-                counter += 1
-        return counter
+#     def target_set3(self):
+#         """Returns a count of the number of Set3 emails in the cluster."""
+#         counter = 0
+#         for msg in self.cluster_set:
+#             if "Set3" in msg.tag:
+#                 counter += 1
+#         return counter
 
-    def target_set3_get_unpolluted(self):
-        cluster_set_new = []
-    	spam_new = set()
-    	ham_new = set()
-    	for msg in self.cluster_set:
-            if "Set3" in msg.tag: #msg is polluted, remove from cluster
-                self.size -= 1
-    	    else:
-        		cluster_set_new.append(msg)
-        		if "ham" in msg.tag:
-        			ham_new.add(msg)
-        		else:
-        			spam_new.add(msg)
-    	self.cluster_set = cluster_set_new
-    	self.spam = spam_new
-    	self.ham = ham_new
-        return self # return the cluster
+#     def target_set3_get_unpolluted(self):
+#         cluster_set_new = []
+#     	spam_new = set()
+#     	ham_new = set()
+#     	for msg in self.cluster_set:
+#             if "Set3" in msg.tag: #msg is polluted, remove from cluster
+#                 self.size -= 1
+#     	    else:
+#         		cluster_set_new.append(msg)
+#         		if "ham" in msg.tag:
+#         			ham_new.add(msg)
+#         		else:
+#         			spam_new.add(msg)
+#     	self.cluster_set = cluster_set_new
+#     	self.spam = spam_new
+#     	self.ham = ham_new
+#         return self # return the cluster
 
-    def target_set4(self):
-        """Returns a count of the number of Set4 emails in the cluster."""
-        counter = 0
-        for msg in self.cluster_set:
-            if "Set4" in msg.tag:
-                counter += 1
-        return counter
+#     def target_set4(self):
+#         """Returns a count of the number of Set4 emails in the cluster."""
+#         counter = 0
+#         for msg in self.cluster_set:
+#             if "Set4" in msg.tag:
+#                 counter += 1
+#         return counter
 
-    def cluster_more(self, n):
-        """Expands the cluster to include n more emails and returns these additional emails.
-           If n more is not available, cluster size is simply truncated to include all remaining
-           emails."""
-        if 'frequency' in self.opt:
-            if n >= len(self.dist_list):
-                n = len(self.dist_list)
-            print "Adding ", n, " more emails to cluster of size ", self.size, " via ", self.opt,  " method"
-            self.size += n
+#     def cluster_more(self, n):
+#         """Expands the cluster to include n more emails and returns these additional emails.
+#            If n more is not available, cluster size is simply truncated to include all remaining
+#            emails."""
+#         if 'frequency' in self.opt:
+#             if n >= len(self.dist_list):
+#                 n = len(self.dist_list)
+#             print "Adding ", n, " more emails to cluster of size ", self.size, " via ", self.opt,  " method"
+#             self.size += n
 
-            new_elements = []
-            added = 0
-            while added < n:
-                nearest = self.dist_list[0][1] # get nearest email
-                new_elements.append(nearest) # add to new list
-                self.added.append(nearest)
-                self.cluster_set.add(nearest) # add to original cluster set
-                self.cluster_word_frequency = helpers.update_word_frequencies(self.cluster_word_frequency, nearest) # update word frequencies
-                # self.dist_list = self.distance_array(self.separate) # update distance list w/ new frequency list
-                del self.dist_list[0]
-                self.update_dist_list()
-                added += 1
-            assert(len(new_elements) == n), str(len(new_elements)) + " " + str(n)
-            assert(len(self.cluster_set) == self.size), str(len(self.cluster_set)) + " " + str(self.size)
-            for msg in new_elements:
-                if msg.train == 1 or msg.train == 3:
-                    self.ham.add(msg)
-                elif msg.train == 0 or msg.train == 2:
-                    self.spam.add(msg)
-            return new_elements 
+#             new_elements = []
+#             added = 0
+#             while added < n:
+#                 nearest = self.dist_list[0][1] # get nearest email
+#                 new_elements.append(nearest) # add to new list
+#                 self.added.append(nearest)
+#                 self.cluster_set.add(nearest) # add to original cluster set
+#                 self.cluster_word_frequency = helpers.update_word_frequencies(self.cluster_word_frequency, nearest) # update word frequencies
+#                 # self.dist_list = self.distance_array(self.separate) # update distance list w/ new frequency list
+#                 del self.dist_list[0]
+#                 self.update_dist_list()
+#                 added += 1
+#             assert(len(new_elements) == n), str(len(new_elements)) + " " + str(n)
+#             assert(len(self.cluster_set) == self.size), str(len(self.cluster_set)) + " " + str(self.size)
+#             for msg in new_elements:
+#                 if msg.train == 1 or msg.train == 3:
+#                     self.ham.add(msg)
+#                 elif msg.train == 0 or msg.train == 2:
+#                     self.spam.add(msg)
+#             return new_elements 
 
-        old_cluster_set = self.cluster_set
-        if self.size + n <= len(self.dist_list):
-            self.size += n
+#         old_cluster_set = self.cluster_set
+#         if self.size + n <= len(self.dist_list):
+#             self.size += n
 
-        else:
-            print "\nTruncating cluster size...\n"
-            if len(self.dist_list) > 0:
-                self.size = len(self.dist_list)
+#         else:
+#             print "\nTruncating cluster size...\n"
+#             if len(self.dist_list) > 0:
+#                 self.size = len(self.dist_list)
 
-        if self.sort_first:
-            new_cluster_set = set(item[1] for item in self.dist_list[:self.size])
-        else:
-            k_smallest = quickselect.k_smallest
-            new_cluster_set = set(item[1] for item in k_smallest(self.dist_list, self.size))
+#         if self.sort_first:
+#             new_cluster_set = set(item[1] for item in self.dist_list[:self.size])
+#         else:
+#             k_smallest = quickselect.k_smallest
+#             new_cluster_set = set(item[1] for item in k_smallest(self.dist_list, self.size))
 
-        new_elements = list(item for item in new_cluster_set if item not in old_cluster_set)
-        self.cluster_set = new_cluster_set
+#         new_elements = list(item for item in new_cluster_set if item not in old_cluster_set)
+#         self.cluster_set = new_cluster_set
 
-        assert(len(self.cluster_set) == self.size), len(self.cluster_set)
+#         assert(len(self.cluster_set) == self.size), len(self.cluster_set)
 
-        for msg in new_elements:
-            if msg.train == 1 or msg.train == 3:
-                self.ham.add(msg)
-            elif msg.train == 0 or msg.train == 2:
-                self.spam.add(msg)
+#         for msg in new_elements:
+#             if msg.train == 1 or msg.train == 3:
+#                 self.ham.add(msg)
+#             elif msg.train == 0 or msg.train == 2:
+#                 self.spam.add(msg)
 
-        return new_elements
+#         return new_elements
 
-    def learn(self, n): # relearn only set.size elements. unlearning is too convoluted
-        print "-> relearning a cluster of size ", self.size, " via intersection method"
-        old_cluster_set = self.cluster_set
-        self.ham = set()
-        self.spam = set()
-        self.cluster_set = set()
-        self.dist_list = self.distance_array(self.separate)
-        self.cluster_set = self.make_cluster()
-        self.divide()
-        new_cluster_set = self.cluster_set
-        new_elements = list(item for item in old_cluster_set if item not in new_cluster_set)
-        assert(len(self.cluster_set) == self.size), str(len(self.cluster_set)) + " " + str(self.size)
-        assert(len(new_elements) == n), len(new_elements)        
-        return new_elements
+#     def learn(self, n): # relearn only set.size elements. unlearning is too convoluted
+#         print "-> relearning a cluster of size ", self.size, " via intersection method"
+#         old_cluster_set = self.cluster_set
+#         self.ham = set()
+#         self.spam = set()
+#         self.cluster_set = set()
+#         self.dist_list = self.distance_array(self.separate)
+#         self.cluster_set = self.make_cluster()
+#         self.divide()
+#         new_cluster_set = self.cluster_set
+#         new_elements = list(item for item in old_cluster_set if item not in new_cluster_set)
+#         assert(len(self.cluster_set) == self.size), str(len(self.cluster_set)) + " " + str(self.size)
+#         assert(len(new_elements) == n), len(new_elements)        
+#         return new_elements
 
-    def cluster_less(self, n):
-        """Contracts the cluster to include n less emails and returns the now newly excluded emails."""
+#     def cluster_less(self, n):
+#         """Contracts the cluster to include n less emails and returns the now newly excluded emails."""
 
-        old_cluster_set = self.cluster_set
-        self.size -= n
-        assert(self.size > 0), "Cluster size would become negative!"
-        if self.sort_first:
-            if "frequency" in self.opt:
-                unlearned = 0
-                new_elements = []
-                while unlearned < n:
-                    email = self.added.pop() # remove most recently added email
-                    new_elements.append(email) # add to new emails list
-                    self.cluster_set.remove(email)
-                    # self.working_set.append(email)
-                    self.cluster_word_frequency = helpers.revert_word_frequencies(self.cluster_word_frequency, email) # update word frequencies
-                    self.dist_list.append((0, email))
-                    unlearned += 1
-                #self.dist_list = self.distance_array(self.separate) 
-                self.update_dist_list()
-                assert(len(new_elements) == n), str(len(new_elements)) + " " + str(n)
-                assert(len(self.cluster_set) == self.size), str(len(self.cluster_set)) + " " + str(self.size)
+#         old_cluster_set = self.cluster_set
+#         self.size -= n
+#         assert(self.size > 0), "Cluster size would become negative!"
+#         if self.sort_first:
+#             if "frequency" in self.opt:
+#                 unlearned = 0
+#                 new_elements = []
+#                 while unlearned < n:
+#                     email = self.added.pop() # remove most recently added email
+#                     new_elements.append(email) # add to new emails list
+#                     self.cluster_set.remove(email)
+#                     # self.working_set.append(email)
+#                     self.cluster_word_frequency = helpers.revert_word_frequencies(self.cluster_word_frequency, email) # update word frequencies
+#                     self.dist_list.append((0, email))
+#                     unlearned += 1
+#                 #self.dist_list = self.distance_array(self.separate) 
+#                 self.update_dist_list()
+#                 assert(len(new_elements) == n), str(len(new_elements)) + " " + str(n)
+#                 assert(len(self.cluster_set) == self.size), str(len(self.cluster_set)) + " " + str(self.size)
 
-                for msg in new_elements:
-                    if msg.train == 1 or msg.train == 3:
-                        self.ham.remove(msg)
-                    elif msg.train == 0 or msg.train == 2:
-                        self.spam.remove(msg)
+#                 for msg in new_elements:
+#                     if msg.train == 1 or msg.train == 3:
+#                         self.ham.remove(msg)
+#                     elif msg.train == 0 or msg.train == 2:
+#                         self.spam.remove(msg)
 
-                return new_elements
-            else:
-                new_cluster_set = set(item[1] for item in self.dist_list[:self.size])
-        else:
-            k_smallest = quickselect.k_smallest
-            new_cluster_set = set(item[1] for item in k_smallest(self.dist_list, self.size))
+#                 return new_elements
+#             else:
+#                 new_cluster_set = set(item[1] for item in self.dist_list[:self.size])
+#         else:
+#             k_smallest = quickselect.k_smallest
+#             new_cluster_set = set(item[1] for item in k_smallest(self.dist_list, self.size))
 
-        new_elements = list(item for item in old_cluster_set if item not in new_cluster_set)
-        self.cluster_set = new_cluster_set
+#         new_elements = list(item for item in old_cluster_set if item not in new_cluster_set)
+#         self.cluster_set = new_cluster_set
 
-        assert(len(self.cluster_set) == self.size), str(len(self.cluster_set)) + " " + str(self.size)
-        assert(len(new_elements) == n), len(new_elements)        
+#         assert(len(self.cluster_set) == self.size), str(len(self.cluster_set)) + " " + str(self.size)
+#         assert(len(new_elements) == n), len(new_elements)        
 
-        for msg in new_elements:
-            if msg.train == 1 or msg.train == 3:
-                self.ham.remove(msg)
-            elif msg.train == 0 or msg.train == 2:
-                self.spam.remove(msg)
+#         for msg in new_elements:
+#             if msg.train == 1 or msg.train == 3:
+#                 self.ham.remove(msg)
+#             elif msg.train == 0 or msg.train == 2:
+#                 self.spam.remove(msg)
 
-        return new_elements
+#         return new_elements
 
 
 class ActiveUnlearner:
@@ -673,52 +663,6 @@ class ActiveUnlearner:
 
     # --------------------------------------------------------------------------------------------------------------
 
-    # def detect_rate(self, cluster):
-    #     """Returns the detection rate if a given cluster is unlearned.
-    #     Relearns the cluster afterwards.
-    #     """
-    #     self.unlearn(cluster)
-    #     self.init_ground()
-    #     detection_rate = self.driver.tester.correct_classification_rate()
-    #     self.learn(cluster)
-    #     return detection_rate
-
-    # def start_detect_rate(self, cluster):
-    #     """Determines the detection rate after unlearning an initial cluster."""
-    #     self.unlearn(cluster)
-    #     self.init_ground()
-    #     detection_rate = self.driver.tester.correct_classification_rate()
-    #     return detection_rate
-
-    # def continue_detect_rate(self, cluster, n):
-    #     """Determines the detection rate after growing a cluster to be unlearned."""
-    #     old_cluster = copy.deepcopy(cluster.cluster_set)
-    #     cluster.cluster_more(n)
-    #     new_cluster = cluster.cluster_set
-
-    #     new_unlearns = new_cluster - old_cluster
-    #     assert(len(new_unlearns) == len(new_cluster) - len(old_cluster))
-    #     assert(len(new_unlearns) == n), len(new_unlearns)
-
-    #     unlearn_hams = []
-    #     unlearn_spams = []
-
-    #     for unlearn in new_unlearns:
-    #         if unlearn.train == 1 or unlearn.train == 3:
-    #             unlearn_hams.append(unlearn)
-
-    #         elif unlearn.train == 0 or unlearn.train == 2:
-    #             unlearn_spams.append(unlearn)
-
-    #         self.driver.tester.train_examples[unlearn.train].remove(unlearn)
-
-    #     self.driver.untrain(unlearn_hams, unlearn_spams)
-    #     self.init_ground()
-    #     detection_rate = self.driver.tester.correct_classification_rate()
-    #     return detection_rate
-
-    # --------------------------------------------------------------------------------------------------------------
-
     def divide_new_elements(self, messages, unlearn):
         """Divides a given set of emails to be unlearned into ham and spam lists and unlearns both."""
         hams = []
@@ -742,31 +686,6 @@ class ActiveUnlearner:
             self.driver.untrain(hams, spams)
         else:
             self.driver.train(hams, spams)
-
-    # def cluster_by_increment(self, cluster, old_detection_rate, new_detection_rate, counter):
-    #     """Finds an appropriate cluster around a msg by incrementing linearly until it reaches a peak detection rate."""
-    #     while new_detection_rate > old_detection_rate:
-    #         counter += 1
-    #         print "\nExploring cluster of size", (counter + 1) * self.increment, "...\n"
-
-    #         old_detection_rate = new_detection_rate
-    #         new_unlearns = cluster.cluster_more(self.increment)
-
-    #         assert(len(new_unlearns) == self.increment), len(new_unlearns)
-    #         self.divide_new_elements(new_unlearns, True)
-    #         self.init_ground()
-    #         new_detection_rate = self.driver.tester.correct_classification_rate()
-
-    #     # This part is done because we've clustered just past the peak point, so we need to go back
-    #     # one increment and relearn the extra stuff.
-
-    #     new_learns = cluster.cluster_less(self.increment)
-    #     assert(cluster.size == self.increment * counter), counter
-    #     self.divide_new_elements(new_learns, False)
-
-    #     print "\nAppropriate cluster found, with size " + str(cluster.size) + ".\n"
-    #     self.current_detection_rate = old_detection_rate
-    #     return cluster
 
     def cluster_by_gold(self, cluster, old_detection_rate, new_detection_rate, counter, test_waters):
         """Finds an appropriate cluster around a msg by using the golden section search method."""
@@ -813,23 +732,6 @@ class ActiveUnlearner:
         Performs golden section search on the size of a cluster; grows/shrinks exponentially at a rate of phi to ensure that
         window ratios will be same at all levels (except edge cases), and uses this to determine the initial window.
         """
-        # if shrink_rejects:
-        #     shrink_cluster = cluster.size - int(cluster.size/phi)
-        #     while counter == 0 or new_detection_rate > old_detection_rate:
-        #         counter += 1
-        #         sizes.append(cluster.size)
-        #         detection_rates.append(new_detection_rate)
-        #         old_detection_rate = new_detection_rate
-        #         print "\n Exploring a shrunk cluster of size", cluster.size - shrink_cluster, "...\n"
-                
-        #         new_learns = cluster.cluster_less(shrink_cluster)
-        #         shrink_cluster = cluster.size - int(cluster.size/phi)
-
-        #         self.divide_new_elements(new_learns, False)
-        #         self.init_ground()
-        #         new_detection_rate = self.driver.tester.correct_classification_rate()
-
-        # else:
         extra_cluster = int(phi * cluster.size)
         while new_detection_rate > old_detection_rate:
             counter += 1
@@ -991,77 +893,6 @@ class ActiveUnlearner:
             raise AssertionError("Pointer is at the same location as middle_2.")
 
         return rate_2, middle_2, pointer
-
-    # -----------------------------------------------------------------------------------
-
-    # def brute_force_active_unlearn(self, outfile, test=False, center_iteration=True, pollution_set3=True, gold=False,
-    #                                pos_cluster_opt=0):
-    #     """Attempts to improve the the machine by iterating through the training space and unlearning any clusters that
-    #     improve the state of the machine.
-    #     """
-    #     cluster_list = []
-    #     try:
-    #         cluster_count = 0
-    #         rejection_count = 0
-    #         rejections = set()
-    #         training = self.shuffle_training()
-    #         original_training_size = len(training)
-    #         detection_rate = self.current_detection_rate
-    #         print "\nCurrent detection rate achieved is " + str(detection_rate) + ".\n"
-
-    #         while len(training) > 0:
-    #             print "\n-----------------------------------------------------\n"
-    #             print "\nStarting new round of untraining;", len(training), "out of", original_training_size, \
-    #                 "training left.\n"
-
-    #             current = training[len(training) - 1]
-    #             cluster = determine_cluster(current, self, working_set=training, gold=gold,
-    #                                         pos_cluster_opt=pos_cluster_opt)
-
-    #             if cluster[0] <= 0:
-    #                 print "\nMoving on from inviable cluster center...\n"
-    #                 if center_iteration:
-    #                     training.remove(current)
-    #                     rejections.add(current)
-    #                     rejection_count += 1
-
-    #                 else:
-    #                     for msg in cluster[1].cluster_set:
-    #                         if msg not in rejections:
-    #                             training.remove(msg)
-    #                             rejections.add(msg)
-
-    #                     rejection_count += 1
-
-    #                 print "\nRejected", rejection_count, "attempt(s) so far.\n"
-
-    #             else:
-    #                 cluster_list.append(cluster[1])
-    #                 print "\nRemoving cluster from shuffled training set...\n"
-
-    #                 for msg in cluster[1].cluster_set:
-    #                     if msg not in rejections:
-    #                         training.remove(msg)
-    #                         rejections.add(msg)
-
-    #                 cluster_count += 1
-    #                 print "\nUnlearned", cluster_count, "cluster(s) so far.\n"
-
-    #                 detection_rate = self.current_detection_rate
-    #                 print "\nCurrent detection rate achieved is " + str(detection_rate) + ".\n"
-    #                 cluster_print_stats(outfile, pollution_set3, detection_rate, cluster, cluster_count,
-    #                                     rejection_count + cluster_count)
-
-    #         print "\nIteration through training space complete after", cluster_count, "clusters unlearned and", \
-    #             rejection_count, "rejections made.\n"
-
-    #         print "\nFinal detection rate: " + str(detection_rate) + ".\n"
-
-    #         if test:
-    #             return cluster_list
-
-    #     except KeyboardInterrupt:
-    #         return cluster_list
 
     def impact_active_unlearn(self, outfile, test=False, pollution_set3=True, gold=False, shrink_rejects=False):
         """
