@@ -158,7 +158,7 @@ def noisy_data_check(pure_clusters, v_au):
 
 
 def main():
-    sets = [12] # select which data sets you want to run algorithm on
+    sets = [11] # select which data sets you want to run algorithm on
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-cv', '--cross', type=str, help="partition test set into T1 and T2 for cross-validation",
