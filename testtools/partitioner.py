@@ -7,6 +7,7 @@ Splits testing data into T1 and T2 to cross-validate the accuracy of active unle
 def partition(ham_count, ham_stream, spam_count, spam_stream, option):
     if option == 'random':
         return random(ham_count, spam_count)
+        # return range(ham_count), range(spam_count), [], []
 
 def random(ham_count, spam_count):
     ham_indices = range(ham_count)

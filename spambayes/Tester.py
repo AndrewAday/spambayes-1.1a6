@@ -99,7 +99,7 @@ class Test:
     # msg in the stream, after the spam probability is computed.
     def predict(self, stream, is_spam, init_ground=False, callback=None, update=False, all_opt=False):
         guess = self.classifier.spamprob
-        self.reset_test_results()  # warning: might break something?
+        # self.reset_test_results()  # warning: might break something?
         for example in stream:
             old_prob = 0
 
@@ -137,7 +137,8 @@ class Test:
                 else:
                     self.nham_unsure += 1
                     self.unsure_examples.append(example)
-
+        print '--------NUMBER OF EMAILS TESTED AGAINST---------'
+        print self.nham_tested + self.nspam_tested
         assert (self.nham_right + self.nham_wrong + self.nham_unsure ==
                 self.nham_tested)
         assert (self.nspam_right + self.nspam_wrong + self.nspam_unsure ==
