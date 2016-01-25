@@ -162,7 +162,8 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-cv', '--cross', type=str, help="partition test set into T1 and T2 for cross-validation",
-        choices=['random'], default=None)
+        choices=['random','features'], default=None)
+    parser.add_argument('-f', '--features', nargs='*', help="what features to split into T2", default=None)
     parser.add_argument('-d', '--dest', type=str, help="choose alternate destination for output file")
 
     args = parser.parse_args()
@@ -213,8 +214,8 @@ def main():
             time_1 = time.time() # begin timer
             # Instantiate ActiveUnlearner object
             if args.cross is not None:
-                t1_ham, t1_spam, t2_ham, t2_spam = partitioner.partition(test_ham,ham_test,test_spam,spam_test,args.cross)
-                
+                t1_ham, t1_spam, t2_ham, t2_spam = partitioner.partition(test_ham, ham_test, test_spam, spam_test, args.cross, args.features)
+
                 au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham_train, [ham_train]),
                                                           msgs.HamStream(ham_p, [ham_p])],        # Training Ham 
                                                          [msgs.SpamStream(spam_train, [spam_train]),
@@ -250,10 +251,23 @@ def main():
             train_time = seconds_to_english(time_2 - time_1)
             print "Train time:", train_time, "\n"
 
-            
-
             with open(dest + data_set + " (unlearn_stats).txt", 'w+') as outfile:
                 try:
+                    if args.cross == 'features':
+                        t1_total = len(t1_ham) + len(t1_spam)
+                        t2_total = len(t2_ham) + len(t2_spam)
+                        print '----------------------T1/T2 TOTALS----------------------'
+                        print 'Size of T1 Ham: ' + str(len(t1_ham))
+                        print 'Size of T1 Spam: ' + str(len(t1_spam))
+                        print 'Size of T2 Ham: ' + str(len(t2_ham))
+                        print 'Size of T2 Spam: ' + str(len(t2_spam))
+                        outfile.write('Features used to distinguish T2: ' + ', '.join(args.features) + "\n")
+                        outfile.write('Size of T1 Ham: ' + str(len(t1_ham)) + "\n")
+                        outfile.write('Size of T1 Spam: ' + str(len(t1_spam)) + "\n")
+                        outfile.write('Size of T2 Ham: ' + str(len(t2_ham)) + "\n")
+                        outfile.write('Size of T2 Spam: ' + str(len(t2_spam)) + "\n")
+                        outfile.flush()
+                        os.fsync(outfile)
                     unlearn_stats(au, outfile, data_set, [train_ham, train_spam], [test_ham, test_spam],
                                   [ham_polluted, spam_polluted], total_polluted, total_unpolluted,
                                   train_time, vanilla=[vanilla_detection_rate, v_au], noisy_clusters=True)
