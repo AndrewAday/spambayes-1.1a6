@@ -1082,7 +1082,6 @@ class ActiveUnlearner:
                     if current_distance < min_distance:
                         init_email = email
                         min_distance = current_distance
-
             elif self.distance_opt == "intersection":
                 min_distance = -1
                 for email in training: # select closest email to randomly selected mislabeled test email

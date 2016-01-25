@@ -1,13 +1,13 @@
-Size of T1 Ham: 265
-Size of T1 Spam: 573
-Size of T2 Ham: 10268
-Size of T2 Spam: 10411
+Size of T1 Ham: 4719
+Size of T1 Spam: 4915
+Size of T2 Ham: 5814
+Size of T2 Spam: 6069
 ---------------------------
-Data Set: Mislabeled-Both-1.1
-Vanilla Training: 4200 ham and 4200 spam.
+Data Set: Mislabeled-Both-3.1
+Vanilla Training: 3000 ham and 3000 spam.
 Testing: 10533 ham and 10984 spam.
-Pollution Training: 1800 ham and 1800 spam.
-Vanilla Detection Rate: 98.5081563415.
+Pollution Training: 3000 ham and 3000 spam.
+Vanilla Detection Rate: 98.3361992843.
 ---------------------------
 
 

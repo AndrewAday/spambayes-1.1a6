@@ -137,7 +137,7 @@ class Test:
                 else:
                     self.nham_unsure += 1
                     self.unsure_examples.append(example)
-        print '--------NUMBER OF EMAILS TESTED AGAINST---------'
+        # print '--------NUMBER OF EMAILS TESTED AGAINST---------'
         print self.nham_tested + self.nspam_tested
         assert (self.nham_right + self.nham_wrong + self.nham_unsure ==
                 self.nham_tested)

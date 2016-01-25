@@ -21,6 +21,8 @@ from testtools.io_locations import dest
 # Set options global for spambayes
 options["TestDriver", "show_histograms"] = False
 
+
+
 # Reassign the functions in ds
 dir_enumerate = ds.dir_enumerate
 seterize = ds.seterize
@@ -158,13 +160,16 @@ def noisy_data_check(pure_clusters, v_au):
 
 
 def main():
-    sets = [11] # select which data sets you want to run algorithm on
+    sets = [11,12,13,14,15] # select which data sets you want to run algorithm on
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-cv', '--cross', type=str, help="partition test set into T1 and T2 for cross-validation",
-        choices=['random','features'], default=None)
+        choices=['random','features','mislabeled'], default=None)
     parser.add_argument('-f', '--features', nargs='*', help="what features to split into T2", default=None)
     parser.add_argument('-d', '--dest', type=str, help="choose alternate destination for output file")
+    parser.add_argument('-dist', '--distance', type=str, default='frequency5', choices=['frequency5','frequency3'], help="choose a distance method")
+    parser.add_argument('-hc', '--ham_cutoff', type=float, default=.2, help="choose a ham cutoff probability")
+    parser.add_argument('-sc', '--spam_cutoff', type=float, default=.8, help="choose a spam cutoff probability")
 
     args = parser.parse_args()
     print args
@@ -174,6 +179,9 @@ def main():
         dest += args.dest
 
     print "path selected: ", dest
+
+    options['Categorization', 'ham_cutoff'] = args.ham_cutoff
+    options['Categorization', 'spam_cutoff'] = args.spam_cutoff
 
     for i in sets:
         ham = hams[i]
@@ -214,7 +222,22 @@ def main():
             time_1 = time.time() # begin timer
             # Instantiate ActiveUnlearner object
             if args.cross is not None:
-                t1_ham, t1_spam, t2_ham, t2_spam = partitioner.partition(test_ham, ham_test, test_spam, spam_test, args.cross, args.features)
+                au_temp = None
+                
+                if args.cross == 'mislabeled':  # find mislabeled emails
+                    print '------Gathering Mislabeled Emails------'
+                    au_temp = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham_train, [ham_train]),
+                                                          msgs.HamStream(ham_p, [ham_p])],        # Training Ham 
+                                                         [msgs.SpamStream(spam_train, [spam_train]),
+                                                          msgs.SpamStream(spam_p, [spam_p])],     # Training Spam
+                                                         msgs.HamStream(ham_test, [ham_test]),          # Testing Ham
+                                                         msgs.SpamStream(spam_test, [spam_test]),       # Testing Spam
+                                                         distance_opt=args.distance, all_opt=True,      
+                                                         update_opt="hybrid", greedy_opt=True,          
+                                                         include_unsures=False) # Don't unclude unsure emails
+                    print '------Mislabeled Emails Gathered------'
+                
+                t1_ham, t1_spam, t2_ham, t2_spam = partitioner.partition(test_ham, ham_test, test_spam, spam_test, args.cross, args.features,au=au_temp)
 
                 au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham_train, [ham_train]),
                                                           msgs.HamStream(ham_p, [ham_p])],        # Training Ham 
@@ -224,7 +247,7 @@ def main():
                                                          msgs.SpamStream(spam_test, [spam_test], indices=t1_spam),       # Testing Spam
                                                          cv_ham=msgs.HamStream(ham_test, [ham_test], indices=t2_ham),       # T2 testing Ham
                                                          cv_spam=msgs.SpamStream(spam_test, [spam_test], indices=t2_spam),  # T2 testing Spam
-                                                         distance_opt="frequency5", all_opt=True,      
+                                                         distance_opt=args.distance, all_opt=True,      
                                                          update_opt="hybrid", greedy_opt=True,          
                                                          include_unsures=False) # Don't unclude unsure emails        
 
@@ -235,7 +258,7 @@ def main():
                                                           msgs.SpamStream(spam_p, [spam_p])],     # Training Spam
                                                          msgs.HamStream(ham_test, [ham_test]),          # Testing Ham
                                                          msgs.SpamStream(spam_test, [spam_test]),       # Testing Spam
-                                                         distance_opt="frequency5", all_opt=True,      
+                                                         distance_opt=args.distance, all_opt=True,      
                                                          update_opt="hybrid", greedy_opt=True,          
                                                          include_unsures=False) # Don't unclude unsure emails        
 
@@ -253,7 +276,7 @@ def main():
 
             with open(dest + data_set + " (unlearn_stats).txt", 'w+') as outfile:
                 try:
-                    if args.cross == 'features':
+                    if args.cross == 'features' or args.cross == 'mislabeled':
                         t1_total = len(t1_ham) + len(t1_spam)
                         t2_total = len(t2_ham) + len(t2_spam)
                         print '----------------------T1/T2 TOTALS----------------------'
@@ -261,7 +284,8 @@ def main():
                         print 'Size of T1 Spam: ' + str(len(t1_spam))
                         print 'Size of T2 Ham: ' + str(len(t2_ham))
                         print 'Size of T2 Spam: ' + str(len(t2_spam))
-                        outfile.write('Features used to distinguish T2: ' + ', '.join(args.features) + "\n")
+                        if args.cross == 'features':
+                            outfile.write('Features used to distinguish T2: ' + ', '.join(args.features) + "\n")
                         outfile.write('Size of T1 Ham: ' + str(len(t1_ham)) + "\n")
                         outfile.write('Size of T1 Spam: ' + str(len(t1_spam)) + "\n")
                         outfile.write('Size of T2 Ham: ' + str(len(t2_ham)) + "\n")

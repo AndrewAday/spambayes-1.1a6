@@ -12,9 +12,9 @@ SPAMTRAIN = None
 SEED = random.randrange(2000000000)
 
 class Msg(object):
-    __slots__ = 'tag', 'guts', 'prob', 'probdiff', 'clues', 'allclues', 'train'
+    __slots__ = 'tag', 'guts', 'prob', 'probdiff', 'clues', 'allclues', 'train', 'index'
 
-    def __init__(self, dir, name):
+    def __init__(self, dir, name, index=None):
         path = dir + "/" + name
         self.tag = path
         f = open(path, 'rb')
@@ -25,6 +25,7 @@ class Msg(object):
         self.allclues = []
         self.clues = []
         self.guts = "`~`".join(set(tokenize(self.guts))) # all words of email, separated by '~'
+        self.index = index
 
     def __iter__(self):
         for word in self.guts.split("`~`"):
@@ -72,10 +73,10 @@ class MsgStream(object):
                 if self.indices is not None:
                     emails = os.listdir(directory)
                     for i in self.indices:
-                        yield Msg(directory, emails[i])
+                        yield Msg(directory, emails[i], index=i)
                 else:
-                    for fname in os.listdir(directory):
-                        yield Msg(directory, fname)
+                    for i,fname in enumerate(os.listdir(directory)):
+                        yield Msg(directory, fname, index=i)
             return
         # We only want part of the msgs.  Shuffle each directory list, but
         # in such a way that we'll get the same result each time this is
