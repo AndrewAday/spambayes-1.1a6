@@ -286,6 +286,9 @@ def main():
                         print 'Size of T2 Spam: ' + str(len(t2_spam))
                         if args.cross == 'features':
                             outfile.write('Features used to distinguish T2: ' + ', '.join(args.features) + "\n")
+                        if args.cross == 'mislabeled':
+                            outfile.write('Ham cutoff : ' + str(args.ham_cutoff) "\n")
+                            outfile.write('Spam cutoff : ' + str(args.spam_cutoff) "\n")
                         outfile.write('Size of T1 Ham: ' + str(len(t1_ham)) + "\n")
                         outfile.write('Size of T1 Spam: ' + str(len(t1_spam)) + "\n")
                         outfile.write('Size of T2 Ham: ' + str(len(t2_ham)) + "\n")
