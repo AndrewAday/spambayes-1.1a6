@@ -1,0 +1,6 @@
+Ham cutoff : 0.49
+Spam cutoff : 0.51
+Size of T1 Ham: 4719
+Size of T1 Spam: 4915
+Size of T2 Ham: 5814
+Size of T2 Spam: 6069
