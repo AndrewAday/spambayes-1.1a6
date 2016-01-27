@@ -4,6 +4,7 @@ import sys
 import gc
 import os
 import time
+import operator
 from math import sqrt, fabs
 
 NO_CENTROIDS = '1234567890'
@@ -178,4 +179,18 @@ def t2_print_stats(outfile, detection_rate):
     outfile.write('t2 detection rate: ' + str(detection_rate) + "\n")
     outfile.flush()
     os.fsync(outfile)
+
+def feature_print_stats(outfile, u_f, number=20):
+    outfile.write('Top ' + str(number) + ' most common features in unlearned emails as (word, frequency)' + "\n")
+    sorted_uf = sorted(u_f.items(), key=operator.itemgetter(1), reverse=True)
+    for x in xrange(min(number, len(sorted_uf))):
+        outfile.write(str(sorted_uf[x]))
+        outfile.write("\n")
+    outfile.flush()
+    os.fsync(outfile)
+
+
+
+
+
 

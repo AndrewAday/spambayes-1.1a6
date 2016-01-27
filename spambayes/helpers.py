@@ -23,3 +23,10 @@ def get_word_frequencies(msg):
 
 def _vectorize(msg):
 	return [t[1] for t in msg.clues]
+
+def update_unlearned_features(u_f, c_f):
+	for key,val in c_f.iteritems():
+		if key not in u_f:
+			u_f[key] = val
+		else:
+			u_f[key] += val

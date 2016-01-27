@@ -7,14 +7,14 @@ from random import shuffle
 Splits testing data into T1 and T2 to cross-validate the accuracy of active unlearning
 """
 
-def partition(ham_count, ham_dir, spam_count, spam_dir, option, features, au=None):
+def partition(ham_count, ham_dir, spam_count, spam_dir, option, features, copies, au=None):
     if option == 'random':
         return random(ham_count, spam_count)
         # return range(ham_count), range(spam_count), [], []
     elif option == 'features':
         return feature_parse(ham_dir, spam_dir, features)
     elif option == 'mislabeled':
-        return mislabeled_parse(ham_count, ham_dir, spam_count, spam_dir, au)
+        return mislabeled_parse(ham_count, ham_dir, spam_count, spam_dir, copies, au)
     else:
         raise ValueError
 
@@ -66,9 +66,11 @@ def feature_parse(ham_dir, spam_dir, features):  # he him his she her them we
             if not added:
                 t1_spam.append(i) 
 
+
+
     return t1_ham, t1_spam, t2_ham, t2_spam
 
-def mislabeled_parse(ham_count, ham_dir, spam_count, spam_dir, au):
+def mislabeled_parse(ham_count, ham_dir, spam_count, spam_dir, copies, au):
     tester = au.driver.tester
     wrong_ham = tester.ham_wrong_examples  # ham called spam
     wrong_spam = tester.spam_wrong_examples  # spam called ham
@@ -80,6 +82,10 @@ def mislabeled_parse(ham_count, ham_dir, spam_count, spam_dir, au):
     t1_spam = wrong_spam
     t2_ham = list(set(range(ham_count)) - set(wrong_ham))
     t2_spam = list(set(range(spam_count)) - set(wrong_spam))
+
+
+    t1_ham *= copies
+    t1_spam *= copies
 
     return t1_ham, t1_spam, t2_ham, t2_spam
 

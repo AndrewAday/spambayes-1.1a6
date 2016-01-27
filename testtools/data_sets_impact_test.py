@@ -170,6 +170,7 @@ def main():
     parser.add_argument('-dist', '--distance', type=str, default='frequency5', choices=['frequency5','frequency3'], help="choose a distance method")
     parser.add_argument('-hc', '--ham_cutoff', type=float, default=.2, help="choose a ham cutoff probability")
     parser.add_argument('-sc', '--spam_cutoff', type=float, default=.8, help="choose a spam cutoff probability")
+    parser.add_argument('-cp', '--copies', type=int, default=1, help="number of times to copy T1")
 
     args = parser.parse_args()
     print args
@@ -237,7 +238,8 @@ def main():
                                                          include_unsures=False) # Don't unclude unsure emails
                     print '------Mislabeled Emails Gathered------'
                 
-                t1_ham, t1_spam, t2_ham, t2_spam = partitioner.partition(test_ham, ham_test, test_spam, spam_test, args.cross, args.features,au=au_temp)
+                t1_ham, t1_spam, t2_ham, t2_spam = partitioner.partition(test_ham, ham_test, test_spam, spam_test, 
+                                                                        args.cross, args.features, args.copies, au=au_temp)
 
                 au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham_train, [ham_train]),
                                                           msgs.HamStream(ham_p, [ham_p])],        # Training Ham 
