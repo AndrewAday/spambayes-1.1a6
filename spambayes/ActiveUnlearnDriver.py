@@ -424,7 +424,7 @@ class ActiveUnlearner:
             
             for i in indices:
                 cluster = cluster_list[i]
-                helpers.update_unlearned_features(unlearned_features, cluster.cluster_word_frequency)
+                helpers.update_unlearned_features(unlearned_features, cluster[1].cluster_word_frequency)
                 print "\n-----------------------------------------------------\n"
                 print "\nChecking cluster " + str(j + 1) + " of " + str(list_length) + "...\n"
                 print "\nOriginal increase in detection rate is ", cluster[0]
