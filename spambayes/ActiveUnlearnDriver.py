@@ -19,7 +19,7 @@ class ActiveUnlearner:
     Core component of the unlearning algorithm. Container class for most relevant methods, driver/classifier,
     and data.
     """
-    def __init__(self, training_ham, training_spam, testing_ham, testing_spam, threshold=95, increment=100,
+    def __init__(self, training_ham, training_spam, testing_ham, testing_spam, threshold=98, increment=100,
                  distance_opt="frequency5", all_opt=False, update_opt="hybrid", greedy_opt=False, include_unsures=True,
                  cv_ham=None, cv_spam=None):
         self.distance_opt = distance_opt
