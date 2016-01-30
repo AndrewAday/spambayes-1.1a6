@@ -45,8 +45,8 @@ set_dirs = ds.set_dirs # Array containing names of all parent data directories
 pollution_set3 = True #True if Set3 file contains polluted data
 
 
-def unlearn_stats(au, outfile, data_set, train, test, polluted, total_polluted, total_unpolluted,
-                  train_time, clusters=False, vanilla=None, noisy_clusters=False):
+def unlearn_stats(au, args, outfile, data_set, train, test, polluted, total_polluted, total_unpolluted,
+                  train_time, polluted_data, clusters=False, vanilla=None, noisy_clusters=False):
         """Runs an unlearn algorithm on an ActiveUnlearner and prints out the resultant stats."""
         outfile.write("---------------------------\n")
         outfile.write("Data Set: " + data_set + "\n")
@@ -103,6 +103,27 @@ def unlearn_stats(au, outfile, data_set, train, test, polluted, total_polluted, 
         outfile.write(str(total_polluted_unlearned) + "/" + str(total_polluted) + " = " +  str(float(total_polluted_unlearned) / float(total_polluted)) + "\n")
         outfile.write("Percentage of Unpolluted Unlearned:\n")
         outfile.write(str(total_unpolluted_unlearned) + "/" + str(total_unpolluted) + " = " + str(float(total_unpolluted_unlearned) / float(total_unpolluted)) + "\n")
+        outfile.write('--------Experiment2 Statistics--------')
+        if au.partition_method == 'features':
+            polluted_unlearned = {'ham': [], 'spam': []}
+            no_ham_polluted = polluted[0]
+            no_spam_polluted = polluted[1]
+
+            for cluster in cluster_list:
+                pu = cluster.target_set3(emails=True)
+                polluted_unlearned['ham'] += pu['ham']
+                polluted_unlearned['spam'] += pu['spam']
+
+            ham_polluted_features, spam_polluted_features = partitioner.feature_count(polluted_unlearned['ham'], polluted_unlearned['spam'], args.features)
+            outfile.write("Polluted Ham unlearned with features: " + str(ham_polluted_features))
+            outfile.write("Polluted Spam unlearned with features: " + str(spam_polluted_features))
+            outfile.write("Of all unlearned, polluted emails, what percentage contain any of the partition features: " + str(float(ham_polluted_features+spam_polluted_features) / float(total_polluted_unlearned)))
+
+            p_total, p_ham, p_spam = partitioner.polluted_features(polluted_unlearned, polluted_data[0], polluted_data[1], args.features)
+            outfile.write("Polluted Ham NOT unlearned with features: " + str(p_ham))
+            outfile.write("Polluted Spam NOT unlearned with features: " + str(p_spam))
+            outfile.write("Of all polluted emails NOT unlearned, what percentage contain any of the partition features: " + str(float(p_ham + p_spam) / float(p_total)))
+
         if noisy_clusters:
             if vanilla is not None:
                 # get list of clusters with 0 polluted emails, but unlearning still improves classification accuracy
@@ -160,10 +181,9 @@ def noisy_data_check(pure_clusters, v_au):
 
 
 def main():
-    # sets = [11,12,13,14,15] # select which data sets you want to run algorithm on
-    # sets = [15]
-    # sets = [16,17,18,19,20,21]
-    sets = [20,21]
+    # sets = [11,12,13,14,15] # mislabeled_both_small
+    sets = [16]
+    # sets = [16,17,18,19,20,21] # mislabeled_both_big
     parser = argparse.ArgumentParser()
     parser.add_argument('-cv', '--cross', type=str, help="partition test set into T1 and T2 for cross-validation",
         choices=['random','features','mislabeled'], default=None)
@@ -173,6 +193,9 @@ def main():
     parser.add_argument('-hc', '--ham_cutoff', type=float, default=.2, help="choose a ham cutoff probability")
     parser.add_argument('-sc', '--spam_cutoff', type=float, default=.8, help="choose a spam cutoff probability")
     parser.add_argument('-cp', '--copies', type=int, default=1, help="number of times to copy T1")
+    parser.add_argument('-mc', '--misclassified', dest='misclassified', action='store_true', help="When partitioning T1, do we include only misclassified emails?")
+    parser.set_defaults(misclassified=False)
+
 
     args = parser.parse_args()
     print args
@@ -227,7 +250,7 @@ def main():
             if args.cross is not None:
                 au_temp = None
                 
-                if args.cross == 'mislabeled':  # find mislabeled emails
+                if args.cross == 'mislabeled' or args.misclassified:  # find mislabeled emails
                     print '------Gathering Mislabeled Emails------'
                     au_temp = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham_train, [ham_train]),
                                                           msgs.HamStream(ham_p, [ham_p])],        # Training Ham 
@@ -241,7 +264,7 @@ def main():
                     print '------Mislabeled Emails Gathered------'
                 
                 t1_ham, t1_spam, t2_ham, t2_spam = partitioner.partition(test_ham, ham_test, test_spam, spam_test, 
-                                                                        args.cross, args.features, args.copies, au=au_temp)
+                                                                        args.cross, args.features, args.copies, mis_only=args.misclassified, au=au_temp)
 
                 au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham_train, [ham_train]),
                                                           msgs.HamStream(ham_p, [ham_p])],        # Training Ham 
@@ -253,7 +276,7 @@ def main():
                                                          cv_spam=msgs.SpamStream(spam_test, [spam_test], indices=t2_spam),  # T2 testing Spam
                                                          distance_opt=args.distance, all_opt=True,      
                                                          update_opt="hybrid", greedy_opt=True,          
-                                                         include_unsures=False) # Don't unclude unsure emails        
+                                                         include_unsures=False, partition_method=args.cross) # Don't unclude unsure emails        
 
             else:
                 au = ActiveUnlearnDriver.ActiveUnlearner([msgs.HamStream(ham_train, [ham_train]),
@@ -299,9 +322,9 @@ def main():
                         outfile.write('Size of T2 Spam: ' + str(len(t2_spam)) + "\n")
                         outfile.flush()
                         os.fsync(outfile)
-                    unlearn_stats(au, outfile, data_set, [train_ham, train_spam], [test_ham, test_spam],
+                    unlearn_stats(au, args, outfile, data_set, [train_ham, train_spam], [test_ham, test_spam],
                                   [ham_polluted, spam_polluted], total_polluted, total_unpolluted,
-                                  train_time, vanilla=[vanilla_detection_rate, v_au], noisy_clusters=True)
+                                  train_time, [ham_p, spam_p], vanilla=[vanilla_detection_rate, v_au], noisy_clusters=True)
                     # unlearn_stats(au, outfile, data_set, [train_ham, train_spam], [test_ham, test_spam],
                     #               [ham_polluted, spam_polluted], total_polluted, total_unpolluted,
                     #               train_time, vanilla=None, noisy_clusters=True)

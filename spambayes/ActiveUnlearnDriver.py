@@ -21,8 +21,9 @@ class ActiveUnlearner:
     """
     def __init__(self, training_ham, training_spam, testing_ham, testing_spam, threshold=98, increment=100,
                  distance_opt="frequency5", all_opt=False, update_opt="hybrid", greedy_opt=False, include_unsures=True,
-                 cv_ham=None, cv_spam=None):
+                 cv_ham=None, cv_spam=None, partition_method=None):
         self.distance_opt = distance_opt
+        self.partition_method = partition_method
         self.all = all_opt
         self.greedy = greedy_opt
         self.update = update_opt
@@ -357,7 +358,7 @@ class ActiveUnlearner:
 
         return rate_2, middle_2, pointer
 
-    def impact_active_unlearn(self, outfile, test=False, pollution_set3=True, gold=False, shrink_rejects=False):
+    def impact_active_unlearn(self, outfile, test=True, pollution_set3=True, gold=False, shrink_rejects=False):
         """
         Attempts to improve the machine by first clustering the training space and then unlearning clusters based off
         of perceived impact to the machine.
@@ -408,7 +409,7 @@ class ActiveUnlearner:
         print "----------The Cluster List------------"
         print cluster_list
         print "----------/The Cluster List------------"
-        unlearned_features = {}
+        # unlearned_features = {}
         # ANDREW CHANGED: while detection_rate <= self.threshold and cluster_list[len(cluster_list) - 1][0] > 0:
         while detection_rate <= self.threshold and cluster_list[-1][0] > rejection_rate:
             list_length = len(cluster_list)
@@ -424,7 +425,7 @@ class ActiveUnlearner:
             
             for i in indices:
                 cluster = cluster_list[i]
-                helpers.update_unlearned_features(unlearned_features, cluster[1].cluster_word_frequency)
+                # helpers.update_unlearned_features(unlearned_features, cluster[1].cluster_word_frequency)
                 print "\n-----------------------------------------------------\n"
                 print "\nChecking cluster " + str(j + 1) + " of " + str(list_length) + "...\n"
                 print "\nOriginal increase in detection rate is ", cluster[0]
@@ -462,7 +463,7 @@ class ActiveUnlearner:
                 attempt_count += 1
                 gc.collect()
 
-        feature_print_stats(outfile, unlearned_features)
+        # feature_print_stats(outfile, unlearned_features)
         return cluster_count, attempt_count
 
     # -----------------------------------------------------------------------------------

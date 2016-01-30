@@ -24,7 +24,7 @@ class Msg(object):
         self.probdiff = None
         self.allclues = []
         self.clues = []
-        self.guts = "`~`".join(set(tokenize(self.guts))) # all words of email, separated by '~'
+        self.guts = "`~`".join(set(tokenize(self.guts))) # all words of email, separated by `~`
         self.index = index
 
     def __iter__(self):

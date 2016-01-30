@@ -159,13 +159,19 @@ class Cluster:
 
         return counter
 
-    def target_set3(self):
+    def target_set3(self, emails=False):
         """Returns a count of the number of Set3 emails in the cluster."""
-        counter = 0
+        ret = {'ham': [], 'spam': []} if emails else 0
         for msg in self.cluster_set:
             if "Set3" in msg.tag:
-                counter += 1
-        return counter
+                if emails:
+                    if '/Ham/' in msg.tag:
+                        ret['ham'].append(msg)
+                    else:
+                        ret['spam'].append(msg)
+                else:
+                    ret += 1
+        return ret
 
     def target_set3_get_unpolluted(self):
         cluster_set_new = []
@@ -175,7 +181,7 @@ class Cluster:
             if "Set3" in msg.tag: #msg is polluted, remove from cluster
                 self.size -= 1
             else:
-                cluster_set_new.append(msg)
+                cluster_set_new.append(msg)  
                 if "ham" in msg.tag:
                     ham_new.add(msg)
                 else:
