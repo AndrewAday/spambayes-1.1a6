@@ -1,5 +1,6 @@
 import os
 import sys
+import operator
 from random import shuffle
 
 
@@ -42,6 +43,15 @@ def feature_parse(ham_dir, spam_dir, features, mis_only=False, au=None):  # he h
         tester = au.driver.tester
         wrong_ham = tester.ham_wrong_examples  # ham called spam
         wrong_spam = tester.spam_wrong_examples  # spam called ham
+
+        contents = {}
+        for email in wrong_ham:
+            _vectorize(email, contents)
+        for email in wrong_spam:
+            _vectorize(email, contents)
+        sort_contents = sorted(contents.items(), key=operator.itemgetter(1), reverse=True)
+        for x in xrange(min(20, len(sort_conents))):
+            print sort_conents[x]
 
         wrong_ham = tester.ham_wrong_examples  # ham called spam
         wrong_spam = tester.spam_wrong_examples  # spam called ham
@@ -158,6 +168,15 @@ def polluted_features(polluted_unlearned, ham_dir, spam_dir, features):
                     break
 
     return total, ham_c, spam_c
+
+def _vectorize(email, contents):
+    words = email.guts.split("`~`")
+    for word in words:
+        if word in contents:
+            contents[word] += 1
+        else:
+            contents[word] = 1
+
 
 
 
