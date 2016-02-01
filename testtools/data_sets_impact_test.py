@@ -110,6 +110,7 @@ def unlearn_stats(au, args, outfile, data_set, train, test, polluted, total_poll
             no_spam_polluted = polluted[1]
 
             for cluster in cluster_list:
+                cluster = cluster[1]
                 pu = cluster.target_set3(emails=True)
                 polluted_unlearned['ham'] += pu['ham']
                 polluted_unlearned['spam'] += pu['spam']
