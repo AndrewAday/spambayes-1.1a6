@@ -124,10 +124,10 @@ def feature_count(hams, spams, features):
     ham_c = 0
     spam_c = 0
     for ham in hams:
-        if any(feature in ham.split("`~`") for feature in features):
+        if any(feature in ham.guts.split("`~`") for feature in features):
             ham_c += 1
     for spam in spams:
-        if any(feature in spam.split("`~`") for feature in features):
+        if any(feature in spam.guts.split("`~`") for feature in features):
             spam_c += 1
     return ham_c, spam_c
 
