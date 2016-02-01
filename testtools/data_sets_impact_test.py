@@ -183,7 +183,7 @@ def noisy_data_check(pure_clusters, v_au):
 
 def main():
     # sets = [11,12,13,14,15] # mislabeled_both_small
-    sets = [16]
+    sets = [17,20]
     # sets = [16,17,18,19,20,21] # mislabeled_both_big
     parser = argparse.ArgumentParser()
     parser.add_argument('-cv', '--cross', type=str, help="partition test set into T1 and T2 for cross-validation",
