@@ -51,7 +51,7 @@ def feature_parse(ham_dir, spam_dir, features, mis_only=False, au=None):  # he h
             _vectorize(email, contents)
         sort_contents = sorted(contents.items(), key=operator.itemgetter(1), reverse=True)
         for x in xrange(min(20, len(sort_contents))):
-            print sort_conents[x]
+            print sort_contents[x]
 
         wrong_ham = tester.ham_wrong_examples  # ham called spam
         wrong_spam = tester.spam_wrong_examples  # spam called ham
